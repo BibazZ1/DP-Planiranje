@@ -3,83 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DP Planiranje – Bauzeitenplan</title>
+<title>DP Planiranje</title>
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
-<header class="topbar">
+<div class="bg-blobs"><i></i><i></i><i></i></div>
+
+<header class="topbar glass">
   <div class="brand">
     <span class="logo">▦</span>
     <div>
       <h1>DP <b>Planiranje</b></h1>
-      <span class="sub">Bauzeitenplan · terminski plan gradnje</span>
+      <span class="sub">terminski plan gradnje</span>
     </div>
   </div>
-  <nav class="tabs">
-    <button class="tab active" data-tab="plan">Plan</button>
-    <button class="tab" data-tab="stats">Statistika</button>
-  </nav>
   <div class="actions">
     <label class="yearpick">Godina
       <select id="year"></select>
     </label>
     <button class="btn primary" id="btnAddDp">+ Novi DP</button>
-    <a class="btn ghost" href="/export/csv">⭳ CSV</a>
-    <a class="btn ghost" href="/export/xlsx">⭳ Excel</a>
+    <a class="btn" href="/export/csv">⭳ CSV</a>
+    <a class="btn" href="/export/xlsx">⭳ Excel</a>
   </div>
 </header>
 
-<section id="view-plan" class="view">
-  <div class="kpis" id="kpis"></div>
-  <div class="filterbar">
-    <select id="fDp"><option value="">Svi DP</option></select>
-    <select id="fStatus">
-      <option value="">Svi statusi</option>
-      <option>otvoreno</option><option>u toku</option><option>završeno</option>
-      <option value="__empty__">nepopunjeno</option>
-    </select>
-    <select id="fOdjel"><option value="">Svi odjeli</option></select>
-    <select id="fEsk">
-      <option value="">Eskalacija: sve</option>
-      <option value="da">samo eskalacije</option>
-    </select>
-    <input id="fSearch" type="search" placeholder="Pretraga…">
-    <button class="btn ghost small" id="fReset">Reset</button>
-    <span class="legend">
-      <i class="sw st-zavrseno"></i>završeno
-      <i class="sw st-utoku"></i>u toku
-      <i class="sw st-otvoreno"></i>otvoreno
-      <i class="sw st-stvarno"></i>stvarno (od–do)
-    </span>
-  </div>
-  <div class="paintbar">
-    <span class="plabel">✏ Crtaj mišem:</span>
-    <button class="pill active" data-paint="otvoreno">otvoreno</button>
-    <button class="pill" data-paint="u toku">u toku</button>
-    <button class="pill" data-paint="završeno">završeno</button>
-    <button class="pill" data-paint="__erase__">⌫ briši</button>
-    <span class="hint">klikni ili prevuci po mreži sedmica → upiše datume i oboji status (Esc = otkaži)</span>
-  </div>
-  <div class="grid-wrap" id="gridWrap"></div>
-</section>
+<main>
+  <section class="kpis" id="kpis"></section>
 
-<section id="view-stats" class="view hidden">
-  <div class="cards" id="statCards"></div>
-  <div class="charts">
-    <div class="chartbox"><h3>Zadaci po statusu</h3><canvas id="chStatus"></canvas></div>
-    <div class="chartbox"><h3>Zadaci po odjelu</h3><canvas id="chOdjel"></canvas></div>
-    <div class="chartbox wide"><h3>Napredak po DP (% završeno)</h3><canvas id="chDp"></canvas></div>
+  <section class="slicers glass" id="slicers"></section>
+
+  <section class="tl-card glass">
+    <div class="tl-toolbar">
+      <span class="tl-title">⏱ Timeline</span>
+      <span class="hint">prevuci po praznom = novi termin · dupli klik na traku = uredi ·
+        <kbd>Ctrl</kbd>+kolutić ili kolutić na datumima = zoom</span>
+      <div class="zoomctl">
+        <button class="zbtn" id="zOut" title="Umanji">−</button>
+        <span id="zLabel">sedmice</span>
+        <button class="zbtn" id="zIn" title="Uvećaj">+</button>
+        <button class="zbtn fit" id="zFit" title="Cijela godina">⛶</button>
+      </div>
+    </div>
+    <div class="tl-scroll" id="tlScroll"></div>
+  </section>
+
+  <section class="stats" id="statsWrap">
+    <div class="charts">
+      <div class="chartbox glass"><h3>Termini po statusu</h3><div class="cv"><canvas id="chStatus"></canvas></div></div>
+      <div class="chartbox glass"><h3>Termini po odjelu</h3><div class="cv"><canvas id="chOdjel"></canvas></div></div>
+      <div class="chartbox glass wide"><h3>Napredak po DP — % završeno</h3><div class="cv"><canvas id="chDp"></canvas></div></div>
+    </div>
+    <div class="panel glass" id="eskPanel"></div>
+  </section>
+</main>
+
+<!-- popover za kreiranje / uređivanje termina -->
+<div class="pop glass hidden" id="pop">
+  <div class="pop-head" id="popTitle">Novi termin</div>
+  <div class="pop-status" id="popStatus">
+    <button data-st="otvoreno" class="stpill red">otvoreno</button>
+    <button data-st="u toku" class="stpill amber">u toku</button>
+    <button data-st="završeno" class="stpill teal">završeno</button>
   </div>
-  <div class="panel">
-    <h3>⚠ Eskalacije</h3>
-    <table class="mini" id="tblEsk"></table>
+  <div class="pop-dates">
+    <label>od <input type="date" id="popOd"></label>
+    <label>do <input type="date" id="popDo"></label>
   </div>
-  <div class="panel">
-    <h3>⏰ Probijeni planirani rokovi (nije završeno, plan do &lt; danas)</h3>
-    <table class="mini" id="tblKasni"></table>
+  <label class="pop-field">komentar
+    <input id="popKom" placeholder="npr. čeka se dozvola…">
+  </label>
+  <label class="pop-esk"><input type="checkbox" id="popEsk"> <span>⚠ eskalacija</span></label>
+  <label class="pop-field hidden" id="popRazlogWrap">razlog eskalacije
+    <input id="popRazlog" placeholder="šta je zapelo?">
+  </label>
+  <div class="pop-btns">
+    <button class="btn danger hidden" id="popDel">Obriši</button>
+    <span style="flex:1"></span>
+    <button class="btn" id="popCancel">Otkaži</button>
+    <button class="btn primary" id="popSave">Sačuvaj</button>
   </div>
-</section>
+</div>
 
 <dialog id="dlgDp">
   <form method="dialog" id="frmDp">
@@ -94,7 +98,7 @@
     </div>
     <p class="hint">Automatski se kreira 8 standardnih aktivnosti.</p>
     <menu>
-      <button value="cancel" class="btn ghost">Odustani</button>
+      <button value="cancel" class="btn">Odustani</button>
       <button value="ok" class="btn primary">Sačuvaj</button>
     </menu>
   </form>

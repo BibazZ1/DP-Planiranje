@@ -1,9 +1,7 @@
-# DP Planiranje – Bauzeitenplan
+# DP Planiranje
 
-Interaktivni terminski plan gradnje (zamjena za Excel Gantt) — moderna dark-mode web
-aplikacija koja radi lokalno (Flask + SQLite).
-
-![status](https://img.shields.io/badge/status-aktivno-19e3a2) ![python](https://img.shields.io/badge/python-3.10%2B-39a7ff)
+Interaktivni terminski plan gradnje (Bauzeitenplan) — glassmorphism dark UI,
+zoom timeline od mjeseci do dana, sve se radi mišem. Flask + SQLite, radi lokalno.
 
 ## Pokretanje
 
@@ -12,42 +10,42 @@ pip install flask openpyxl
 python app.py
 ```
 
-ili dupli klik na **START.bat** (Windows) — otvori se **http://127.0.0.1:5050**.
+ili dupli klik na **START.bat** (Windows) — otvori **http://127.0.0.1:5050**.
 
-> Grafikoni (tab Statistika) koriste Chart.js sa CDN-a — sve ostalo radi 100% offline.
+> Grafikoni koriste Chart.js sa CDN-a — sve ostalo radi offline.
+> `http://127.0.0.1:5050/?static=1` isključuje animacije (slabiji računari).
 
-## Funkcije
+## Kako se koristi
 
-### Plan (Gantt)
-- Tabela po DP-ovima: POP/FCP, aktivnost, odjel, status, plan/stvarni datumi, eskalacija, komentar —
-  sve se **edituje direktno u tabeli** (padajuće liste + kalendar).
-- Gantt mreža KW1–52 s **datumima automatski iznad svake sedmice** (+ mjeseci).
-- ✏ **Crtanje mišem**: izaberi status (otvoreno / u toku / završeno / briši) pa
-  **klikni ili prevuci po mreži sedmica** — aplikacija sama upiše "plan od/do" datume
-  i oboji trake. `Esc` otkazuje crtanje u toku.
-- Boje: 🟢 završeno · 🟡 u toku · 🔴 otvoreno; stvarni datumi = plava linija ispod trake;
-  tekuća sedmica je istaknuta.
-- Ako upišeš "stvarno do", status automatski skoči na "završeno".
-- Filteri (DP / status / odjel / eskalacija) + pretraga; KPI kartice uživo.
-- **+ Novi DP** automatski kreira 8 standardnih aktivnosti; "+ aktivnost" dodaje custom.
+| Akcija | Kako |
+|---|---|
+| **Novi termin** | prevuci mišem po praznom dijelu reda → izaberi status, komentar, eskalaciju |
+| **Uredi termin** | dupli klik na traku → promijeni status/datume/komentar ili obriši |
+| **Zoom** | `Ctrl` + kolutić, kolutić na datumima, ili +/−/⛶ dugmad — KW preraste u dane |
+| **Filtriranje** | klikni slicer čipove (DP / status / odjel / ⚠ eskalacije) — sve reaguje uživo |
+| **Više statusa po aktivnosti** | nacrtaj više termina na istom redu (npr. dio završen, dio otvoren) |
+| **Eskalacija** | ⚠ kvačica u popoveru + razlog → traka pulsira crveno, vidi se i u tabeli ispod |
+| **Preimenovanje** | dupli klik na naziv aktivnosti; klik na ljubičasti tag mijenja odjel |
 
-### Statistika
-- Kartice (ukupno / završeno / u toku / otvoreno / eskalacije / HP / HA),
-  grafikoni po statusu, odjelu i % napretka po DP-u,
-  lista eskalacija i **probijenih rokova** (plan do < danas, a nije završeno).
+- Statusi: 🔴 otvoreno · 🟡 u toku · 🟢 završeno; "danas" linija na timeline-u.
+- KPI kartice, grafikoni (status / odjel / % po DP) i lista eskalacija su na **istoj
+  stranici** i reaguju na slicere.
+- **+ Novi DP** kreira 8 standardnih aktivnosti.
 
-### Podaci & export
-- Sve u **bauzeitenplan.db** (SQLite) pored aplikacije — backup = kopiraj fajl.
-  Obriši ga za reset (na startu se ponovo napune primjeri).
-- **Export CSV / Excel** dugmad gore desno — za pivot/analize.
-- REST API: `/api/data`, `/api/stats`, `/api/tasks`, `/api/dps` — lako za integracije.
+## Podaci & export
+
+- Sve u **bauzeitenplan.db** (SQLite) — backup = kopiraj fajl, briši za reset.
+- Više termina (segmenata) po aktivnosti — tabela `segments` (od, do, status,
+  komentar, eskalacija, razlog).
+- **Export CSV / Excel** (po terminu) + REST API: `/api/data`, `/api/stats`,
+  `/api/segments`, `/api/tasks`, `/api/dps`.
 
 ## Struktura
 
 ```
-app.py               Flask backend + SQLite (dps, tasks) + export endpointi
-templates/index.html UI
-static/app.js        logika mreže, crtanje mišem, grafikoni
-static/style.css     dark tema
+app.py               Flask backend + SQLite (dps, tasks, segments) + export
+templates/index.html UI (jedna stranica)
+static/app.js        timeline, zoom, drag-crtanje, popover, sliceri, grafikoni
+static/style.css     glassmorphism dark tema + animacije
 START.bat            pokretanje duplim klikom (Windows)
 ```

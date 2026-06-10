@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Bauzeitenplan - lokalna web aplikacija (Flask + SQLite)."""
+"""DP Planiranje - lokalna web aplikacija (Flask + SQLite)."""
 import csv
 import datetime
 import io
@@ -26,8 +26,8 @@ STANDARD_AKTIVNOSTI = [
     ("Aktivacije", "Aktivacija"),
 ]
 
-TASK_FIELDS = ["aktivnost", "odjel", "status", "plan_od", "plan_do",
-               "stvarno_od", "stvarno_do", "eskalacija", "komentar"]
+TASK_FIELDS = ["aktivnost", "odjel"]
+SEG_FIELDS = ["datum_od", "datum_do", "status", "komentar", "eskalacija", "esk_razlog"]
 DP_FIELDS = ["pop", "naziv", "lokacija", "voditelj", "hp", "ha"]
 
 
@@ -78,9 +78,29 @@ def init_db():
         eskalacija TEXT DEFAULT 'ne',
         komentar TEXT DEFAULT ''
     );
+    CREATE TABLE IF NOT EXISTS segments(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        datum_od TEXT NOT NULL,
+        datum_do TEXT NOT NULL,
+        status TEXT DEFAULT 'otvoreno',
+        komentar TEXT DEFAULT '',
+        eskalacija INTEGER DEFAULT 0,
+        esk_razlog TEXT DEFAULT ''
+    );
     """)
     if con.execute("SELECT COUNT(*) FROM dps").fetchone()[0] == 0:
         seed(con)
+    # migracija: stari plan_od/plan_do/status -> segmenti
+    if con.execute("SELECT COUNT(*) FROM segments").fetchone()[0] == 0:
+        rows = con.execute(
+            "SELECT id, plan_od, plan_do, status, komentar FROM tasks "
+            "WHERE plan_od IS NOT NULL AND plan_do IS NOT NULL AND COALESCE(status,'')<>''"
+        ).fetchall()
+        for tid, od, do_, st, kom in rows:
+            con.execute(
+                "INSERT INTO segments(task_id,datum_od,datum_do,status,komentar) VALUES(?,?,?,?,?)",
+                (tid, od, do_, st, kom or ""))
     con.commit()
     con.close()
 
@@ -107,17 +127,15 @@ def seed(con):
             (pop, naziv, lok, vod, hp, ha))
         dp_id = cur.lastrowid
         for akt, odjel in STANDARD_AKTIVNOSTI:
+            cur2 = con.execute(
+                "INSERT INTO tasks(dp_id,aktivnost,odjel) VALUES(?,?,?)",
+                (dp_id, akt, odjel))
             p = plan.get(akt)
             if p:
                 kw_od, kw_do, st = p
                 con.execute(
-                    "INSERT INTO tasks(dp_id,aktivnost,odjel,status,plan_od,plan_do) "
-                    "VALUES(?,?,?,?,?,?)",
-                    (dp_id, akt, odjel, st, _monday(y, kw_od), _sunday(y, kw_do)))
-            else:
-                con.execute(
-                    "INSERT INTO tasks(dp_id,aktivnost,odjel) VALUES(?,?,?)",
-                    (dp_id, akt, odjel))
+                    "INSERT INTO segments(task_id,datum_od,datum_do,status) VALUES(?,?,?,?)",
+                    (cur2.lastrowid, _monday(y, kw_od), _sunday(y, kw_do), st))
 
 
 @app.route("/")
@@ -128,8 +146,11 @@ def index():
 @app.route("/api/data")
 def api_data():
     dps = [dict(r) for r in db().execute("SELECT * FROM dps ORDER BY pop, naziv")]
-    tasks = [dict(r) for r in db().execute("SELECT * FROM tasks ORDER BY dp_id, id")]
-    return jsonify({"dps": dps, "tasks": tasks})
+    tasks = [dict(r) for r in db().execute(
+        "SELECT id, dp_id, aktivnost, odjel FROM tasks ORDER BY dp_id, id")]
+    segments = [dict(r) for r in db().execute(
+        "SELECT * FROM segments ORDER BY task_id, datum_od")]
+    return jsonify({"dps": dps, "tasks": tasks, "segments": segments})
 
 
 @app.route("/api/dps", methods=["POST"])
@@ -187,55 +208,71 @@ def edit_task(task_id):
     return jsonify({"ok": True})
 
 
+@app.route("/api/segments", methods=["POST"])
+def add_segment():
+    j = request.get_json(force=True)
+    cur = db().execute(
+        "INSERT INTO segments(task_id,datum_od,datum_do,status,komentar,eskalacija,esk_razlog) "
+        "VALUES(?,?,?,?,?,?,?)",
+        (j["task_id"], j["datum_od"], j["datum_do"], j.get("status", "otvoreno"),
+         j.get("komentar", ""), 1 if j.get("eskalacija") else 0, j.get("esk_razlog", "")))
+    db().commit()
+    return jsonify({"id": cur.lastrowid}), 201
+
+
+@app.route("/api/segments/<int:seg_id>", methods=["PATCH", "DELETE"])
+def edit_segment(seg_id):
+    if request.method == "DELETE":
+        db().execute("DELETE FROM segments WHERE id=?", (seg_id,))
+        db().commit()
+        return "", 204
+    j = request.get_json(force=True)
+    if "eskalacija" in j:
+        j["eskalacija"] = 1 if j["eskalacija"] else 0
+    sets = {k: j[k] for k in SEG_FIELDS if k in j}
+    if sets:
+        q = ", ".join(f"{k}=?" for k in sets)
+        db().execute(f"UPDATE segments SET {q} WHERE id=?", (*sets.values(), seg_id))
+        db().commit()
+    return jsonify({"ok": True})
+
+
 @app.route("/api/stats")
 def api_stats():
     d = db()
     by_status = {r["s"]: r["n"] for r in d.execute(
-        "SELECT COALESCE(NULLIF(status,''),'nepopunjeno') s, COUNT(*) n "
-        "FROM tasks GROUP BY s")}
+        "SELECT status s, COUNT(*) n FROM segments GROUP BY status")}
     by_odjel = [dict(r) for r in d.execute(
-        "SELECT odjel, "
-        " SUM(CASE WHEN status='završeno' THEN 1 ELSE 0 END) zavrseno, "
-        " SUM(CASE WHEN status='u toku' THEN 1 ELSE 0 END) utoku, "
-        " SUM(CASE WHEN status='otvoreno' THEN 1 ELSE 0 END) otvoreno, "
-        " SUM(CASE WHEN COALESCE(status,'')='' THEN 1 ELSE 0 END) nepopunjeno "
-        "FROM tasks GROUP BY odjel ORDER BY odjel")]
+        "SELECT t.odjel, "
+        " SUM(CASE WHEN s.status='završeno' THEN 1 ELSE 0 END) zavrseno, "
+        " SUM(CASE WHEN s.status='u toku' THEN 1 ELSE 0 END) utoku, "
+        " SUM(CASE WHEN s.status='otvoreno' THEN 1 ELSE 0 END) otvoreno "
+        "FROM segments s JOIN tasks t ON t.id=s.task_id GROUP BY t.odjel ORDER BY t.odjel")]
     per_dp = [dict(r) for r in d.execute(
-        "SELECT d.id, d.pop, d.naziv, d.lokacija, d.hp, d.ha, "
-        " COUNT(t.id) ukupno, "
-        " SUM(CASE WHEN t.status='završeno' THEN 1 ELSE 0 END) zavrseno, "
-        " SUM(CASE WHEN t.eskalacija='da' THEN 1 ELSE 0 END) eskalacije "
+        "SELECT d.id, d.pop, d.naziv, d.hp, d.ha, COUNT(s.id) ukupno, "
+        " SUM(CASE WHEN s.status='završeno' THEN 1 ELSE 0 END) zavrseno, "
+        " SUM(CASE WHEN s.eskalacija=1 THEN 1 ELSE 0 END) eskalacije "
         "FROM dps d LEFT JOIN tasks t ON t.dp_id=d.id "
-        "GROUP BY d.id ORDER BY d.pop, d.naziv")]
-    totals = dict(d.execute(
-        "SELECT SUM(hp) hp, SUM(ha) ha FROM dps").fetchone())
-    eskalacije = [dict(r) for r in d.execute(
-        "SELECT t.*, d.pop, d.naziv dp_naziv, d.lokacija FROM tasks t "
-        "JOIN dps d ON d.id=t.dp_id WHERE t.eskalacija='da' ORDER BY t.id")]
-    kasnjenja = [dict(r) for r in d.execute(
-        "SELECT t.*, d.pop, d.naziv dp_naziv FROM tasks t JOIN dps d ON d.id=t.dp_id "
-        "WHERE t.plan_do IS NOT NULL AND t.plan_do < date('now') "
-        " AND COALESCE(t.status,'') NOT IN ('završeno') ORDER BY t.plan_do")]
-    return jsonify({"by_status": by_status, "by_odjel": by_odjel,
-                    "per_dp": per_dp, "totals": totals,
-                    "eskalacije": eskalacije, "kasnjenja": kasnjenja})
+        "LEFT JOIN segments s ON s.task_id=t.id GROUP BY d.id ORDER BY d.pop, d.naziv")]
+    return jsonify({"by_status": by_status, "by_odjel": by_odjel, "per_dp": per_dp})
 
 
-def _task_rows():
+def _seg_rows():
     return db().execute(
         "SELECT d.pop 'POP/FCP ID', d.naziv 'DP', d.lokacija 'Lokacija', "
         " d.voditelj 'Voditelj', d.hp 'HP', d.ha 'HA', "
-        " t.aktivnost 'Aktivnost', t.odjel 'Odjel', t.status 'Status', "
-        " t.plan_od 'Plan od', t.plan_do 'Plan do', "
-        " t.stvarno_od 'Stvarno od', t.stvarno_do 'Stvarno do', "
-        " t.eskalacija 'Eskalacija', t.komentar 'Komentar' "
-        "FROM tasks t JOIN dps d ON d.id=t.dp_id ORDER BY d.pop, d.naziv, t.id"
+        " t.aktivnost 'Aktivnost', t.odjel 'Odjel', s.status 'Status', "
+        " s.datum_od 'Od', s.datum_do 'Do', "
+        " CASE s.eskalacija WHEN 1 THEN 'da' ELSE 'ne' END 'Eskalacija', "
+        " s.esk_razlog 'Razlog eskalacije', s.komentar 'Komentar' "
+        "FROM segments s JOIN tasks t ON t.id=s.task_id JOIN dps d ON d.id=t.dp_id "
+        "ORDER BY d.pop, d.naziv, t.id, s.datum_od"
     ).fetchall()
 
 
 @app.route("/export/csv")
 def export_csv():
-    rows = _task_rows()
+    rows = _seg_rows()
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
     if rows:
@@ -243,7 +280,7 @@ def export_csv():
         for r in rows:
             w.writerow(list(r))
     data = io.BytesIO(("﻿" + buf.getvalue()).encode("utf-8"))
-    return send_file(data, as_attachment=True, download_name="bauzeitenplan.csv",
+    return send_file(data, as_attachment=True, download_name="dp_planiranje.csv",
                      mimetype="text/csv")
 
 
@@ -251,7 +288,7 @@ def export_csv():
 def export_xlsx():
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
-    rows = _task_rows()
+    rows = _seg_rows()
     wb = Workbook()
     ws = wb.active
     ws.title = "Plan"
@@ -265,18 +302,20 @@ def export_xlsx():
             c.alignment = Alignment(horizontal="center")
         for r in rows:
             ws.append(list(r))
-        for col, w_ in zip("ABCDEFGHIJKLMNO", (13, 7, 18, 16, 6, 6, 20, 15, 11, 12, 12, 12, 12, 11, 40)):
+        for col, w_ in zip("ABCDEFGHIJKLMN", (13, 7, 18, 16, 6, 6, 20, 15, 11, 12, 12, 11, 30, 30)):
             ws.column_dimensions[col].width = w_
         ws.freeze_panes = "A2"
         ws.auto_filter.ref = ws.dimensions
     out = io.BytesIO()
     wb.save(out)
     out.seek(0)
-    return send_file(out, as_attachment=True, download_name="bauzeitenplan.xlsx",
+    return send_file(out, as_attachment=True, download_name="dp_planiranje.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 init_db()
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5050, debug=False)
+    import os as _os
+    port = int(_os.environ.get("PORT", 5050))
+    app.run(host="127.0.0.1", port=port, debug=False)
