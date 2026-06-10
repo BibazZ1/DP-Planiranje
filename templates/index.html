@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DP Planiranje – Bauzeitenplan</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">▦</span>
+    <div>
+      <h1>DP <b>Planiranje</b></h1>
+      <span class="sub">Bauzeitenplan · terminski plan gradnje</span>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="plan">Plan</button>
+    <button class="tab" data-tab="stats">Statistika</button>
+  </nav>
+  <div class="actions">
+    <label class="yearpick">Godina
+      <select id="year"></select>
+    </label>
+    <button class="btn primary" id="btnAddDp">+ Novi DP</button>
+    <a class="btn ghost" href="/export/csv">⭳ CSV</a>
+    <a class="btn ghost" href="/export/xlsx">⭳ Excel</a>
+  </div>
+</header>
+
+<section id="view-plan" class="view">
+  <div class="kpis" id="kpis"></div>
+  <div class="filterbar">
+    <select id="fDp"><option value="">Svi DP</option></select>
+    <select id="fStatus">
+      <option value="">Svi statusi</option>
+      <option>otvoreno</option><option>u toku</option><option>završeno</option>
+      <option value="__empty__">nepopunjeno</option>
+    </select>
+    <select id="fOdjel"><option value="">Svi odjeli</option></select>
+    <select id="fEsk">
+      <option value="">Eskalacija: sve</option>
+      <option value="da">samo eskalacije</option>
+    </select>
+    <input id="fSearch" type="search" placeholder="Pretraga…">
+    <button class="btn ghost small" id="fReset">Reset</button>
+    <span class="legend">
+      <i class="sw st-zavrseno"></i>završeno
+      <i class="sw st-utoku"></i>u toku
+      <i class="sw st-otvoreno"></i>otvoreno
+      <i class="sw st-stvarno"></i>stvarno (od–do)
+    </span>
+  </div>
+  <div class="paintbar">
+    <span class="plabel">✏ Crtaj mišem:</span>
+    <button class="pill active" data-paint="otvoreno">otvoreno</button>
+    <button class="pill" data-paint="u toku">u toku</button>
+    <button class="pill" data-paint="završeno">završeno</button>
+    <button class="pill" data-paint="__erase__">⌫ briši</button>
+    <span class="hint">klikni ili prevuci po mreži sedmica → upiše datume i oboji status (Esc = otkaži)</span>
+  </div>
+  <div class="grid-wrap" id="gridWrap"></div>
+</section>
+
+<section id="view-stats" class="view hidden">
+  <div class="cards" id="statCards"></div>
+  <div class="charts">
+    <div class="chartbox"><h3>Zadaci po statusu</h3><canvas id="chStatus"></canvas></div>
+    <div class="chartbox"><h3>Zadaci po odjelu</h3><canvas id="chOdjel"></canvas></div>
+    <div class="chartbox wide"><h3>Napredak po DP (% završeno)</h3><canvas id="chDp"></canvas></div>
+  </div>
+  <div class="panel">
+    <h3>⚠ Eskalacije</h3>
+    <table class="mini" id="tblEsk"></table>
+  </div>
+  <div class="panel">
+    <h3>⏰ Probijeni planirani rokovi (nije završeno, plan do &lt; danas)</h3>
+    <table class="mini" id="tblKasni"></table>
+  </div>
+</section>
+
+<dialog id="dlgDp">
+  <form method="dialog" id="frmDp">
+    <h3>Novi DP</h3>
+    <label>POP/FCP ID <input name="pop" required placeholder="POP xyz-003"></label>
+    <label>Naziv DP <input name="naziv" required placeholder="DP 4"></label>
+    <label>Lokacija / dionica <input name="lokacija"></label>
+    <label>Voditelj projekta <input name="voditelj"></label>
+    <div class="row2">
+      <label>Broj HP <input name="hp" type="number" min="0" value="0"></label>
+      <label>Broj HA <input name="ha" type="number" min="0" value="0"></label>
+    </div>
+    <p class="hint">Automatski se kreira 8 standardnih aktivnosti.</p>
+    <menu>
+      <button value="cancel" class="btn ghost">Odustani</button>
+      <button value="ok" class="btn primary">Sačuvaj</button>
+    </menu>
+  </form>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
