@@ -20,9 +20,10 @@ ili dupli klik na **START.bat** (Windows) — otvori **http://127.0.0.1:5050**.
 | Akcija | Kako |
 |---|---|
 | **Novi termin** | prevuci mišem po praznom dijelu reda → izaberi status, komentar, eskalaciju |
+| **Produži / skrati** | povuci lijevu ili desnu ivicu trake → mijenja datum početka/kraja |
 | **Uredi termin** | dupli klik na traku → promijeni status/datume/komentar ili obriši |
-| **Zoom** | `Ctrl` + kolutić, kolutić na datumima, ili +/−/⛶ dugmad — KW preraste u dane |
-| **Filtriranje** | klikni slicer čipove (DP / status / odjel / ⚠ eskalacije) — sve reaguje uživo |
+| **Zoom** | `Ctrl` + kolutić ili +/−/⛶ dugmad — KW preraste u dane (običan scroll = pomjeranje) |
+| **Filtriranje** | klikni slicer čipove (POP / DP / status / odjel / ⚠ eskalacije) — sve reaguje uživo |
 | **Više statusa po aktivnosti** | nacrtaj više termina na istom redu (npr. dio završen, dio otvoren) |
 | **Eskalacija** | ⚠ kvačica u popoveru + razlog → traka pulsira crveno, vidi se i u tabeli ispod |
 | **Preimenovanje** | dupli klik na naziv aktivnosti; klik na ljubičasti tag mijenja odjel |

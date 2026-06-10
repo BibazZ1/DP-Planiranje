@@ -14,8 +14,9 @@ let PX = 3.8;                     // pixels per day
 const PXMIN = 1.2, PXMAX = 36;
 let charts = {};
 let drag = null;                  // {taskId, trackEl, d0, d1, moved}
+let resize = null;                // {segId, side:'od'|'do', track, segEl, curOd, curDo}
 let popCtx = null;                // {mode:'new'|'edit', taskId, segId, status}
-const F = { dp: new Set(), st: new Set(), odj: new Set(), esk: false };
+const F = { pop: new Set(), dp: new Set(), st: new Set(), odj: new Set(), esk: false };
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -58,11 +59,17 @@ function segMatch(s) {
   if (F.esk && !s.eskalacija) return false;
   return true;
 }
+function dpVisible(dp) {
+  if (!dp) return false;
+  if (F.pop.size && !F.pop.has(dp.pop)) return false;
+  if (F.dp.size && !F.dp.has(dp.id)) return false;
+  return true;
+}
 function visibleSegs() {
   return DATA.segments.filter(s => {
     const t = DATA.tasks.find(t => t.id === s.task_id);
     if (!t) return false;
-    if (F.dp.size && !F.dp.has(t.dp_id)) return false;
+    if (!dpVisible(DATA.dps.find(d => d.id === t.dp_id))) return false;
     if (F.odj.size && !F.odj.has(t.odjel)) return false;
     return segMatch(s);
   });
@@ -90,7 +97,7 @@ function renderKpis() {
   const segs = visibleSegs();
   const c = st => segs.filter(s => s.status === st).length;
   const esk = segs.filter(s => s.eskalacija).length;
-  const dps = F.dp.size ? DATA.dps.filter(d => F.dp.has(d.id)) : DATA.dps;
+  const dps = DATA.dps.filter(dpVisible);
   const hp = dps.reduce((a, d) => a + (d.hp || 0), 0);
   const ha = dps.reduce((a, d) => a + (d.ha || 0), 0);
   $("#kpis").innerHTML = `
@@ -110,7 +117,11 @@ function chip(label, cls, on, attrs = "") {
 }
 function renderSlicers() {
   const odj = [...new Set([...ODJELI, ...DATA.tasks.map(t => t.odjel).filter(Boolean)])];
-  let html = `<div class="sl-row"><span class="sl-lbl">DP</span>` +
+  const pops = [...new Set(DATA.dps.map(d => d.pop))];
+  let html = `<div class="sl-row"><span class="sl-lbl">POP</span>` +
+    pops.map(p => chip(p, "pop", F.pop.has(p), `data-pop="${esc(p)}"`)).join("") +
+    `</div>
+    <div class="sl-row"><span class="sl-lbl">DP</span>` +
     DATA.dps.map(d => chip(`${d.pop} · ${d.naziv}`, "dp", F.dp.has(d.id), `data-dp="${d.id}"`)).join("") +
     `</div>
     <div class="sl-row"><span class="sl-lbl">Status</span>` +
@@ -125,7 +136,8 @@ function renderSlicers() {
     `</div>`;
   $("#slicers").innerHTML = html;
   $$("#slicers .chip").forEach(ch => ch.addEventListener("click", () => {
-    if (ch.dataset.clear) { F.dp.clear(); F.st.clear(); F.odj.clear(); F.esk = false; }
+    if (ch.dataset.clear) { F.pop.clear(); F.dp.clear(); F.st.clear(); F.odj.clear(); F.esk = false; }
+    else if (ch.dataset.pop) { const v = ch.dataset.pop; F.pop.has(v) ? F.pop.delete(v) : F.pop.add(v); }
     else if (ch.dataset.dp) { const v = +ch.dataset.dp; F.dp.has(v) ? F.dp.delete(v) : F.dp.add(v); }
     else if (ch.dataset.st) { const v = ch.dataset.st; F.st.has(v) ? F.st.delete(v) : F.st.add(v); }
     else if (ch.dataset.odj) { const v = ch.dataset.odj; F.odj.has(v) ? F.odj.delete(v) : F.odj.add(v); }
@@ -166,11 +178,12 @@ function headerBands(totalW) {
   /* days / monday dates */
   let days = "";
   if (dayMode()) {
+    const showW = PX >= 30, showN = PX >= 12;
     for (let i = 0; i < n; i++) {
       const dt = dateOfIdx(i);
       const we = dt.getDay() === 0 || dt.getDay() === 6;
-      const lbl = PX >= 15 ? `${DANI[(dt.getDay() + 6) % 7]} ${dt.getDate()}` : `${dt.getDate()}`;
-      days += `<div class="hb${we ? " we" : ""}${i === todayI ? " today" : ""}" style="left:${i * PX}px;width:${PX}px">${PX >= 9 ? lbl : ""}</div>`;
+      const lbl = showW ? `${DANI[(dt.getDay() + 6) % 7]} ${dt.getDate()}` : showN ? `${dt.getDate()}` : "";
+      days += `<div class="hb${we ? " we" : ""}${i === todayI ? " today" : ""}" style="left:${i * PX}px;width:${PX}px">${lbl}</div>`;
     }
   } else if (PX >= 2.6) {
     let d2 = new Date(yearStart());
@@ -250,10 +263,11 @@ function renderTimeline(keepScroll) {
           (s.komentar ? ` · ${s.komentar}` : "") + `  (dupli klik = uredi)`;
         segs += `<div class="seg ${cls}${s.eskalacija ? " esk" : ""}" data-seg="${s.id}"
           style="left:${x}px;width:${w}px;${dim ? "opacity:.13;filter:saturate(.3)" : ""}" title="${esc(tip)}">` +
+          `<i class="rh l" data-side="od" title="razvuci početak"></i>` +
           (s.eskalacija ? `<span class="warn">⚠</span>` : "") +
-          (w > 60 ? `<span>${fmt(s.datum_od).slice(0, 5)}–${fmt(s.datum_do).slice(0, 5)}</span>` : "") +
+          (w > 60 ? `<span class="lbl">${fmt(s.datum_od).slice(0, 5)}–${fmt(s.datum_do).slice(0, 5)}</span>` : "") +
           (s.komentar && w > 150 ? `<span class="kom">· ${esc(s.komentar)}</span>` : "") +
-          `</div>`;
+          `<i class="rh r" data-side="do" title="razvuci kraj"></i></div>`;
       }
       html += `<div class="tl-row" data-task="${t.id}">
         <div class="tl-label">
@@ -289,6 +303,13 @@ function snapRange(i0, i1) {
   }
   return [a, b];
 }
+function snapEdge(i, side) {               // snap jednu ivicu (za resize)
+  if (dayMode()) return i;
+  const d = dateOfIdx(i);
+  if (side === "od") d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  else d.setDate(d.getDate() + (7 - (d.getDay() || 7)));
+  return Math.max(0, Math.min(daysInYear() - 1, Math.round((d - yearStart()) / 864e5)));
+}
 function trackDay(e, track) {
   const r = track.getBoundingClientRect();
   return Math.max(0, Math.min(daysInYear() - 1, Math.floor((e.clientX - r.left) / PX)));
@@ -314,6 +335,17 @@ function bindTimeline() {
     sg.addEventListener("dblclick", e => {
       e.stopPropagation();
       openPop("edit", +sg.dataset.seg, e.clientX, e.clientY);
+    });
+  });
+  $$("#tlScroll .seg .rh").forEach(h => {
+    h.addEventListener("mousedown", e => {
+      if (e.button !== 0) return;
+      e.stopPropagation(); e.preventDefault();
+      const segEl = h.closest(".seg"), segId = +segEl.dataset.seg;
+      const s = DATA.segments.find(x => x.id === segId);
+      resize = { segId, side: h.dataset.side, track: segEl.parentElement, segEl,
+                 curOd: dayIdx(s.datum_od), curDo: dayIdx(s.datum_do) };
+      document.body.classList.add("dragging");
     });
   });
   $$("#tlScroll .addTask").forEach(b => b.addEventListener("click", async () => {
@@ -367,7 +399,30 @@ function ghost() {
   drag.track.appendChild(g);
 }
 
-document.addEventListener("mouseup", e => {
+document.addEventListener("mousemove", e => {
+  if (!resize) return;
+  let day = trackDay(e, resize.track);
+  if (resize.side === "od") resize.curOd = snapEdge(Math.min(day, resize.curDo), "od");
+  else resize.curDo = snapEdge(Math.max(day, resize.curOd), "do");
+  resize.segEl.style.left = resize.curOd * PX + "px";
+  resize.segEl.style.width = Math.max(PX, (resize.curDo - resize.curOd + 1) * PX) + "px";
+});
+
+document.addEventListener("mouseup", async e => {
+  if (resize) {
+    const { segId, side, curOd, curDo } = resize;
+    resize = null;
+    document.body.classList.remove("dragging");
+    const s = DATA.segments.find(x => x.id === segId);
+    const body = side === "od" ? { datum_od: iso(dateOfIdx(curOd)) }
+                               : { datum_do: iso(dateOfIdx(curDo)) };
+    if (s[Object.keys(body)[0]] !== Object.values(body)[0]) {
+      Object.assign(s, body);
+      await api(`/api/segments/${segId}`, "PATCH", body);
+      renderAll();
+    }
+    return;
+  }
   if (!drag) return;
   const { taskId } = drag;
   const [a, b] = snapRange(drag.d0, drag.d1);
@@ -388,18 +443,25 @@ document.addEventListener("keydown", e => {
 function openPop(mode, segId, cx, cy, init = {}) {
   const pop = $("#pop");
   let s = { status: "otvoreno", komentar: "", eskalacija: 0, esk_razlog: "" };
+  let taskId;
   if (mode === "edit") {
     s = DATA.segments.find(x => x.id === segId);
+    taskId = s.task_id;
     popCtx = { mode, segId, status: s.status };
-    $("#popTitle").textContent = "Uredi termin";
     $("#popOd").value = s.datum_od; $("#popDo").value = s.datum_do;
     $("#popDel").classList.remove("hidden");
   } else {
-    popCtx = { mode, taskId: init.taskId, status: "otvoreno" };
-    $("#popTitle").textContent = "Novi termin";
+    taskId = init.taskId;
+    popCtx = { mode, taskId, status: "otvoreno" };
     $("#popOd").value = init.od; $("#popDo").value = init.do_;
     $("#popDel").classList.add("hidden");
   }
+  const t = DATA.tasks.find(x => x.id === taskId) || {};
+  const dp = DATA.dps.find(d => d.id === t.dp_id) || {};
+  $("#popTitle").innerHTML =
+    `<span class="pt-ctx">${esc(dp.pop || "")} · ${esc(dp.naziv || "")}</span>` +
+    `<span class="pt-act">${esc(t.aktivnost || "Termin")}</span>` +
+    `<span class="pt-mode">${mode === "edit" ? "uredi" : "novo"}</span>`;
   $("#popKom").value = s.komentar || "";
   $("#popEsk").checked = !!s.eskalacija;
   $("#popRazlog").value = s.esk_razlog || "";
@@ -468,8 +530,7 @@ $("#zFit").addEventListener("click", () => {
   setPx((sc.clientWidth - LABELW - 12) / daysInYear());
 });
 $("#tlScroll").addEventListener("wheel", e => {
-  const inHead = e.target.closest(".tl-row.head");
-  if (!e.ctrlKey && !inHead) return;
+  if (!e.ctrlKey) return;          // samo Ctrl+kolutić zumira; običan scroll = pomjeranje
   e.preventDefault();
   setPx(PX * (e.deltaY < 0 ? 1.3 : 0.77), e.clientX);
 }, { passive: false });

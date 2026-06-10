@@ -36,8 +36,8 @@
   <section class="tl-card glass">
     <div class="tl-toolbar">
       <span class="tl-title">⏱ Timeline</span>
-      <span class="hint">prevuci po praznom = novi termin · dupli klik na traku = uredi ·
-        <kbd>Ctrl</kbd>+kolutić ili kolutić na datumima = zoom</span>
+      <span class="hint">prevuci po praznom = novi termin · dupli klik = uredi ·
+        povuci ivicu trake = produži/skrati · <kbd>Ctrl</kbd>+kolutić ili <b>+ −</b> = zoom</span>
       <div class="zoomctl">
         <button class="zbtn" id="zOut" title="Umanji">−</button>
         <span id="zLabel">sedmice</span>
@@ -61,22 +61,24 @@
 <!-- popover za kreiranje / uređivanje termina -->
 <div class="pop glass hidden" id="pop">
   <div class="pop-head" id="popTitle">Novi termin</div>
+  <div class="pop-cap">Status</div>
   <div class="pop-status" id="popStatus">
     <button data-st="otvoreno" class="stpill red">otvoreno</button>
     <button data-st="u toku" class="stpill amber">u toku</button>
     <button data-st="završeno" class="stpill teal">završeno</button>
   </div>
+  <div class="pop-cap">Period</div>
   <div class="pop-dates">
     <label>od <input type="date" id="popOd"></label>
     <label>do <input type="date" id="popDo"></label>
   </div>
-  <label class="pop-field">komentar
-    <input id="popKom" placeholder="npr. čeka se dozvola…">
-  </label>
+  <div class="pop-cap">Komentar</div>
+  <input class="pop-inp" id="popKom" placeholder="npr. čeka se dozvola…">
   <label class="pop-esk"><input type="checkbox" id="popEsk"> <span>⚠ eskalacija</span></label>
-  <label class="pop-field hidden" id="popRazlogWrap">razlog eskalacije
-    <input id="popRazlog" placeholder="šta je zapelo?">
-  </label>
+  <div class="pop-field hidden" id="popRazlogWrap">
+    <div class="pop-cap esk">Razlog eskalacije</div>
+    <input class="pop-inp" id="popRazlog" placeholder="šta je zapelo?">
+  </div>
   <div class="pop-btns">
     <button class="btn danger hidden" id="popDel">Obriši</button>
     <span style="flex:1"></span>
