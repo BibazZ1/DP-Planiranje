@@ -3,10 +3,14 @@
   "configurations": [
     {
       "name": "dp-planiranje",
-      "runtimeExecutable": "python",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
       "runtimeArgs": ["app.py"],
-      "port": 5050,
-      "autoPort": true
+      "env": {
+        "DEV_FAKE_USER": "e.uzunovic@gfcbh.ba",
+        "PORT": "5060",
+        "HOST": "0.0.0.0"
+      },
+      "port": 5060
     }
   ]
 }

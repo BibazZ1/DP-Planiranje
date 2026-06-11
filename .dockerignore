@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.env.*
+*.db
+__pycache__
+*.pyc
+README.md
+START.bat
+PRODUCTION_MODE.bat
+.claude

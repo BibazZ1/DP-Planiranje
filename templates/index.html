@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DP Planiranje</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
@@ -12,9 +16,13 @@
 
 <header class="topbar glass">
   <div class="brand">
-    <span class="logo">▦</span>
+    <span class="logo"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="11" width="38" height="11" rx="5.5" fill="#10b981"/>
+      <rect x="18" y="27" width="40" height="11" rx="5.5" fill="#3b82f6"/>
+      <rect x="6" y="43" width="26" height="11" rx="5.5" fill="#f59e0b"/>
+    </svg></span>
     <div>
-      <h1>DP <b>Planiranje</b></h1>
+      <h1>DP <b>PLANIRANJE</b></h1>
       <span class="sub" data-i18n="sub">terminski plan gradnje</span>
     </div>
   </div>
@@ -25,42 +33,82 @@
     <button class="btn primary" id="btnAddDp" data-i18n="noviDp">+ Novi DP</button>
     <a class="btn" href="/export/csv">⭳ CSV</a>
     <a class="btn" href="/export/xlsx">⭳ Excel</a>
-    <button class="userbadge" id="userBadge" data-i18n-title="userTip" title="ko si ti?">👤 <b id="userName">?</b></button>
     <div class="langtoggle" id="langToggle">
       <button data-lang="bs">BS</button><button data-lang="en">EN</button><button data-lang="de">DE</button>
     </div>
+    <button class="userbadge" id="userBadge" data-i18n-title="userTip" title="prijavljeni korisnik">
+      <span class="ub-col"><b id="userName">?</b><small id="userMail"></small></span>
+    </button>
+    <a class="btn iconbtn admin" id="btnAdmin" href="/admin" title="administracija pristupa" hidden>🛡</a>
+    <a class="btn iconbtn logout" id="btnLogout" href="/logout" title="Odjava">⏻</a>
   </div>
 </header>
 
 <main>
-  <section class="kpis" id="kpis"></section>
-
-  <!-- projekat iz Daily (Azure): Kunde -> Projekat -> Code, kaskadno filtrira DP/POP -->
-  <section class="proj-card glass" id="projCard">
-    <div class="proj-bar">
-      <span class="tl-title">🗂 <span data-i18n="projekat">Projekat</span></span>
-      <label class="pf"><span data-i18n="kunde">Kunde</span>
-        <select id="pfKunde"></select></label>
-      <label class="pf grow"><span data-i18n="projekat">Projekat</span>
-        <select id="pfProj"></select></label>
-      <label class="pf"><span>Projectcode</span>
-        <select id="pfCode"></select></label>
-      <button class="btn sm" id="pfClear" data-i18n-title="ocistiTip" title="Poništi filtere">✕</button>
-      <span class="hint" id="projMeta"></span>
-      <button class="btn sm" id="btnProjSync" data-i18n-title="syncTip" title="Povuci svježe podatke iz Azure SQL">⟳ Sync</button>
+  <!-- ANALITIKA gore (kao ULAZNE-FAKTURE dashboard): KPI kartice + grafovi -->
+  <section class="fold glass" id="analyticsCard">
+    <button type="button" class="fold-head" data-fold="analitika">
+      <span class="fold-ic">📊</span>
+      <span class="fold-t" data-i18n="foldAnalitika">Analitika</span>
+      <span class="fold-chev">▾</span>
+    </button>
+    <div class="fold-body">
+      <div class="kpis" id="kpis"></div>
+      <div id="projKpis"></div>
+      <div class="charts">
+        <div class="chartbox glass"><h3 data-i18n="chStatus">Termini po statusu</h3><div class="cv"><canvas id="chStatus"></canvas></div></div>
+        <div class="chartbox glass"><h3 data-i18n="chOdjel">Termini po odjelu</h3><div class="cv"><canvas id="chOdjel"></canvas></div></div>
+        <div class="chartbox glass"><h3 data-i18n="chDp">Napredak po DP — % završeno</h3><div class="cv scroll"><div id="chDpInner"><canvas id="chDp"></canvas></div></div></div>
+      </div>
     </div>
-    <div id="projStats"></div>
   </section>
 
-  <section class="slicers glass" id="slicers"></section>
-
-  <!-- pregled (grafovi) PRIJE detalja (timeline tabela) -->
-  <section class="stats" id="statsWrap">
-    <div class="charts">
-      <div class="chartbox glass"><h3 data-i18n="chStatus">Termini po statusu</h3><div class="cv"><canvas id="chStatus"></canvas></div></div>
-      <div class="chartbox glass"><h3 data-i18n="chOdjel">Termini po odjelu</h3><div class="cv"><canvas id="chOdjel"></canvas></div></div>
-      <div class="chartbox glass"><h3 data-i18n="chDp">Napredak po DP — % završeno</h3><div class="cv scroll"><div id="chDpInner"><canvas id="chDp"></canvas></div></div></div>
+  <!-- FILTERI — jedan panel kao ULAZNE-FAKTURE: autocomplete + datumi + čipovi -->
+  <section class="fold glass" id="filterCard">
+    <button type="button" class="fold-head" data-fold="filteri">
+      <span class="filt-pill">☰ <span data-i18n="foldFilteri">Filteri</span>
+        <span class="fold-chev">▾</span>
+        <b class="fbadge hidden" id="fltBadge">0</b></span>
+      <span class="fold-meta hint" id="projMeta"></span>
+    </button>
+    <div class="fold-body">
+      <div class="factive" id="activeBar"></div>
+      <div class="flt-grid">
+        <label class="pf"><span><i class="ic">🏢</i> <span data-i18n="kunde">Kunde</span></span>
+          <span class="combo">
+            <input class="cmb" id="pfKunde" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
+            <button type="button" class="cmb-x" data-for="pfKunde" hidden>✕</button>
+            <div class="combo-list" hidden></div>
+          </span></label>
+        <label class="pf"><span><i class="ic">📁</i> <span data-i18n="projekat">Projekat</span></span>
+          <span class="combo">
+            <input class="cmb" id="pfProj" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
+            <button type="button" class="cmb-x" data-for="pfProj" hidden>✕</button>
+            <div class="combo-list" hidden></div>
+          </span></label>
+        <label class="pf"><span><i class="ic">#</i> Projectcode</span>
+          <span class="combo">
+            <input class="cmb" id="pfCode" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
+            <button type="button" class="cmb-x" data-for="pfCode" hidden>✕</button>
+            <div class="combo-list" hidden></div>
+          </span></label>
+        <label class="pf"><span><i class="ic">📅</i> <span data-i18n="datumOd">Datum od</span></span>
+          <input type="date" id="fDateOd"></label>
+        <label class="pf"><span><i class="ic">📅</i> <span data-i18n="datumDo">Datum do</span></span>
+          <input type="date" id="fDateDo"></label>
+        <div class="pf flt-btns"><span>&nbsp;</span>
+          <span class="btnrow">
+            <button class="btn sm" id="pfClear" data-i18n-title="ocistiTip" title="Poništi sve filtere">✕ <span data-i18n="ocisti">Očisti</span></button>
+            <button class="btn sm" id="btnProjSync" data-i18n-title="syncTip" title="Povuci svježe podatke iz Azure SQL">⟳ Sync</button>
+          </span></div>
+      </div>
+      <div class="slicers" id="slicers"></div>
     </div>
+  </section>
+
+  <!-- POP ▸ DP upravljanje: kreiranje POP-ova / DP-ova + kartice -->
+  <section class="glass mgmt-card" id="popSecCard">
+    <div id="popSec"></div>
   </section>
 
   <section class="tl-card glass">
@@ -139,7 +187,9 @@
 <dialog id="dlgPop">
   <form method="dialog" id="frmPop">
     <h3 data-i18n="noviPopH">Novi POP</h3>
-    <div class="dlg-crumb" id="popProjBadge"></div>
+    <div class="dlg-crumb hidden" id="popProjBadge"></div>
+    <label id="popProjRow"><span data-i18n="projekat">Projekat</span>
+      <select name="projekt" id="popProjSel" required></select></label>
     <label><span data-i18n="popNaziv">Naziv POP</span> <input name="naziv" required placeholder="POP xyz-003" autocomplete="off"></label>
     <div class="row2">
       <label><span data-i18n="brojHp">Broj HP</span> <input name="hp" type="number" min="0" value="0"></label>
@@ -174,6 +224,7 @@
   </div>
 </aside>
 
+<script>window.AUTH = {{ auth | tojson }};</script>
 <script src="/static/app.js"></script>
 </body>
 </html>

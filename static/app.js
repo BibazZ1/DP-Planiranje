@@ -53,9 +53,14 @@ const I18N = {
     userPrompt: "Upiši svoje ime (bilježi se u historiji izmjena):",
     nepoznat: "nepoznat",
     noviPop: "Novi POP", noviPopH: "Novi POP", popNaziv: "Naziv POP",
+    foldFilteri: "Filteri", foldAnalitika: "Analitika", ocisti: "Očisti",
+    aktivni: "Aktivni", ocistiSve: "Očisti sve", traziPh: "Pretraži…",
+    statusLbl: "Status", odjelLbl: "Odjel",
+    datumOd: "Datum od", datumDo: "Datum do", nemaRez: "nema rezultata",
     lockHint: "🔒 izaberi projekat gore da otključaš dodavanje POP-ova",
     popHint: "klik na karticu = historija + filter · ＋ DP = novi DP pod tim POP-om",
     noPops: "još nema POP-ova pod ovim projektom — dodaj prvi ↑",
+    noPopsAny: "još nema nijednog POP-a — klikni ＋ Novi POP",
     noDpsPop: "još nema DP-ova",
     dodajDpTip: "Dodaj DP pod ovaj POP", popCardTip: "klik = historija ovog POP-a",
     drDpCount: "DP-ova", histTitle: "📜 Historija",
@@ -115,9 +120,14 @@ const I18N = {
     userPrompt: "Enter your name (recorded in the change history):",
     nepoznat: "unknown",
     noviPop: "New POP", noviPopH: "New POP", popNaziv: "POP name",
+    foldFilteri: "Filters", foldAnalitika: "Analytics", ocisti: "Clear",
+    aktivni: "Active", ocistiSve: "Clear all", traziPh: "Search…",
+    statusLbl: "Status", odjelLbl: "Department",
+    datumOd: "Date from", datumDo: "Date to", nemaRez: "no results",
     lockHint: "🔒 select a project above to unlock adding POPs",
     popHint: "click a card = history + filter · ＋ DP = new DP under that POP",
     noPops: "no POPs under this project yet — add the first ↑",
+    noPopsAny: "no POPs yet — click ＋ New POP",
     noDpsPop: "no DPs yet",
     dodajDpTip: "Add a DP under this POP", popCardTip: "click = this POP's history",
     drDpCount: "DPs", histTitle: "📜 History",
@@ -177,9 +187,14 @@ const I18N = {
     userPrompt: "Name eingeben (wird im Änderungsverlauf gespeichert):",
     nepoznat: "unbekannt",
     noviPop: "Neuer POP", noviPopH: "Neuer POP", popNaziv: "POP-Name",
+    foldFilteri: "Filter", foldAnalitika: "Analyse", ocisti: "Leeren",
+    aktivni: "Aktiv", ocistiSve: "Alle leeren", traziPh: "Suchen…",
+    statusLbl: "Status", odjelLbl: "Abteilung",
+    datumOd: "Datum von", datumDo: "Datum bis", nemaRez: "keine Treffer",
     lockHint: "🔒 oben ein Projekt wählen, um das Anlegen von POPs freizuschalten",
     popHint: "Klick auf Karte = Verlauf + Filter · ＋ DP = neuer DP unter dem POP",
     noPops: "noch keine POPs in diesem Projekt — ersten anlegen ↑",
+    noPopsAny: "noch keine POPs — auf ＋ Neuer POP klicken",
     noDpsPop: "noch keine DPs",
     dodajDpTip: "DP unter diesem POP anlegen", popCardTip: "Klick = Verlauf dieses POP",
     drDpCount: "DPs", histTitle: "📜 Verlauf",
@@ -221,12 +236,12 @@ const PXMAX = 24;                 // max zoom-in (dani); min is dynamic = fit wh
 let SORT = { key: "pop", dir: 1 };  // 'pop' | 'dp' | 'akt'
 
 /* unique accent color per activity (standard 8 fixed, others hashed) */
-const AKT_PALETTE = ["#39a7ff", "#9d7bff", "#19e3a2", "#ff7849",
+const AKT_PALETTE = ["#3b82f6", "#818cf8", "#10b981", "#ff7849",
                      "#f5d90a", "#ff4da6", "#4dd9e8", "#a3e635"];
 const AKT_COLORS = {
-  "Dozvole": "#f5d90a", "Priključak na POP": "#39a7ff", "Pregled objekata": "#9d7bff",
+  "Dozvole": "#f5d90a", "Priključak na POP": "#3b82f6", "Pregled objekata": "#818cf8",
   "Iskopni radovi": "#ff7849", "Horizontalno bušenje": "#4dd9e8", "Asfaltiranje": "#a3e635",
-  "Montaža": "#ff4da6", "Aktivacije": "#19e3a2",
+  "Montaža": "#ff4da6", "Aktivacije": "#10b981",
 };
 function aktColor(name) {
   if (AKT_COLORS[name]) return AKT_COLORS[name];
@@ -238,28 +253,34 @@ let charts = {};
 let drag = null;                  // {taskId, trackEl, d0, d1, moved}
 let segResize = null;             // {id, side:'l'|'r', segEl, track, a, b, curA, curB}
 let popCtx = null;                // {mode:'new'|'edit', taskId, segId, status}
-const F = { dp: new Set(), pop: new Set(), st: new Set(), odj: new Set(), esk: false };
+const F = { dp: new Set(), pop: new Set(), st: new Set(), odj: new Set(), esk: false,
+            dOd: "", dDo: "" };
 let SEL = null;                   // {type:'pop'|'dp', id} — otvorena historija u draweru
-const POPDLG = { projekt: "" };   // projekat za "+ Novi POP" dijalog
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
 /* ---------- korisnik: ko radi izmjene (ide u historiju) ---------- */
-let USER = (localStorage.getItem("dp_user") || "").trim();
-let askedUser = false;
+/* identitet dolazi iz Azure prijave (server ga upisuje u window.AUTH) */
+let USER = ((window.AUTH && window.AUTH.name) || "").trim().slice(0, 60);
+let askedUser = true; // nema više ručnog upisa imena
 function renderUser() {
   const b = $("#userBadge");
   if (!b) return;
   $("#userName").textContent = USER || "?";
   b.classList.toggle("unset", !USER);
+  if (window.AUTH) {
+    b.title = window.AUTH.email || "";
+    const m = $("#userMail");
+    if (m) m.textContent = window.AUTH.email || "";
+  }
+  const adm = $("#btnAdmin");
+  if (adm && window.AUTH && window.AUTH.is_admin) adm.hidden = false;
 }
 function askUser() {
-  const v = prompt(t("userPrompt"), USER);
-  if (v !== null) {
-    USER = v.trim().slice(0, 60);
-    localStorage.setItem("dp_user", USER);
-    renderUser();
+  /* ime je vezano za Microsoft nalog — ne mijenja se ručno */
+  if (window.AUTH && window.AUTH.email) {
+    alert(`${t("userTip") || "prijavljeni korisnik"}: ${USER} (${window.AUTH.email})`);
   }
 }
 
@@ -286,15 +307,14 @@ function isoWeekOf(d) {
 function todayIso() { const d = new Date(); return iso(d); }
 
 async function api(url, method = "GET", body = null) {
-  /* prva izmjena bez upisanog imena -> pitaj jednom (za historiju) */
-  if (method !== "GET" && !USER && !askedUser) { askedUser = true; askUser(); }
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
-  if (USER) headers["X-User"] = encodeURIComponent(USER);
   const r = await fetch(url, {
     method, headers,
     body: body ? JSON.stringify(body) : null,
   });
+  /* sesija istekla -> nazad na Microsoft prijavu */
+  if (r.status === 401) { location.href = "/login"; return null; }
   if (!r.ok) throw new Error(await r.text());
   return r.status === 204 ? null : r.json();
 }
@@ -303,6 +323,9 @@ async function api(url, method = "GET", body = null) {
 function segMatch(s) {
   if (F.st.size && !F.st.has(s.status)) return false;
   if (F.esk && !s.eskalacija) return false;
+  /* datumski filter: termin se preklapa sa izabranim rasponom */
+  if (F.dOd && s.datum_do < F.dOd) return false;
+  if (F.dDo && s.datum_od > F.dDo) return false;
   return true;
 }
 /* kaskada: Kunde -> Projekat -> DP/POP. Kad je projekt-filter aktivan,
@@ -396,51 +419,76 @@ function renderSlicers() {
   const pops = [...new Set(dps.map(d => d.pop).filter(Boolean))].sort(cmpStr);
   const dpLbl = d => `${d.pop} · ${d.naziv}`;
 
-  /* odabrani POP / DP kao mali tagovi sa ✕ */
-  const tags =
-    [...F.pop].map(p => `<button class="tag pop" data-xpop="${esc(p)}">${esc(p)} ✕</button>`).join("") +
-    [...F.dp].map(id => {
-      const d = DATA.dps.find(x => x.id === id);
-      return d ? `<button class="tag dp" data-xdp="${id}">${esc(dpLbl(d))} ✕</button>` : "";
-    }).join("");
+  /* broj aktivnih filtera -> crvena značka na "Filteri" dugmetu (kao ULAZNE-FAKTURE) */
+  const nProj = (PROJ.kunde ? 1 : 0) + (PROJ.code ? 1 : 0) + (PROJ.name ? 1 : 0);
+  const nAct = F.pop.size + F.dp.size + F.st.size + F.odj.size + (F.esk ? 1 : 0) + nProj
+    + (F.dOd ? 1 : 0) + (F.dDo ? 1 : 0);
+  const badge = $("#fltBadge");
+  if (badge) { badge.textContent = nAct; badge.classList.toggle("hidden", !nAct); }
 
-  $("#slicers").innerHTML = `<div class="sl-bar">
-      <input class="sl-pick" id="slPopIn" list="dlPop" placeholder="🔍 POP…" autocomplete="off">
-      <input class="sl-pick wide" id="slDpIn" list="dlDp" placeholder="🔍 DP…" autocomplete="off">
-      ${tags}
-      <span class="sl-gap"></span>
+  /* AKTIVNI: red — svi aktivni filteri kao pilule sa ✕ (kao ULAZNE-FAKTURE) */
+  const fchip = (lbl, attrs) => `<button class="fchip" ${attrs}>${lbl} <i>✕</i></button>`;
+  const act = [];
+  if (PROJ.kunde) act.push(fchip(`🏢 ${esc(PROJ.kunde)}`, `data-xkunde="1"`));
+  if (PROJ.name) act.push(fchip(`📁 ${esc(PROJ.name)}`, `data-xproj="1"`));
+  if (PROJ.code) act.push(fchip(`# ${esc(PROJ.code)}`, `data-xcode="1"`));
+  [...F.pop].forEach(p => act.push(fchip(`🗼 ${esc(p)}`, `data-xpop="${esc(p)}"`)));
+  [...F.dp].forEach(id => {
+    const d = DATA.dps.find(x => x.id === id);
+    if (d) act.push(fchip(`📍 ${esc(dpLbl(d))}`, `data-xdp="${id}"`));
+  });
+  [...F.st].forEach(s => act.push(fchip(esc(stT(s)), `data-xst="${esc(s)}"`)));
+  [...F.odj].forEach(o => act.push(fchip(esc(o), `data-xodj="${esc(o)}"`)));
+  if (F.esk) act.push(fchip(`⚠ ${t("kEsk")}`, `data-xesk="1"`));
+  if (F.dOd) act.push(fchip(`📅 ≥ ${fmt(F.dOd)}`, `data-xdod="1"`));
+  if (F.dDo) act.push(fchip(`📅 ≤ ${fmt(F.dDo)}`, `data-xddo="1"`));
+  const ab = $("#activeBar");
+  if (ab) {
+    ab.innerHTML = act.length
+      ? `<span class="factive-lbl">${t("aktivni")}:</span> ${act.join("")}
+         <button class="fchip clearall" data-clearall="1">🗑 ${t("ocistiSve")}</button>` : "";
+    $$("#activeBar .fchip").forEach(ch => ch.addEventListener("click", () => {
+      const clearedProj = ch.dataset.clearall || ch.dataset.xkunde || ch.dataset.xproj || ch.dataset.xcode;
+      if (ch.dataset.clearall) {
+        F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false;
+        F.dOd = F.dDo = ""; $("#fDateOd").value = ""; $("#fDateDo").value = "";
+        PROJ.kunde = PROJ.code = PROJ.name = "";
+      }
+      else if (ch.dataset.xkunde) PROJ.kunde = "";
+      else if (ch.dataset.xproj) PROJ.name = "";
+      else if (ch.dataset.xcode) PROJ.code = "";
+      else if (ch.dataset.xpop) F.pop.delete(ch.dataset.xpop);
+      else if (ch.dataset.xdp) F.dp.delete(+ch.dataset.xdp);
+      else if (ch.dataset.xst) F.st.delete(ch.dataset.xst);
+      else if (ch.dataset.xodj) F.odj.delete(ch.dataset.xodj);
+      else if (ch.dataset.xesk) F.esk = false;
+      else if (ch.dataset.xdod) { F.dOd = ""; $("#fDateOd").value = ""; }
+      else if (ch.dataset.xddo) { F.dDo = ""; $("#fDateDo").value = ""; }
+      if (clearedProj) projFilterChanged(); else renderAll();
+    }));
+  }
+
+  /* redovi čipova (kao "TIP FAKTURE" red u ULAZNE dashboardu) —
+     POP/DP se filtriraju klikom na kartice/grafove, pa posebna polja nisu potrebna */
+  $("#slicers").innerHTML = `
+    <div class="sl-row">
+      <span class="sl-lbl"><i class="ic">🚦</i> ${t("statusLbl")}</span>
       ${chip(`${stT("otvoreno")}${cnt(nSt("otvoreno"))}`, "mini st-otvoreno", F.st.has("otvoreno"), `data-st="otvoreno"`)}
       ${chip(`${stT("u toku")}${cnt(nSt("u toku"))}`, "mini st-utoku", F.st.has("u toku"), `data-st="u toku"`)}
       ${chip(`${stT("završeno")}${cnt(nSt("završeno"))}`, "mini st-zavrseno", F.st.has("završeno"), `data-st="završeno"`)}
       ${chip(`⚠${cnt(nEsk)}`, "mini esk", F.esk, `data-esk="1" title="${t("eskChip")}"`)}
-      <span class="sl-div"></span>
-      ${odj.map(o => chip(esc(o), "mini odj", F.odj.has(o), `data-odj="${o}"`)).join("")}
-      ${anyF ? chip("✕", "mini clear", false, `data-clear="1" title="${t("clearAll")}"`) : ""}
     </div>
-    <datalist id="dlPop">${pops.map(p => `<option value="${esc(p)}">`).join("")}</datalist>
-    <datalist id="dlDp">${dps.map(d => `<option value="${esc(dpLbl(d))}">`).join("")}</datalist>`;
+    <div class="sl-row">
+      <span class="sl-lbl"><i class="ic">🏗</i> ${t("odjelLbl")}</span>
+      ${odj.map(o => chip(esc(o), "mini odj", F.odj.has(o), `data-odj="${o}"`)).join("")}
+    </div>`;
 
   $$("#slicers .chip").forEach(ch => ch.addEventListener("click", () => {
-    if (ch.dataset.clear) { F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false; }
-    else if (ch.dataset.st) { const v = ch.dataset.st; F.st.has(v) ? F.st.delete(v) : F.st.add(v); }
+    if (ch.dataset.st) { const v = ch.dataset.st; F.st.has(v) ? F.st.delete(v) : F.st.add(v); }
     else if (ch.dataset.odj) { const v = ch.dataset.odj; F.odj.has(v) ? F.odj.delete(v) : F.odj.add(v); }
     else if (ch.dataset.esk) F.esk = !F.esk;
     renderAll();
   }));
-  $$("#slicers .tag").forEach(tg => tg.addEventListener("click", () => {
-    if (tg.dataset.xpop) F.pop.delete(tg.dataset.xpop);
-    if (tg.dataset.xdp) F.dp.delete(+tg.dataset.xdp);
-    renderAll();
-  }));
-  $("#slPopIn").addEventListener("change", e => {
-    const v = e.target.value.trim();
-    if (pops.includes(v)) { F.pop.add(v); renderAll(); $("#slPopIn")?.focus(); }
-  });
-  $("#slDpIn").addEventListener("change", e => {
-    const v = e.target.value.trim();
-    const d = dps.find(x => dpLbl(x) === v);
-    if (d) { F.dp.add(d.id); renderAll(); $("#slDpIn")?.focus(); }
-  });
 }
 
 /* ---------- sorting ---------- */
@@ -971,13 +1019,21 @@ $("#tlScroll").addEventListener("wheel", e => {
 
 /* ---------- stats (ista stranica, reaguje na slicere) ---------- */
 function chartDefaults() {
-  Chart.defaults.color = "#76859b";
-  Chart.defaults.borderColor = "rgba(255,255,255,.06)";
-  Chart.defaults.font.family = "'Segoe UI',system-ui,sans-serif";
+  /* tipografija i boje grafova = ULAZNE-FAKTURE (Inter, slate, tamni tooltipovi) */
+  Chart.defaults.color = "#94a3b8";
+  Chart.defaults.borderColor = "rgba(51,65,85,.55)";
+  Chart.defaults.font.family = "'Inter','Segoe UI',system-ui,sans-serif";
   Chart.defaults.font.size = 10.5;
   Chart.defaults.animation.duration = 500;
   Chart.defaults.plugins.legend.labels.boxWidth = 10;
   Chart.defaults.plugins.legend.labels.boxHeight = 10;
+  Chart.defaults.plugins.tooltip.backgroundColor = "#1e293b";
+  Chart.defaults.plugins.tooltip.borderColor = "#334155";
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.plugins.tooltip.titleColor = "#f1f5f9";
+  Chart.defaults.plugins.tooltip.bodyColor = "#94a3b8";
+  Chart.defaults.plugins.tooltip.padding = 10;
+  Chart.defaults.plugins.tooltip.cornerRadius = 8;
 }
 /* kratko zasvijetli trake koje odgovaraju uslovu (poslije klika na graf) */
 function flashSegs(pred) {
@@ -1003,8 +1059,8 @@ function renderStats() {
   C("#chStatus", { type: "doughnut", data: {
       labels: STATUSI.map(stT),
       datasets: [{ data: STATUSI.map(c),
-        backgroundColor: ["#19e3a2", "#ffb224", "#ff4d6a"],
-        borderColor: "rgba(10,16,26,.9)", borderWidth: 3, hoverOffset: 8 }] },
+        backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
+        borderColor: "#1e293b", borderWidth: 3, hoverOffset: 8 }] },
     options: { maintainAspectRatio: false, cutout: "70%",
       onHover: chartCursor,
       onClick: (e, els) => {
@@ -1024,9 +1080,9 @@ function renderStats() {
   C("#chOdjel", { type: "bar", data: {
       labels: odj,
       datasets: [
-        { label: stT("završeno"), data: byOdj("završeno"), backgroundColor: "#19e3a2", borderRadius: 5 },
-        { label: stT("u toku"), data: byOdj("u toku"), backgroundColor: "#ffb224", borderRadius: 5 },
-        { label: stT("otvoreno"), data: byOdj("otvoreno"), backgroundColor: "#ff4d6a", borderRadius: 5 }] },
+        { label: stT("završeno"), data: byOdj("završeno"), backgroundColor: "#10b981", borderRadius: 5 },
+        { label: stT("u toku"), data: byOdj("u toku"), backgroundColor: "#f59e0b", borderRadius: 5 },
+        { label: stT("otvoreno"), data: byOdj("otvoreno"), backgroundColor: "#ef4444", borderRadius: 5 }] },
     options: { maintainAspectRatio: false,
       onHover: chartCursor,
       onClick: (e, els) => {
@@ -1053,7 +1109,7 @@ function renderStats() {
   C("#chDp", { type: "bar", data: {
       labels: dps.map(d => `${d.pop} · ${d.naziv}`),
       datasets: [{ data: pctDp,
-        backgroundColor: pctDp.map(p => p >= 100 ? "#19e3a2" : "#39a7ff"),
+        backgroundColor: pctDp.map(p => p >= 100 ? "#10b981" : "#3b82f6"),
         borderRadius: 4, barThickness: 9 }] },
     options: { maintainAspectRatio: false, indexAxis: "y",
       onHover: chartCursor,
@@ -1108,19 +1164,10 @@ function fillSelect(sel, values, current, allLabel) {
     values.map(v => `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(v)}</option>`).join("");
 }
 function renderProj() {
-  /* kaskadni dropdownovi: Kunde sužava projekte i kodove (i obratno) */
-  const byKC = PROJ.rows.filter(p =>
-    (!PROJ.kunde || p.kunde === PROJ.kunde) && (!PROJ.code || p.projectcode === PROJ.code));
-  fillSelect($("#pfKunde"),
-    [...new Set(PROJ.rows.filter(p => !PROJ.code || p.projectcode === PROJ.code)
-      .map(p => p.kunde).filter(Boolean))].sort(cmpStr),
-    PROJ.kunde, t("sviKunde"));
-  fillSelect($("#pfCode"),
-    [...new Set(PROJ.rows.filter(p => !PROJ.kunde || p.kunde === PROJ.kunde)
-      .map(p => p.projectcode).filter(Boolean))].sort(cmpStr),
-    PROJ.code, t("sviCode"));
-  fillSelect($("#pfProj"), byKC.map(p => p.projektname).sort(cmpStr),
-    PROJ.name, t("sviProj"));
+  /* autocomplete poljima samo sinhronizuj prikazanu vrijednost (opcije se računaju uživo) */
+  syncCombo("pfKunde", PROJ.kunde);
+  syncCombo("pfCode", PROJ.code);
+  syncCombo("pfProj", PROJ.name);
   /* datalist za dijalog "+ Novi DP" — uvijek svi projekti */
   $("#dlProj").innerHTML = PROJ.rows.map(p => `<option value="${esc(p.projektname)}">`).join("");
 
@@ -1140,7 +1187,8 @@ function renderProj() {
 
   const card = (cls, val, lbl) =>
     `<div class="kpi ${cls}"><div class="num">${val}</div><div class="lbl">${lbl}</div></div>`;
-  let html = `<div class="proj-title">${PROJ.name ? "📌 " : ""}${title}
+  /* --- KPI kartice projekta -> idu u sekciju Analitika --- */
+  $("#projKpis").innerHTML = `<div class="proj-title">${PROJ.name ? "📌 " : ""}${title}
       ${PROJ.name && f[0] ? `<span class="proj-sub">${esc(f[0].kunde)} · code ${esc(f[0].projectcode)}</span>` : ""}
     </div>
     <div class="kpis proj-kpis">
@@ -1152,55 +1200,59 @@ function renderProj() {
       ${card("grey", lastWork ? fmt(lastWork) : "—", t("zadnjiRad"))}
     </div>`;
 
-  /* hijerarhija: Projekat ▸ POP ▸ DP — izbor projekta otključava kreiranje POP-ova */
+  /* hijerarhija: Projekat ▸ POP ▸ DP — kreiranje POP/DP je UVIJEK dostupno
+     (projekat se bira u samom dijalogu), filter samo sužava prikaz kartica */
   const names = new Set(f.map(p => p.projektname));
   const pname = effProjName();
-  html += `<div class="pop-sec">
+  const scopePops = pname
+    ? DATA.pops.filter(p => p.projekt === pname)
+    : active
+      ? DATA.pops.filter(p => names.has(p.projekt))
+      : DATA.pops;
+  let html = `<div class="pop-sec">
     <div class="pop-sec-head">
       <span class="sl-lbl">POP ▸ DP</span>
-      <button class="btn sm${pname ? " primary" : ""}" id="btnAddPop"${pname ? "" : " disabled"}>${pname ? "＋ " + t("noviPop") : "🔒 " + t("noviPop")}</button>
+      <button class="btn sm primary" id="btnAddPop">＋ ${t("noviPop")}</button>
+      <button class="btn sm" id="btnAddDpHere">＋ ${t("noviDpH")}</button>
       <span class="hint">${pname
         ? `<b class="crumb">${esc(pname)}</b> · ${t("popHint")}`
-        : t("lockHint")}</span>
+        : t("popHint")}</span>
     </div>`;
-  if (pname) {
-    const pops = DATA.pops.filter(p => p.projekt === pname);
-    html += pops.length
-      ? `<div class="pop-grid">${pops.map(popCard).join("")}</div>`
-      : `<div class="hint">${t("noPops")}</div>`;
-  } else if (active) {
-    /* više projekata u filteru -> ravni DP čipovi kao ranije */
-    const dps = DATA.dps.filter(d => d.projekt && names.has(d.projekt));
-    html += `<div class="proj-dps">` +
-      (dps.length
-        ? dps.map(d => chip(`${esc(d.pop)} · ${esc(d.naziv)}`, "dp", F.dp.has(d.id), `data-cdp="${d.id}"`)).join("") +
-          `<span class="hint">${t("dpChipHint")}</span>`
-        : `<span class="hint">${t("noDp")}</span>`) +
-      `</div>`;
-  }
+  html += scopePops.length
+    ? `<div class="pop-grid">${scopePops.map(popCard).join("")}</div>`
+    : `<div class="hint">${active ? t("noPops") : t("noPopsAny")}</div>`;
   html += `</div>`;
-  $("#projStats").innerHTML = html;
-  const bAddPop = $("#btnAddPop");
-  if (bAddPop && pname) bAddPop.addEventListener("click", () => {
-    POPDLG.projekt = pname;
-    $("#popProjBadge").innerHTML = `${esc(pname)} <i>▸</i> ${t("noviPopH")}`;
-    $("#frmPop").reset();
-    $("#dlgPop").showModal();
-  });
-  $$("#projStats .pop-card").forEach(card => card.addEventListener("click", e => {
+  $("#popSec").innerHTML = html;
+  $("#btnAddPop")?.addEventListener("click", () => openPopDialog(pname));
+  $("#btnAddDpHere")?.addEventListener("click", () => openDpDialog(null));
+  $$("#popSec .pop-card").forEach(card => card.addEventListener("click", e => {
     if (e.target.closest(".pc-adddp") || e.target.closest(".chip")) return;
     selectPop(+card.dataset.pop);
   }));
-  $$("#projStats .pc-adddp").forEach(b => b.addEventListener("click", () =>
+  $$("#popSec .pc-adddp").forEach(b => b.addEventListener("click", () =>
     openDpDialog(+b.closest(".pop-card").dataset.pop)));
-  $$("#projStats .chip[data-cdp]").forEach(ch => ch.addEventListener("click", () =>
+  $$("#popSec .chip[data-cdp]").forEach(ch => ch.addEventListener("click", () =>
     selectDp(+ch.dataset.cdp)));
 }
-/* projekat za koji se smiju dodavati POP-ovi: tačno jedan izabran/efektivan */
+/* prijedlog projekta za dijaloge: izabrani, ili jedini u filteru */
 function effProjName() {
   if (PROJ.name) return PROJ.name;
   const f = projFiltered();
   return (PROJ.kunde || PROJ.code) && f.length === 1 ? f[0].projektname : null;
+}
+/* "+ Novi POP" — projekat se bira u dijalogu (nema više zaključavanja) */
+function openPopDialog(pname) {
+  const sel = $("#popProjSel");
+  const active = PROJ.kunde || PROJ.code || PROJ.name;
+  const list = active ? projFiltered().map(p => p.projektname) : PROJ.rows.map(p => p.projektname);
+  const names = [...new Set(list.filter(Boolean))].sort(cmpStr);
+  if (pname && !names.includes(pname)) names.unshift(pname);
+  sel.innerHTML = `<option value="" disabled${pname ? "" : " selected"}>${t("sviProj")}</option>` +
+    names.map(n => `<option value="${esc(n)}"${n === pname ? " selected" : ""}>${esc(n)}</option>`).join("");
+  $("#frmPop").reset();
+  if (pname) sel.value = pname;
+  $("#popProjBadge").classList.add("hidden");
+  $("#dlgPop").showModal();
 }
 function popCard(p) {
   const dps = DATA.dps.filter(d => d.pop_id === p.id);
@@ -1411,7 +1463,8 @@ function openDpDialog(popId) {
 $("#frmPop").addEventListener("submit", async e => {
   if (e.submitter && e.submitter.value === "cancel") return;
   const body = Object.fromEntries(new FormData(e.target).entries());
-  body.projekt = POPDLG.projekt;
+  body.projekt = ($("#popProjSel").value || "").trim();
+  if (!body.projekt) return;                 // projekat je obavezan (select required)
   e.target.reset();
   try {
     await api("/api/pops", "POST", body);
@@ -1421,11 +1474,87 @@ $("#frmPop").addEventListener("submit", async e => {
   }
   await load();
 });
-$("#pfKunde").addEventListener("change", e => { PROJ.kunde = e.target.value; projFilterChanged(); });
-$("#pfCode").addEventListener("change", e => { PROJ.code = e.target.value; projFilterChanged(); });
-$("#pfProj").addEventListener("change", e => { PROJ.name = e.target.value; projFilterChanged(); });
+/* ---------- ULAZNE-style autocomplete: kucaš -> padajuće sugestije ---------- */
+function comboOpts(id) {
+  if (id === "pfKunde") return [...new Set(PROJ.rows
+    .filter(p => !PROJ.code || p.projectcode === PROJ.code)
+    .map(p => p.kunde).filter(Boolean))].sort(cmpStr);
+  if (id === "pfCode") return [...new Set(PROJ.rows
+    .filter(p => !PROJ.kunde || p.kunde === PROJ.kunde)
+    .map(p => p.projectcode).filter(Boolean))].sort(cmpStr);
+  return [...new Set(PROJ.rows
+    .filter(p => (!PROJ.kunde || p.kunde === PROJ.kunde) &&
+                 (!PROJ.code || p.projectcode === PROJ.code))
+    .map(p => p.projektname).filter(Boolean))].sort(cmpStr);
+}
+function comboGet(id) {
+  return id === "pfKunde" ? PROJ.kunde : id === "pfCode" ? PROJ.code : PROJ.name;
+}
+function comboSet(id, v) {
+  if (id === "pfKunde") PROJ.kunde = v;
+  else if (id === "pfCode") PROJ.code = v;
+  else PROJ.name = v;
+  projFilterChanged();
+}
+function syncCombo(id, val) {
+  const inp = $("#" + id);
+  if (!inp) return;
+  if (document.activeElement !== inp) inp.value = val || "";
+  const x = inp.parentElement.querySelector(".cmb-x");
+  if (x) x.hidden = !val;
+}
+function initCombo(id) {
+  const inp = $("#" + id);
+  if (!inp) return;
+  const box = inp.parentElement;
+  const list = box.querySelector(".combo-list");
+  const x = box.querySelector(".cmb-x");
+  const show = q => {
+    const ql = (q || "").trim().toLowerCase();
+    const opts = comboOpts(id);
+    const hits = ql ? opts.filter(o => o.toLowerCase().includes(ql)) : opts;
+    list.innerHTML = hits.slice(0, 60).map(o => {
+      const i = ql ? o.toLowerCase().indexOf(ql) : -1;
+      const lbl = i >= 0
+        ? esc(o.slice(0, i)) + "<b>" + esc(o.slice(i, i + ql.length)) + "</b>" + esc(o.slice(i + ql.length))
+        : esc(o);
+      return `<div class="combo-opt" data-v="${esc(o)}">${lbl}</div>`;
+    }).join("") || `<div class="combo-empty">${t("nemaRez")}</div>`;
+    list.hidden = false;
+  };
+  inp.addEventListener("focus", () => show(inp.value));
+  inp.addEventListener("input", () => show(inp.value));
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const first = list.querySelector(".combo-opt");
+      if (first) { comboSet(id, first.dataset.v); list.hidden = true; inp.blur(); }
+    } else if (e.key === "Escape") { list.hidden = true; inp.blur(); }
+  });
+  inp.addEventListener("blur", () => setTimeout(() => {
+    list.hidden = true;
+    inp.value = comboGet(id) || "";   // prikaz uvijek prati stvarno stanje filtera
+  }, 150));
+  list.addEventListener("pointerdown", e => {
+    const opt = e.target.closest(".combo-opt");
+    if (!opt) return;
+    e.preventDefault();
+    comboSet(id, opt.dataset.v);
+    list.hidden = true;
+  });
+  if (x) x.addEventListener("click", () => comboSet(id, ""));
+}
+["pfKunde", "pfProj", "pfCode"].forEach(initCombo);
+
+/* datumski filter termina (preklapanje s rasponom) */
+$("#fDateOd").addEventListener("change", e => { F.dOd = e.target.value || ""; renderAll(); });
+$("#fDateDo").addEventListener("change", e => { F.dDo = e.target.value || ""; renderAll(); });
+
+/* ✕ Očisti = poništi SVE filtere odjednom */
 $("#pfClear").addEventListener("click", () => {
   PROJ.kunde = PROJ.code = PROJ.name = "";
+  F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false;
+  F.dOd = F.dDo = ""; $("#fDateOd").value = ""; $("#fDateDo").value = "";
   projFilterChanged();
 });
 $("#btnProjSync").addEventListener("click", async () => {
@@ -1454,6 +1583,25 @@ function setLang(l) {
 }
 $$("#langToggle button").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
 applyLang();
+
+/* ---------- sklopive sekcije (Filteri / Analitika), stanje se pamti ---------- */
+function initFolds() {
+  $$(".fold-head").forEach(h => {
+    const fold = h.closest(".fold");
+    const key = "dp_fold_" + h.dataset.fold;
+    const stored = localStorage.getItem(key);
+    if (stored === "1") fold.classList.add("collapsed");
+    else if (stored === "0") fold.classList.remove("collapsed");
+    h.addEventListener("click", () => {
+      const collapsed = fold.classList.toggle("collapsed");
+      localStorage.setItem(key, collapsed ? "1" : "0");
+      /* grafovi kreirani dok je sekcija skrivena imaju 0 dimenzija —
+         preračunaj ih kad se Analitika otvori */
+      if (!collapsed) for (const k in charts) charts[k].resize();
+    });
+  });
+}
+initFolds();
 
 /* ---------- shell ---------- */
 const yearSel = $("#year");

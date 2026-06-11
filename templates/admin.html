@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — DP Planiranje</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* dizajn = ULAZNE-FAKTURE (slate + emerald, Inter) */
+  :root {
+    --bg-body: #0f172a; --bg-card: #1e293b; --bg-inner: #0f172a;
+    --text-main: #f1f5f9; --text-muted: #94a3b8; --text-dim: #64748b;
+    --border-color: #334155;
+    --primary: #10b981; --primary-dark: #059669;
+    --danger: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(180deg, #020617 0%, #0f172a 100%) fixed;
+    color: var(--text-main); min-height: 100vh; font-size: 13.5px;
+  }
+  .admin-wrap { max-width: 880px; margin: 36px auto; padding: 0 18px; }
+  .topnav { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .topnav h1 { font-size: 20px; font-weight: 700; flex: 1; letter-spacing: 0.02em; }
+  .topnav .who { font-size: 12px; color: var(--text-muted); }
+  .topnav .who b { color: var(--text-main); }
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border-color);
+    border-radius: 16px; padding: 26px 28px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+  .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .card .hint { display: block; font-size: 12.5px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5; }
+  .card .hint b { color: var(--text-main); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    text-decoration: none; transition: all 0.2s; cursor: pointer;
+    background: rgba(100, 116, 139, 0.1); color: var(--text-muted);
+    border: 1px solid rgba(100, 116, 139, 0.2); font-family: inherit;
+  }
+  .btn:hover { background: rgba(100, 116, 139, 0.2); color: var(--text-main); transform: translateY(-1px); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
+  .btn.primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); color: #fff; }
+  .btn.danger { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.25); color: var(--danger); }
+  .btn.danger:hover { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+  .btn.sm { padding: 6px 12px; font-size: 12px; }
+  form.addrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+  form.addrow input[type=email] {
+    flex: 1; min-width: 240px; padding: 10px 14px; border-radius: 8px;
+    border: 1px solid var(--border-color); background: var(--bg-inner);
+    color: var(--text-main); font-family: inherit; font-size: 13px;
+  }
+  form.addrow input[type=email]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+  form.addrow select {
+    padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--bg-inner); color: var(--text-main); font-family: inherit; font-size: 13px;
+  }
+  form.addrow select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+  table.users { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.users th {
+    text-align: left; padding: 10px; color: var(--text-dim); font-weight: 600;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+  }
+  table.users td { padding: 10px; border-bottom: 1px solid rgba(51, 65, 85, 0.5); }
+  table.users tr:hover td { background: rgba(51, 65, 85, 0.3); }
+  .tag {
+    display: inline-flex; align-items: center; padding: 3px 12px; border-radius: 9999px;
+    font-size: 11.5px; font-weight: 600;
+  }
+  .tag.admin { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; }
+  .tag.user { background: rgba(100, 116, 139, 0.12); border: 1px solid rgba(100, 116, 139, 0.3); color: var(--text-muted); }
+  .tag.perm { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; }
+  .msg { margin: 10px 0; padding: 10px 14px; border-radius: 8px; display: none; font-size: 13px; }
+  .msg.err { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #f87171; display: block; }
+  .msg.ok { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; display: block; }
+</style>
+</head>
+<body>
+<div class="admin-wrap">
+  <div class="topnav">
+    <h1>⚙ Administracija pristupa</h1>
+    <span class="who">prijavljen: <b>{{ auth.name }}</b></span>
+    <a class="btn" href="/">← Nazad na plan</a>
+    <a class="btn" href="/logout">Odjava</a>
+  </div>
+
+  <section class="card">
+    <h2>Dozvoljeni korisnici</h2>
+    <span class="hint">Samo e-mail adrese sa ove liste mogu ući u aplikaciju
+      (nakon Microsoft prijave). Upiši e-mail <b>onako kako ga Microsoft prijavljuje</b>
+      (npr. @gfcbh.ba). Stalni admin: <b>{{ auth.permanent_admin }}</b></span>
+
+    <form class="addrow" id="frmAdd">
+      <input type="email" id="addEmail" placeholder="ime.prezime@gfcbh.ba" required>
+      <select id="addRole">
+        <option value="user">korisnik</option>
+        <option value="admin">admin</option>
+      </select>
+      <button class="btn primary" type="submit">+ Dodaj</button>
+    </form>
+    <div class="msg" id="msg"></div>
+
+    <table class="users">
+      <thead><tr><th>E-mail</th><th>Uloga</th><th>Dodao</th><th>Kada</th><th></th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const msg = (txt, cls) => { const m = $("#msg"); m.textContent = txt; m.className = "msg " + cls;
+  if (cls === "ok") setTimeout(() => { m.className = "msg"; }, 2500); };
+
+async function api(url, method = "GET", body = null) {
+  const r = await fetch(url, { method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : null });
+  if (r.status === 401) { location.href = "/login"; return null; }
+  if (!r.ok) { let t = "Greška"; try { t = (await r.json()).error || t; } catch (e) {}
+    throw new Error(t); }
+  return r.status === 204 ? null : r.json();
+}
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+
+async function load() {
+  const data = await api("/api/admin/users");
+  if (!data) return;
+  $("#tbody").innerHTML = data.users.map(u => `
+    <tr>
+      <td>${esc(u.email)}</td>
+      <td>${u.permanent ? '<span class="tag perm">★ stalni admin</span>'
+            : `<span class="tag ${u.role}">${u.role === "admin" ? "admin" : "korisnik"}</span>`}</td>
+      <td>${esc(u.added_by)}</td>
+      <td>${esc((u.added_at || "").replace("T", " "))}</td>
+      <td style="text-align:right;white-space:nowrap">
+        ${u.permanent ? "" : `
+          <button class="btn sm" onclick="setRole(${u.id}, '${u.role === "admin" ? "user" : "admin"}')"
+                  title="promijeni ulogu">${u.role === "admin" ? "↓ korisnik" : "↑ admin"}</button>
+          <button class="btn sm danger" onclick="del(${u.id}, '${esc(u.email)}')">🗑</button>`}
+      </td>
+    </tr>`).join("");
+}
+
+$("#frmAdd").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    await api("/api/admin/users", "POST",
+      { email: $("#addEmail").value.trim(), role: $("#addRole").value });
+    $("#addEmail").value = "";
+    msg("Korisnik dodan — sada se može prijaviti.", "ok");
+    load();
+  } catch (err) { msg(err.message, "err"); }
+});
+
+async function setRole(id, role) {
+  try { await api(`/api/admin/users/${id}`, "PATCH", { role }); load(); }
+  catch (err) { msg(err.message, "err"); }
+}
+
+async function del(id, email) {
+  if (!confirm(`Ukloniti pristup za ${email}?`)) return;
+  try { await api(`/api/admin/users/${id}`, "DELETE"); msg("Pristup uklonjen.", "ok"); load(); }
+  catch (err) { msg(err.message, "err"); }
+}
+
+load();
+</script>
+</body>
+</html>

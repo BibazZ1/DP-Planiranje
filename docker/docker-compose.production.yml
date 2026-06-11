@@ -1,0 +1,72 @@
+# ==================================================================================
+# 🚀 DP PLANIRANJE - PRODUKCIJSKI DOCKER COMPOSE
+# ==================================================================================
+# Isti princip hostovanja kao ULAZNE-FAKTURE:
+#   - .env živi na HOST mašini (root projekta), učitava se kroz env_file
+#   - Postgres radi na HOSTU (host.docker.internal:5432) — ali u VLASTITOJ bazi
+#     "DP-PLANIRANJE" s vlastitim korisnikom dp_planiranje (ne može dirati
+#     baze ULAZNIH FAKTURA!)
+#   - Cloudflare tunel radi U kontejneru -> https://dp-planiranje.mih-kontroling.com
+#
+# START:
+#   PRODUCTION_MODE.bat
+#   ili: docker compose --env-file .env -f docker/docker-compose.production.yml up -d --build
+# ==================================================================================
+
+# ⚠️ KRITIČNO: vlastito ime compose projekta!
+# Bez ovoga bi se projekat zvao "docker" (po folderu) — ISTO kao ULAZNE-FAKTURE,
+# pa bi `up` zamijenio njihov produkcijski kontejner. NIKAD ne uklanjati!
+name: dp-planiranje
+
+services:
+  dp_app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: dp-planiranje:prod
+    container_name: dp_planiranje_prod
+    restart: unless-stopped
+
+    # lokalni pristup za provjeru: http://localhost:5050
+    # (javni pristup ide kroz Cloudflare tunel, ne kroz ovaj port)
+    ports:
+      - "5050:5000"
+
+    environment:
+      - DOCKER_CONTAINER=true
+      - TZ=Europe/Sarajevo
+      - POSTGRES_HOST=host.docker.internal
+      - POSTGRES_PORT=5432
+      - GUNICORN_WORKERS=2
+      # --- AUTO-PULL s GitHub main grane (isti princip kao ULAZNE-FAKTURE) ---
+      # Kontejner povlači kod s main-a i graceful reloada gunicorn — bez rebuild-a.
+      - AUTO_UPDATE=true
+      - REPO_URL=https://github.com/BibazZ1/DP-Planiranje.git
+      - BRANCH=main
+      - POLL_INTERVAL=30
+      - GITHUB_TOKEN=${GITHUB_TOKEN}   # 🔑 mora biti u .env (privatni repo)
+
+    env_file:
+      - ../.env
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "--max-time", "5", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G

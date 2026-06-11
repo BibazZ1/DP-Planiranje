@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pristup odbijen — DP Planiranje</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    /* dizajn identičan ULAZNE-FAKTURE access_denied.html */
+    :root {
+        --bg-body: #0f172a;
+        --bg-card: #1e293b;
+        --bg-card-inner: #0f172a;
+        --text-main: #f1f5f9;
+        --text-muted: #94a3b8;
+        --text-dim: #64748b;
+        --border-color: #334155;
+        --danger: #ef4444;
+        --danger-soft: rgba(239, 68, 68, 0.1);
+        --danger-border: rgba(239, 68, 68, 0.2);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg-body);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 48px 40px;
+        text-align: center;
+        max-width: 520px;
+        width: 100%;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    .shield-icon {
+        width: 80px; height: 80px;
+        margin: 0 auto 24px;
+        background: var(--danger-soft);
+        border: 2px solid var(--danger-border);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    .shield-icon svg { width: 40px; height: 40px; fill: var(--danger); }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.85; }
+    }
+    .title { font-size: 22px; font-weight: 700; color: var(--danger); margin-bottom: 12px; }
+    .subtitle { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px; }
+    .email-box {
+        background: var(--bg-card-inner);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 24px;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .email-label {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+        color: var(--text-dim);
+    }
+    .email-value {
+        font-size: 13px; color: var(--text-main); font-weight: 600;
+        font-family: 'Cascadia Code', 'Fira Code', monospace;
+        word-break: break-all;
+    }
+    .info-list {
+        text-align: left; margin-bottom: 28px; padding: 16px 20px;
+        background: var(--bg-card-inner);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+    .info-list p {
+        font-size: 12px; color: var(--text-dim); margin-bottom: 10px;
+        font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .info-list ul { list-style: none; padding: 0; }
+    .info-list li {
+        font-size: 13px; color: var(--text-muted); padding: 6px 0;
+        display: flex; align-items: flex-start; gap: 8px; line-height: 1.4;
+    }
+    .info-list li::before { content: '→'; color: var(--text-dim); flex-shrink: 0; }
+    .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 10px 20px; border-radius: 8px;
+        font-size: 13px; font-weight: 600; text-decoration: none;
+        transition: all 0.2s; cursor: pointer; border: none;
+    }
+    .btn-primary {
+        background: rgba(99, 102, 241, 0.15);
+        color: #818cf8;
+        border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+    .btn-primary:hover { background: rgba(99, 102, 241, 0.25); }
+    .btn-secondary {
+        background: rgba(100, 116, 139, 0.1);
+        color: var(--text-muted);
+        border: 1px solid rgba(100, 116, 139, 0.2);
+    }
+    .btn-secondary:hover { background: rgba(100, 116, 139, 0.2); }
+    .footer { margin-top: 24px; font-size: 11px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="card">
+    <div class="shield-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 14.5v-2h2v2h-2zm0-4V6h2v5.5h-2z"/>
+        </svg>
+    </div>
+
+    <h1 class="title">Pristup odbijen</h1>
+    <p class="subtitle">
+        Vaš Microsoft nalog je uspješno potvrđen, ali nije registrovan
+        u sistemu DP Planiranje.
+    </p>
+
+    {% if email %}
+    <div class="email-box">
+        <div>
+            <div class="email-label">Prijavljeni ste kao</div>
+            <div class="email-value">{{ email }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="info-list">
+        <p>Šta možete uraditi</p>
+        <ul>
+            <li>Kontaktirajte administratora da vam odobri pristup</li>
+            <li>Provjerite da ste prijavljeni s ispravnim poslovnim e-mailom</li>
+            <li>Ako ste nedavno promijenili ulogu, zatražite ažuriranje dozvola</li>
+        </ul>
+    </div>
+
+    <div class="actions">
+        <a href="/logout" class="btn btn-primary">← Pokušaj s drugim nalogom</a>
+        <a href="mailto:{{ admin_contact }}" class="btn btn-secondary">✉ Kontaktiraj administratora</a>
+    </div>
+
+    <div class="footer">DP Planiranje &middot; MIH Group</div>
+</div>
+</body>
+</html>

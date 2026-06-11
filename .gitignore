@@ -1,4 +1,8 @@
 __pycache__/
 *.pyc
+.venv/
 bauzeitenplan.db
 *.db
+.env
+.env.bak
+.deploy_manifest.json
