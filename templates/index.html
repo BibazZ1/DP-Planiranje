@@ -9,6 +9,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
+<!-- 📅 Flatpickr + SweetAlert2 — isti date picker i dijalozi kao ULAZNE-FAKTURE -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/dark.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.18"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -30,6 +35,7 @@
     <label class="yearpick"><span data-i18n="godina">Godina</span>
       <select id="year"></select>
     </label>
+    <button class="btn" id="btnAddPopTop" data-i18n="noviPop">+ Novi POP</button>
     <button class="btn primary" id="btnAddDp" data-i18n="noviDp">+ Novi DP</button>
     <a class="btn" href="/export/csv">⭳ CSV</a>
     <a class="btn" href="/export/xlsx">⭳ Excel</a>
@@ -92,10 +98,22 @@
             <button type="button" class="cmb-x" data-for="pfCode" hidden>✕</button>
             <div class="combo-list" hidden></div>
           </span></label>
+        <label class="pf"><span><i class="ic">🗼</i> POP</span>
+          <span class="combo">
+            <input class="cmb" id="fPop" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
+            <button type="button" class="cmb-x" data-for="fPop" hidden>✕</button>
+            <div class="combo-list" hidden></div>
+          </span></label>
+        <label class="pf"><span><i class="ic">📍</i> DP</span>
+          <span class="combo">
+            <input class="cmb" id="fDp" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
+            <button type="button" class="cmb-x" data-for="fDp" hidden>✕</button>
+            <div class="combo-list" hidden></div>
+          </span></label>
         <label class="pf"><span><i class="ic">📅</i> <span data-i18n="datumOd">Datum od</span></span>
-          <input type="date" id="fDateOd"></label>
+          <input type="text" id="fDateOd" placeholder="dd/mm/gggg"></label>
         <label class="pf"><span><i class="ic">📅</i> <span data-i18n="datumDo">Datum do</span></span>
-          <input type="date" id="fDateDo"></label>
+          <input type="text" id="fDateDo" placeholder="dd/mm/gggg"></label>
         <div class="pf flt-btns"><span>&nbsp;</span>
           <span class="btnrow">
             <button class="btn sm" id="pfClear" data-i18n-title="ocistiTip" title="Poništi sve filtere">✕ <span data-i18n="ocisti">Očisti</span></button>
@@ -104,11 +122,6 @@
       </div>
       <div class="slicers" id="slicers"></div>
     </div>
-  </section>
-
-  <!-- POP ▸ DP upravljanje: kreiranje POP-ova / DP-ova + kartice -->
-  <section class="glass mgmt-card" id="popSecCard">
-    <div id="popSec"></div>
   </section>
 
   <section class="tl-card glass">

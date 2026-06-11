@@ -1,4 +1,4 @@
-/* paleta i tipografija preuzete iz ULAZNE-FAKTURE (slate + emerald, Inter) */
+﻿/* paleta i tipografija preuzete iz ULAZNE-FAKTURE (slate + emerald, Inter) */
 :root{
   color-scheme:dark;
   --bg:#0f172a;
@@ -54,7 +54,9 @@ main>section:nth-child(4){animation-delay:.21s}
 main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 
 /* ---------- sklopive sekcije (Filteri / Analitika) ---------- */
-.fold{padding:0;overflow:hidden}
+/* overflow:visible - padajuce sugestije (combo/datepicker) ne smiju biti odsjecene! */
+.fold{padding:0;overflow:visible}
+.fold-head{border-radius:var(--radius)}
 .fold-head{display:flex;align-items:center;gap:11px;width:100%;border:0;cursor:pointer;
   background:transparent;color:var(--txt);padding:13px 18px;font:inherit;text-align:left}
 .fold-head:hover{background:rgba(255,255,255,.03)}
@@ -70,7 +72,7 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 .fold.collapsed .fold-body{display:none}
 .fold-body .slicers{padding:0}
 
-/* POP ▸ DP upravljanje (vlastita kartica) */
+/* POP â–¸ DP upravljanje (vlastita kartica) */
 .mgmt-card{padding:14px 18px 16px}
 .mgmt-card .pop-sec{border-top:0;padding-top:0}
 
@@ -159,7 +161,7 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 .chip.dp{--cc:var(--blue)} .chip.odj{--cc:var(--purple)}
 .chip .x{margin-left:6px;opacity:.6}
 .chip.clear{border-style:dashed;color:var(--mut2)}
-/* kondenzovani mini čipovi (status / odjel) */
+/* kondenzovani mini ÄŤipovi (status / odjel) */
 .chip.mini{padding:2px 8px;font-size:10.5px;gap:4px;border-radius:9999px}
 .chip.mini .n{font-size:8.5px;padding:0 5px;min-width:11px}
 
@@ -255,7 +257,7 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
   padding:2px 5px;border-radius:6px;transition:.15s}
 .gbtn:hover{background:var(--teal-glow);color:var(--teal)}
 
-/* activity row label — bez skraćivanja, pun naziv (prelama u 2 reda ako treba) */
+/* activity row label â€” bez skraÄ‡ivanja, pun naziv (prelama u 2 reda ako treba) */
 .act-name{flex:1;min-width:0;display:flex;align-items:center;white-space:normal;
   line-height:1.2;font-size:12.5px;font-weight:600;color:#e8eff8}
 .odj-tag{font-size:9px;color:var(--purple);border:1px solid rgba(129,140,248,.35);
@@ -294,17 +296,17 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 .seg .warn{font-size:11px;filter:drop-shadow(0 0 4px #ff8c1a)}
 /* tekst u traci iznad overlay-a */
 .seg>span{position:relative;z-index:3}
-/* zakašnjeli dio: planirani kraj prošao -> produženje do danas
-   s upisanim razlogom = ljubičasta šrafura */
+/* zakaĹˇnjeli dio: planirani kraj proĹˇao -> produĹľenje do danas
+   s upisanim razlogom = ljubiÄŤasta Ĺˇrafura */
 .seg .ext{position:absolute;top:0;bottom:0;z-index:1;pointer-events:none;
   background:repeating-linear-gradient(135deg,rgba(129,140,248,.65) 0 6px,rgba(79,70,229,.65) 6px 12px);
   border-left:2px dashed rgba(255,255,255,.8)}
-/* bez razloga = crveno-bijelo upozorenje koje pulsira dok se razlog ne upiše */
+/* bez razloga = crveno-bijelo upozorenje koje pulsira dok se razlog ne upiĹˇe */
 .seg .ext.noreason{
   background:repeating-linear-gradient(135deg,rgba(255,255,255,.75) 0 6px,rgba(255,43,78,.85) 6px 12px);
   animation:extNag 1s ease-in-out infinite}
 @keyframes extNag{50%{filter:brightness(.55)}}
-/* eskalacija: narandžasti pulsirajući dio od datuma eskalacije do kraja */
+/* eskalacija: narandĹľasti pulsirajuÄ‡i dio od datuma eskalacije do kraja */
 .seg .eskpart{position:absolute;top:0;bottom:0;z-index:2;pointer-events:none;
   background:repeating-linear-gradient(135deg,rgba(255,140,26,.95) 0 7px,rgba(205,95,0,.95) 7px 14px);
   border-left:2px solid #fff;box-shadow:0 0 12px rgba(255,140,26,.65);
@@ -422,7 +424,7 @@ table.mini .empty{color:var(--mut2);font-style:italic}
   box-shadow:0 0 0 1px var(--teal)}
 .proj-bar .hint{align-self:center;margin-left:auto}
 
-/* jezički toggle (BS / EN / DE) */
+/* jeziÄŤki toggle (BS / EN / DE) */
 .langtoggle{display:flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden}
 .langtoggle button{border:0;background:transparent;color:var(--mut);font:700 11px var(--mono);
   padding:7px 10px;cursor:pointer;letter-spacing:.5px;transition:.15s}
@@ -467,7 +469,7 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;paddin
 .userbadge.unset b{color:var(--amber)}
 @keyframes userNag{50%{box-shadow:0 0 16px var(--amber-glow)}}
 
-/* ---------- hijerarhija: Projekat ▸ POP ▸ DP (kartice) ---------- */
+/* ---------- hijerarhija: Projekat â–¸ POP â–¸ DP (kartice) ---------- */
 .pop-sec{border-top:1px solid var(--line);padding-top:11px;display:flex;
   flex-direction:column;gap:10px}
 .pop-sec-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -495,7 +497,7 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;paddin
 .pc-dps{display:flex;flex-wrap:wrap;gap:5px}
 .pc-dps .hint{font-size:10.5px}
 
-/* breadcrumb u dijalozima (Projekat ▸ POP ▸ novo) */
+/* breadcrumb u dijalozima (Projekat â–¸ POP â–¸ novo) */
 .dlg-crumb{font:600 11.5px var(--mono);color:var(--blue);border:1px dashed rgba(59,130,246,.4);
   background:rgba(59,130,246,.08);border-radius:9px;padding:7px 11px;margin-bottom:14px}
 .dlg-crumb i{color:var(--mut2);font-style:normal;padding:0 3px}
@@ -552,7 +554,7 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;paddin
 .hc-u{font:600 9.5px var(--mono);color:var(--purple);flex:none;margin-left:auto;
   padding-left:6px}
 
-/* ?static=1 ili prefers-reduced-motion: bez animacija (testiranje, slabiji računari) */
+/* ?static=1 ili prefers-reduced-motion: bez animacija (testiranje, slabiji raÄŤunari) */
 .noanim *,.noanim *:before,.noanim *:after{animation:none!important;transition:none!important}
 .noanim .bg-blobs{display:none}
 @media (prefers-reduced-motion: reduce){
@@ -621,3 +623,58 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;paddin
 .combo-opt:hover{background:rgba(16,185,129,.1);color:var(--txt)}
 .combo-opt b{color:#34d399;font-weight:700}
 .combo-empty{padding:7px 10px;font-size:12px;color:var(--mut2);font-style:italic}
+
+/* ================== SweetAlert2 "scifi" dijalozi (preuzeto iz ULAZNE-FAKTURE) ================== */
+div:where(.swal2-container).scifi-popup .swal2-popup{
+  background:linear-gradient(135deg,rgba(15,23,42,.98) 0%,rgba(30,41,59,.98) 50%,rgba(15,23,42,.98) 100%)!important;
+  border:1px solid rgba(16,185,129,.35)!important;
+  border-radius:20px!important;
+  box-shadow:0 0 60px rgba(16,185,129,.3),0 0 120px rgba(59,130,246,.2),
+    0 25px 80px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.1),
+    inset 0 0 60px rgba(16,185,129,.05)!important;
+  overflow:visible!important;
+  animation:scifi-modal-materialize .6s cubic-bezier(.34,1.56,.64,1) forwards!important;
+  transform-origin:center center;
+  font-family:'Inter',-apple-system,sans-serif!important}
+div:where(.swal2-container).scifi-popup .swal2-popup::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent 0%,rgba(16,185,129,.8) 50%,transparent 100%);
+  animation:scan-line 2s ease-in-out infinite;border-radius:20px 20px 0 0}
+@keyframes scan-line{0%,100%{top:0;opacity:1}50%{top:calc(100% - 2px);opacity:.5}}
+@keyframes scifi-modal-materialize{
+  0%{transform:scale(.3) rotateX(20deg) rotateY(-10deg);opacity:0;filter:blur(20px) brightness(3)}
+  30%{transform:scale(.8) rotateX(10deg) rotateY(-5deg);opacity:.5;filter:blur(10px) brightness(2)}
+  60%{transform:scale(1.05) rotateX(-2deg) rotateY(2deg);opacity:.9;filter:blur(2px) brightness(1.2)}
+  80%{transform:scale(.98);filter:blur(0) brightness(1.1)}
+  100%{transform:scale(1);opacity:1;filter:blur(0) brightness(1)}}
+@keyframes scifi-modal-dematerialize{
+  0%{transform:scale(1);opacity:1;filter:blur(0) brightness(1)}
+  60%{transform:scale(.8) rotateX(15deg) rotateY(-10deg);opacity:.5;filter:blur(5px) brightness(2)}
+  100%{transform:scale(.1) rotateX(30deg) rotateY(-20deg);opacity:0;filter:blur(30px) brightness(4)}}
+div:where(.swal2-container).scifi-popup.swal2-hide .swal2-popup{
+  animation:scifi-modal-dematerialize .5s cubic-bezier(.4,0,.2,1) forwards!important}
+div:where(.swal2-container).scifi-popup .swal2-title{color:#f1f5f9!important;font-size:19px!important}
+div:where(.swal2-container).scifi-popup .swal2-html-container{color:#94a3b8!important;font-size:14px!important}
+div:where(.swal2-container).scifi-popup .swal2-input{
+  background:#0f172a!important;border:1px solid #334155!important;color:#f1f5f9!important;
+  border-radius:8px!important;box-shadow:none!important;font-size:14px!important}
+div:where(.swal2-container).scifi-popup .swal2-input:focus{
+  border-color:#10b981!important;box-shadow:0 0 0 1px #10b981!important}
+div:where(.swal2-container).scifi-popup .swal2-styled{
+  border-radius:8px!important;font-weight:700!important;font-size:13px!important;padding:9px 22px!important}
+
+/* ================== Flatpickr â€” slate + emerald (kao ULAZNE) ================== */
+.flatpickr-calendar{background:#1e293b!important;border:1px solid #334155!important;
+  box-shadow:0 16px 50px rgba(0,0,0,.6)!important;border-radius:12px!important;
+  font-family:'Inter',sans-serif!important}
+.flatpickr-months .flatpickr-month,.flatpickr-weekdays,.flatpickr-weekday{background:transparent!important}
+.flatpickr-current-month .cur-month,.flatpickr-current-month input.cur-year{color:#f1f5f9!important;font-weight:700!important}
+span.flatpickr-weekday{color:#64748b!important}
+.flatpickr-day{color:#cbd5e1!important;border-radius:8px!important}
+.flatpickr-day:hover{background:#334155!important;border-color:#334155!important}
+.flatpickr-day.today{border-color:#10b981!important;color:#34d399!important}
+.flatpickr-day.selected,.flatpickr-day.selected:hover{background:#10b981!important;border-color:#10b981!important;color:#fff!important}
+.flatpickr-day.prevMonthDay,.flatpickr-day.nextMonthDay,.flatpickr-day.flatpickr-disabled{color:#475569!important}
+.flatpickr-months .flatpickr-prev-month svg,.flatpickr-months .flatpickr-next-month svg{fill:#94a3b8!important}
+.flatpickr-months .flatpickr-prev-month:hover svg,.flatpickr-months .flatpickr-next-month:hover svg{fill:#10b981!important}
+
