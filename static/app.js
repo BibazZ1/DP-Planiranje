@@ -54,6 +54,7 @@ const I18N = {
     nepoznat: "nepoznat",
     noviPop: "Novi POP", noviPopH: "Novi POP", popNaziv: "Naziv POP",
     foldFilteri: "Filteri", foldAnalitika: "Analitika", ocisti: "Očisti",
+    aktivniFilteri: "aktivni filteri",
     aktivni: "Aktivni", ocistiSve: "Očisti sve", traziPh: "Pretraži…",
     statusLbl: "Status", odjelLbl: "Odjel",
     datumOd: "Datum od", datumDo: "Datum do", nemaRez: "nema rezultata",
@@ -121,6 +122,7 @@ const I18N = {
     nepoznat: "unknown",
     noviPop: "New POP", noviPopH: "New POP", popNaziv: "POP name",
     foldFilteri: "Filters", foldAnalitika: "Analytics", ocisti: "Clear",
+    aktivniFilteri: "active filters",
     aktivni: "Active", ocistiSve: "Clear all", traziPh: "Search…",
     statusLbl: "Status", odjelLbl: "Department",
     datumOd: "Date from", datumDo: "Date to", nemaRez: "no results",
@@ -188,6 +190,7 @@ const I18N = {
     nepoznat: "unbekannt",
     noviPop: "Neuer POP", noviPopH: "Neuer POP", popNaziv: "POP-Name",
     foldFilteri: "Filter", foldAnalitika: "Analyse", ocisti: "Leeren",
+    aktivniFilteri: "aktive Filter",
     aktivni: "Aktiv", ocistiSve: "Alle leeren", traziPh: "Suchen…",
     statusLbl: "Status", odjelLbl: "Abteilung",
     datumOd: "Datum von", datumDo: "Datum bis", nemaRez: "keine Treffer",
@@ -362,10 +365,61 @@ function visibleSegs() {
 /* ---------- render all ---------- */
 function renderAll() {
   renderKpis();
+  renderActiveFilters();   // pilule aktivnih filtera + brojač u Filteri zaglavlju
   renderSlicers();
   renderTimeline(true);
   renderStats();
   renderProj();   // DP čipovi u projekt-panelu prate iste filtere
+}
+
+/* ---------- aktivni filteri (pilule + brojač) — kao dashboard ULAZNE-FAKTURE ---------- */
+function activeFilterList() {
+  const out = [];
+  if (PROJ.kunde) out.push({ k: "kunde", label: "🏢 " + PROJ.kunde });
+  if (PROJ.name) out.push({ k: "name", label: "📁 " + PROJ.name });
+  if (PROJ.code) out.push({ k: "code", label: "# " + PROJ.code });
+  [...F.pop].forEach(p => out.push({ k: "pop", v: p, label: "POP " + p }));
+  [...F.dp].forEach(id => {
+    const d = DATA.dps.find(x => x.id === id);
+    if (d) out.push({ k: "dp", v: id, label: `${d.pop} · ${d.naziv}` });
+  });
+  [...F.st].forEach(s => out.push({ k: "st", v: s, label: stT(s) }));
+  [...F.odj].forEach(o => out.push({ k: "odj", v: o, label: o }));
+  if (F.esk) out.push({ k: "esk", label: "⚠ " + t("eskChip") });
+  return out;
+}
+function renderActiveFilters() {
+  const list = activeFilterList();
+  const badge = $("#fltBadge");
+  if (badge) { badge.textContent = list.length; badge.classList.toggle("hidden", !list.length); }
+  const bar = $("#activeBar");
+  if (!bar) return;
+  if (!list.length) { bar.innerHTML = ""; return; }   // .factive:empty -> sakriveno
+  bar.innerHTML = `<span class="factive-lbl">${t("aktivniFilteri")}</span>` +
+    list.map((f, i) => `<button class="fchip" data-i="${i}">${esc(f.label)} <i>✕</i></button>`).join("") +
+    `<button class="fchip clearall" data-clear="1">✕ ${t("clearAll").replace(/^✕\s*/, "")}</button>`;
+  $$("#activeBar .fchip").forEach(ch => ch.addEventListener("click", () => {
+    if (ch.dataset.clear) return clearAllFilters();
+    removeActiveFilter(list[+ch.dataset.i]);
+  }));
+}
+function removeActiveFilter(f) {
+  switch (f.k) {
+    case "kunde": PROJ.kunde = ""; return projFilterChanged();
+    case "name": PROJ.name = ""; return projFilterChanged();
+    case "code": PROJ.code = ""; return projFilterChanged();
+    case "pop": F.pop.delete(f.v); break;
+    case "dp": F.dp.delete(f.v); break;
+    case "st": F.st.delete(f.v); break;
+    case "odj": F.odj.delete(f.v); break;
+    case "esk": F.esk = false; break;
+  }
+  renderAll();
+}
+function clearAllFilters() {
+  F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false;
+  PROJ.kunde = PROJ.code = PROJ.name = "";
+  projFilterChanged();
 }
 
 /* ---------- KPIs ---------- */
