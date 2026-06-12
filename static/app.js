@@ -58,7 +58,7 @@ const I18N = {
     aktivni: "Aktivni", ocistiSve: "Očisti sve", traziPh: "Pretraži…",
     statusLbl: "Status", odjelLbl: "Odjel",
     datumOd: "Datum od", datumDo: "Datum do", nemaRez: "nema rezultata", da: "Da",
-    kasniChip: "kasni", kasniTip: "rok prošao, a termin nije završen",
+    kasniChip: "kasni", kasniTip: "rok prošao, a termin nije završen", dana: "dana",
     rokLbl: "rok", rokTip: "rok DP-a = kraj termina Aktivacija",
     tlEmpty: "Nema DP-ova za izabrane filtere.<br>Očisti filtere, ili kreiraj <b>＋ Novi POP</b> pa <b>＋ Novi DP</b> pod izabranim projektom.",
     lockHint: "🔒 izaberi projekat gore da otključaš dodavanje POP-ova",
@@ -129,7 +129,7 @@ const I18N = {
     aktivni: "Active", ocistiSve: "Clear all", traziPh: "Search…",
     statusLbl: "Status", odjelLbl: "Department",
     datumOd: "Date from", datumDo: "Date to", nemaRez: "no results", da: "Yes",
-    kasniChip: "late", kasniTip: "past due date and not finished",
+    kasniChip: "late", kasniTip: "past due date and not finished", dana: "days",
     rokLbl: "due", rokTip: "DP due date = end of Activations",
     tlEmpty: "No DPs match the selected filters.<br>Clear the filters, or create <b>＋ New POP</b> then <b>＋ New DP</b> under the selected project.",
     lockHint: "🔒 select a project above to unlock adding POPs",
@@ -200,7 +200,7 @@ const I18N = {
     aktivni: "Aktiv", ocistiSve: "Alle leeren", traziPh: "Suchen…",
     statusLbl: "Status", odjelLbl: "Abteilung",
     datumOd: "Datum von", datumDo: "Datum bis", nemaRez: "keine Treffer", da: "Ja",
-    kasniChip: "verspätet", kasniTip: "Frist überschritten, nicht abgeschlossen",
+    kasniChip: "verspätet", kasniTip: "Frist überschritten, nicht abgeschlossen", dana: "Tage",
     rokLbl: "Frist", rokTip: "DP-Frist = Ende der Aktivierungen",
     tlEmpty: "Keine DPs für die gewählten Filter.<br>Filter leeren, oder <b>＋ Neuer POP</b> und dann <b>＋ Neuer DP</b> unter dem gewählten Projekt anlegen.",
     lockHint: "🔒 oben ein Projekt wählen, um das Anlegen von POPs freizuschalten",
@@ -783,8 +783,8 @@ function renderTimeline(keepScroll) {
       }
       html += `<div class="tl-row${ri++ % 2 ? " zeb" : ""}" data-task="${t.id}" style="--ac:${aktColor(t.aktivnost)}">
         <div class="tl-label cols">
-          <span class="c-pop cell" data-fpop="${esc(dp.pop)}" title="klik = filtriraj POP ${esc(dp.pop)}">${esc(dp.pop)}</span>
-          <span class="c-dp cell" data-fdp="${dp.id}" title="klik = filtriraj ${esc(dp.naziv)}">${esc(dp.naziv)}</span>
+          <span class="c-pop cell" data-fpop="${esc(dp.pop)}" data-fpopid="${dp.pop_id || ""}" title="klik = filter + detalji POP-a">${esc(dp.pop)}</span>
+          <span class="c-dp cell" data-fdp="${dp.id}" title="klik = filter + detalji (HP/HA, historija)">${esc(dp.naziv)}</span>
           <span class="c-act">
             <span class="act-name" title="dupli klik = preimenuj">${esc(t.aktivnost)}</span>
             <span class="odj-tag" title="klik = promijeni odjel">${esc(t.odjel || "—")}</span>
@@ -906,15 +906,16 @@ function bindTimeline() {
     else SORT = { key: k, dir: 1 };
     renderTimeline(true);
   }));
+  /* klik na POP/DP ćeliju = puni izbor: filter (i projekat+kunde) + bočni panel */
   $$("#tlScroll .cell[data-fpop]").forEach(el => el.addEventListener("click", () => {
-    const p = el.dataset.fpop;
+    const pid = +el.dataset.fpopid;
+    if (pid) { selectPop(pid); return; }
+    const p = el.dataset.fpop;                       // fallback: POP bez veze
     F.pop.has(p) ? F.pop.delete(p) : F.pop.add(p);
     renderAll();
   }));
   $$("#tlScroll .cell[data-fdp]").forEach(el => el.addEventListener("click", () => {
-    const id = +el.dataset.fdp;
-    F.dp.has(id) ? F.dp.delete(id) : F.dp.add(id);
-    renderAll();
+    selectDp(+el.dataset.fdp);
   }));
   $$("#tlScroll .odj-tag").forEach(el => el.addEventListener("click", async () => {
     const id = +el.closest(".tl-row").dataset.task;
@@ -983,21 +984,37 @@ document.addEventListener("keydown", e => {
 });
 
 /* ---------- popover ---------- */
+function popDurUpd() {
+  const od = $("#popOd").value, do_ = $("#popDo").value;
+  $("#popDur").innerHTML = od && do_ && do_ >= od
+    ? `⏱ <b>${durDays(od, do_)}</b> ${t("dana")} · KW${isoWeekOf(od)}–KW${isoWeekOf(do_)}`
+    : "";
+}
 function openPop(mode, segId, cx, cy, init = {}) {
   const pop = $("#pop");
   let s = { status: "otvoreno", komentar: "", eskalacija: 0, esk_razlog: "" };
+  let taskId;
   if (mode === "edit") {
     s = DATA.segments.find(x => x.id === segId);
+    taskId = s.task_id;
     popCtx = { mode, segId, status: s.status };
     $("#popTitle").textContent = t("urediTermin");
     $("#popOd").value = s.datum_od; $("#popDo").value = s.datum_do;
     $("#popDel").classList.remove("hidden");
   } else {
+    taskId = init.taskId;
     popCtx = { mode, taskId: init.taskId, status: "otvoreno" };
     $("#popTitle").textContent = t("noviTermin");
     $("#popOd").value = init.od; $("#popDo").value = init.do_;
     $("#popDel").classList.add("hidden");
   }
+  /* kontekst: koja aktivnost, kojeg DP-a */
+  const tk = DATA.tasks.find(x => x.id === taskId) || {};
+  const dp = DATA.dps.find(d => d.id === tk.dp_id) || {};
+  $("#popCtx").innerHTML = tk.aktivnost
+    ? `<span class="pc-dot" style="background:${aktColor(tk.aktivnost)}"></span>` +
+      `${esc(dp.naziv || "")} <i>▸</i> <b>${esc(tk.aktivnost)}</b>` : "";
+  popDurUpd();
   $("#popKom").value = s.komentar || "";
   $("#popEsk").checked = !!s.eskalacija;
   $("#popRazlog").value = s.esk_razlog || "";
@@ -1029,7 +1046,8 @@ $$("#popStatus .stpill").forEach(p => p.addEventListener("click", () => {
   $$("#popStatus .stpill").forEach(x => x.classList.toggle("on", x === p));
   updateKasniVis();
 }));
-$("#popDo").addEventListener("change", updateKasniVis);
+$("#popDo").addEventListener("change", () => { updateKasniVis(); popDurUpd(); });
+$("#popOd").addEventListener("change", popDurUpd);
 $("#popKasni").addEventListener("input", () => $("#popKasni").classList.remove("err"));
 $("#popEsk").addEventListener("change", () => {
   const on = $("#popEsk").checked;
@@ -1085,31 +1103,47 @@ const hcLbl = polje => ({ kreirano: t("hKreirano"), status: t("hStatus"),
 const hcEl = document.createElement("div");
 hcEl.className = "hovercard hidden";
 document.body.appendChild(hcEl);
-function hcHide() { hcEl.classList.add("hidden"); }
+function hcHide() { hcEl.classList.add("hidden"); hcEl.dataset.seg = ""; }
+function durDays(od, do_) {
+  return Math.max(1, Math.round((new Date(do_) - new Date(od)) / 864e5) + 1);
+}
 function hcShow(el, ev) {
   const s = DATA.segments.find(x => x.id === +el.dataset.seg);
   if (!s) return hcHide();
   const tk = DATA.tasks.find(x => x.id === s.task_id) || {};
+  const dp = DATA.dps.find(d => d.id === tk.dp_id) || {};
   const late = s.status !== "završeno" && s.datum_do < todayIso();
   const hist = (DATA.history || []).filter(h => h.seg_id === s.id);
   const stCls = s.status === "završeno" ? "teal" : "red";
-  hcEl.innerHTML = `
+  const nd = durDays(s.datum_od, s.datum_do);
+  /* ne re-renderuj isti sadržaj na svaki mousemove — samo pomjeri */
+  if (hcEl.dataset.seg !== String(s.id)) {
+    hcEl.dataset.seg = String(s.id);
+    hcEl.style.setProperty("--hc-ac", aktColor(tk.aktivnost));
+    hcEl.innerHTML = `
     <div class="hc-head"><span class="hc-dot" style="background:${aktColor(tk.aktivnost)}"></span>
       <b>${esc(tk.aktivnost || "")}</b><span class="hc-st ${stCls}">${esc(stT(s.status))}</span></div>
-    <div class="hc-dates">📅 ${fmt(s.datum_od)} – ${fmt(s.datum_do)}${late
-      ? ` <span class="hc-late">${t("kasni")} → ${fmt(todayIso())}</span>` : ""}</div>
-    ${s.komentar ? `<div class="hc-row"><span>${t("komentar")}</span>${esc(s.komentar)}</div>` : ""}
+    <div class="hc-ctx">${esc(dp.pop || "")} <i>▸</i> <b>${esc(dp.naziv || "")}</b></div>
+    <div class="hc-when">
+      <span class="hc-d"><i>${t("od")}</i><b>${fmt(s.datum_od)}</b><em>KW${isoWeekOf(s.datum_od)}</em></span>
+      <span class="hc-arrow">→</span>
+      <span class="hc-d"><i>${t("do")}</i><b>${fmt(s.datum_do)}</b><em>KW${isoWeekOf(s.datum_do)}</em></span>
+      <span class="hc-dur">${nd}d</span>
+    </div>
+    ${late ? `<div class="hc-row red"><span>⏰ ${t("kasniChip")}</span><b>+${lateDays(s)} ${t("dana")}</b> · ${t("rokLbl")} ${fmt(s.datum_do)}</div>` : ""}
+    ${s.komentar ? `<div class="hc-row amber"><span>💬 ${t("komentar")}</span>${esc(s.komentar)}</div>` : ""}
     ${late ? `<div class="hc-row purple"><span>${t("razlogProd")}</span>${s.kasni_razlog
       ? esc(s.kasni_razlog) : t("razlogNijeUpisan")}</div>` : ""}
-    ${s.eskalacija ? `<div class="hc-row orange"><span>${t("hEskalacija")}${s.esk_datum
+    ${s.eskalacija ? `<div class="hc-row orange"><span>⚠ ${t("hEskalacija")}${s.esk_datum
       ? " · " + fmt(s.esk_datum) : ""}</span>${esc(s.esk_razlog || "—")}</div>` : ""}
     <div class="hc-hist"><h4>${t("hist")}</h4>${hist.length
-      ? hist.slice(0, 12).map(h => `<div class="hc-h"><i>${h.ts.replace("T", " ").slice(0, 16)}</i>
+      ? hist.slice(0, 6).map(h => `<div class="hc-h"><i>${fmtTs(h.ts)}</i>
           <em>${hcLbl(h.polje)}</em><span>${esc(h.vrijednost)}</span>${h.user
             ? `<b class="hc-u">${esc(h.user)}</b>` : ""}</div>`).join("")
       : `<div class="hc-h empty">${t("noHist")}</div>`}</div>
     <div class="hc-tip">${t("hcEdit")}</div>`;
-  hcEl.classList.remove("hidden");
+    hcEl.classList.remove("hidden");
+  }
   const W = 340, H = hcEl.offsetHeight || 220;
   hcEl.style.left = Math.min(ev.clientX + 14, innerWidth - W - 14) + "px";
   hcEl.style.top = (ev.clientY + 16 + H > innerHeight ? Math.max(8, ev.clientY - H - 12)
@@ -1392,9 +1426,18 @@ function selectPop(popId) {
   } else {
     SEL = { type: "pop", id: popId };
     F.pop.add(p.naziv);
+    fillProjFilter(p.projekt);
     openDrawer();
   }
   renderAll();
+}
+/* klik na DP/POP popunjava i Projekat + Kunde filter iz pripadnosti */
+function fillProjFilter(projekt) {
+  if (!projekt) return;
+  const pr = PROJ.rows.find(p => p.projektname === projekt);
+  if (!pr) return;
+  PROJ.name = pr.projektname;
+  PROJ.kunde = pr.kunde || "";
 }
 function selectDp(dpId) {
   if (SEL && SEL.type === "dp" && SEL.id === dpId) {
@@ -1402,6 +1445,8 @@ function selectDp(dpId) {
   } else {
     SEL = { type: "dp", id: dpId };
     F.dp.add(dpId);
+    const d = DATA.dps.find(x => x.id === dpId);
+    fillProjFilter(d && d.projekt);
     openDrawer();
   }
   renderAll();

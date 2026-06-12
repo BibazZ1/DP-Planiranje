@@ -719,3 +719,37 @@ span.flatpickr-weekday{color:#64748b!important}
   filter:drop-shadow(0 0 4px rgba(245,158,11,.8))}
 .seg .kom{color:#fde68a;font-weight:600;overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap;font-size:10.5px}
+
+/* ================== hovercard v2: bogatiji, animiran, jasnija vremena ================== */
+.hovercard{animation:hcIn .22s cubic-bezier(.2,.9,.3,1.15) both;
+  border-left:3px solid var(--hc-ac,#3b82f6)!important}
+@keyframes hcIn{from{opacity:0;transform:translateY(8px) scale(.96);filter:blur(4px)}
+  to{opacity:1;transform:none;filter:none}}
+.hc-ctx{font:600 10.5px var(--mono);color:var(--mut);margin:-2px 0 8px}
+.hc-ctx i{font-style:normal;color:var(--mut2);padding:0 3px}
+.hc-ctx b{color:#93c5fd}
+.hc-when{display:flex;align-items:center;gap:10px;background:rgba(15,23,42,.7);
+  border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:8px}
+.hc-when .hc-d{display:flex;flex-direction:column;line-height:1.35}
+.hc-when .hc-d i{font-style:normal;font-size:8.5px;color:var(--mut2);text-transform:uppercase;letter-spacing:1px}
+.hc-when .hc-d b{font:700 13px var(--mono);color:var(--txt)}
+.hc-when .hc-d em{font-style:normal;font:600 9px var(--mono);color:var(--mut)}
+.hc-arrow{color:var(--mut2);font-size:15px}
+.hc-dur{margin-left:auto;font:700 12px var(--mono);color:#34d399;
+  background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);
+  border-radius:9999px;padding:3px 10px}
+.hc-row.red{border-left:2px solid var(--red)}
+.hc-row.amber{border-left:2px solid var(--amber)}
+.hc-row.amber span{color:#fbbf24}
+
+/* ================== popover: kontekst + trajanje uzivo + bogatija animacija ================== */
+.pop{animation:popIn2 .26s cubic-bezier(.2,.9,.3,1.18) both}
+@keyframes popIn2{from{opacity:0;transform:scale(.88) translateY(-8px);filter:blur(5px)}
+  to{opacity:1;transform:none;filter:none}}
+.pop-ctx{display:flex;align-items:center;gap:6px;font:600 10.5px var(--mono);
+  color:var(--mut);margin:-6px 0 10px}
+.pop-ctx i{font-style:normal;color:var(--mut2)}
+.pop-ctx b{color:var(--txt)}
+.pc-dot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
+.pop-dur{font:600 11px var(--mono);color:#34d399;margin:-4px 0 10px;min-height:15px}
+.pop-dur b{font-size:12.5px}

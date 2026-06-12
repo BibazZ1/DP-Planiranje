@@ -184,6 +184,16 @@ function ok(name, cond, extra = "") {
   ok("Očisti: badge sakriven", await badge().isHidden());
   ok("Očisti: nema AKTIVNI čipova", (await page.locator("#activeBar .fchip").count()) === 0);
 
+  // ---------- 12b. klik na DP ćeliju: puni projekat+kunde + otvara bočni panel ----------
+  await page.locator('.cell[data-fdp]').first().click();
+  await page.waitForTimeout(500);
+  ok("klik na DP -> projekat popunjen", await chipX("data-xproj").isVisible());
+  ok("klik na DP -> kunde popunjen", await chipX("data-xkunde").isVisible());
+  ok("klik na DP -> DP čip", await chipX("data-xdp").isVisible());
+  ok("klik na DP -> bočni panel (HP/HA + historija)", await page.locator("#drawer.open").isVisible());
+  await page.click("#pfClear");
+  await page.waitForTimeout(400);
+
   // ---------- 13. SweetAlert dijalozi ----------
   await page.locator(".act-name").first().dblclick();
   await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });

@@ -144,6 +144,7 @@
 <!-- popover za kreiranje / uređivanje termina -->
 <div class="pop glass hidden" id="pop">
   <div class="pop-head" id="popTitle">Novi termin</div>
+  <div class="pop-ctx" id="popCtx"></div>
   <div class="pop-status" id="popStatus">
     <button data-st="otvoreno" class="stpill red" data-i18n="stOtvoreno">otvoreno</button>
     <button data-st="završeno" class="stpill teal" data-i18n="stZavrseno">završeno</button>
@@ -152,6 +153,7 @@
     <label><span data-i18n="od">od</span> <input type="date" id="popOd"></label>
     <label><span data-i18n="do">do</span> <input type="date" id="popDo"></label>
   </div>
+  <div class="pop-dur" id="popDur"></div>
   <label class="pop-field"><span data-i18n="komentar">komentar</span>
     <input id="popKom" data-i18n-ph="komPh" placeholder="npr. čeka se dozvola…">
   </label>
