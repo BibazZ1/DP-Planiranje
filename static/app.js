@@ -13,7 +13,8 @@ const I18N = {
     syncTip: "Povuci svježe podatke iz Azure SQL",
     chStatus: "Termini po statusu", chOdjel: "Termini po odjelu",
     chDp: "Napredak po DP — % završeno",
-    tlHint: "prevuci po praznom = novi termin · povuci rub trake = skrati/produži · dupli klik = uredi · Ctrl+kolutić = zoom",
+    tlHint: "prevuci = novi termin (otvoreno) · dupli klik = završeno · desni klik = uredi · povuci rub = produži · Ctrl+kolutić = zoom",
+    kasniPitanje: "Termin završava PRIJE danas — razlog produženja (obavezno):",
     zoomOut: "Umanji", zoomIn: "Uvećaj", zoomFit: "Cijela godina",
     zDani: "dani", zSedmice: "sedmice", zMjeseci: "mjeseci",
     stOtvoreno: "otvoreno", stUToku: "u toku", stZavrseno: "završeno",
@@ -95,7 +96,8 @@ const I18N = {
     syncTip: "Pull fresh data from Azure SQL",
     chStatus: "Slots by status", chOdjel: "Slots by department",
     chDp: "Progress per DP — % done",
-    tlHint: "drag on empty = new slot · drag bar edge = shorten/extend · double-click = edit · Ctrl+wheel = zoom",
+    tlHint: "drag = new slot (open) · double-click = done · right-click = edit · drag edge = extend · Ctrl+wheel = zoom",
+    kasniPitanje: "Slot ends BEFORE today — reason for delay (required):",
     zoomOut: "Zoom out", zoomIn: "Zoom in", zoomFit: "Whole year",
     zDani: "days", zSedmice: "weeks", zMjeseci: "months",
     stOtvoreno: "open", stUToku: "in progress", stZavrseno: "done",
@@ -177,7 +179,8 @@ const I18N = {
     syncTip: "Frische Daten aus Azure SQL laden",
     chStatus: "Termine nach Status", chOdjel: "Termine nach Abteilung",
     chDp: "Fortschritt je DP — % fertig",
-    tlHint: "auf Fläche ziehen = neuer Termin · Balkenrand ziehen = kürzen/verlängern · Doppelklick = bearbeiten · Strg+Mausrad = Zoom",
+    tlHint: "Ziehen = neuer Termin (offen) · Doppelklick = fertig · Rechtsklick = bearbeiten · Rand ziehen = verlängern · Strg+Mausrad = Zoom",
+    kasniPitanje: "Termin endet VOR heute — Verzögerungsgrund (Pflicht):",
     zoomOut: "Verkleinern", zoomIn: "Vergrößern", zoomFit: "Ganzes Jahr",
     zDani: "Tage", zSedmice: "Wochen", zMjeseci: "Monate",
     stOtvoreno: "offen", stUToku: "laufend", stZavrseno: "fertig",
@@ -407,8 +410,6 @@ async function uiPrompt(title, val = "") {
 /* logički redoslijed gradnje — za 🔗 upozorenja o zavisnostima */
 const DEP_ORDER = ["Dozvole", "Pregled objekata", "Iskopni radovi", "Horizontalno bušenje",
                    "Asfaltiranje", "Montaža", "Priključak na POP", "Aktivacije"];
-/* 👻 prikaz baseline (snimljenog plana) — pamti se po korisniku */
-let SHOW_GHOST = localStorage.getItem("dp_ghost") !== "0";
 
 /* ---------- filtering ---------- */
 /* kasni = rok (datum_do) prošao, a termin nije završen — računa se automatski */
@@ -748,10 +749,7 @@ function renderTimeline(keepScroll) {
   const segsByTask = {};
   for (const s of DATA.segments) (segsByTask[s.task_id] ||= []).push(s);
   /* prevodi unaprijed: unutar petlje "for (const t of rows)" t je TASK, ne i18n! */
-  const txtKasni = t("kasniTip"), txtPlan = t("planTip"), txtDep = t("depTip");
-  /* 👻 baseline (zadnji snimak plana) po aktivnosti */
-  const baseByTask = {};
-  if (SHOW_GHOST) for (const b of (DATA.baseline || [])) baseByTask[b.task_id] = b;
+  const txtKasni = t("kasniTip"), txtDep = t("depTip");
 
   let html = headerBands(totalW);
   let anyRow = false;
@@ -809,15 +807,6 @@ function renderTimeline(keepScroll) {
         });
         if (conf) depFrom = conf.aktivnost;
       }
-      /* 👻 ghost traka iz snimljenog plana */
-      let ghost = "";
-      const bl = baseByTask[t.id];
-      if (bl) {
-        const ga = Math.max(0, dayIdx(bl.datum_od)), gb = Math.min(n - 1, dayIdx(bl.datum_do));
-        if (gb >= 0 && ga <= n - 1)
-          ghost = `<i class="blghost" title="${txtPlan}: ${fmt(bl.datum_od)} – ${fmt(bl.datum_do)}" ` +
-            `style="left:${ga * PX}px;width:${Math.max(PX, (gb - ga + 1) * PX)}px"></i>`;
-      }
       for (const s of (segsByTask[t.id] || [])) {
         /* kašnjenje: otvoreno / u toku se automatski rasteže do danas; završeno ne */
         const late = s.status !== "završeno" && s.datum_do < today;
@@ -862,7 +851,7 @@ function renderTimeline(keepScroll) {
             <button class="rowdel" title="Obriši">✕</button>
           </span>
         </div>
-        <div class="tl-track" style="width:${totalW}px;${trackBg()}">${ghost}${segs}</div></div>`;
+        <div class="tl-track" style="width:${totalW}px;${trackBg()}">${segs}</div></div>`;
     }
   }
 
@@ -875,7 +864,6 @@ function renderTimeline(keepScroll) {
   sc.scrollLeft = sl; sc.scrollTop = st;
   $("#zLabel").textContent = zoomLabel();
   bindTimeline();
-  drawPendingGhost();   // nacrtani raspon preživi re-render dok je popover otvoren
 }
 
 function esc(s) {
@@ -920,10 +908,26 @@ function bindTimeline() {
     });
   });
   $$("#tlScroll .seg").forEach(sg => {
-    sg.addEventListener("dblclick", e => {
+    /* dupli klik = brzi toggle završeno ↔ otvoreno */
+    sg.addEventListener("dblclick", async e => {
       e.stopPropagation();
       const s = DATA.segments.find(x => x.id === +sg.dataset.seg);
-      if (s) ensureDpSelected(s.task_id);   // uređivanje -> otvori panel DP-a
+      if (!s) return;
+      const cur = s.status;
+      const next = cur === "završeno" ? "otvoreno" : "završeno";
+      s.status = next;
+      await api(`/api/segments/${s.id}`, "PATCH", { status: next });
+      pushUndo({ label: t("statusLbl"),
+        run: async () => api(`/api/segments/${s.id}`, "PATCH", { status: cur }) });
+      renderAll();
+      histDirty();
+    });
+    /* desni klik = puni editor (komentar, eskalacija, datumi, brisanje) */
+    sg.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const s = DATA.segments.find(x => x.id === +sg.dataset.seg);
+      if (s) ensureDpSelected(s.task_id);
       openPop("edit", +sg.dataset.seg, e.clientX, e.clientY);
     });
   });
@@ -1022,21 +1026,6 @@ function dragTipShow(e, a, b) {
 }
 function dragTipHide() { dragTip.classList.add("hidden"); }
 
-/* nacrtani raspon OSTAJE vidljiv dok je popover otvoren (ne "nestaje" crtež) */
-let pendingDraw = null;   // {taskId, a, b}
-function drawPendingGhost() {
-  if (drag) return;                       // tokom aktivnog crtanja ghost() to radi
-  $$(".ghost").forEach(g => g.remove());
-  if (!pendingDraw) return;
-  const track = $(`#tlScroll .tl-row[data-task="${pendingDraw.taskId}"] .tl-track`);
-  if (!track) return;
-  const g = document.createElement("div");
-  g.className = "ghost keep";
-  g.style.left = pendingDraw.a * PX + "px";
-  g.style.width = (pendingDraw.b - pendingDraw.a + 1) * PX + "px";
-  track.appendChild(g);
-}
-
 /* live resize of an existing termin by dragging its edge */
 document.addEventListener("mousemove", e => {
   if (!segResize) return;
@@ -1068,23 +1057,33 @@ document.addEventListener("mouseup", async () => {
   }
 });
 
-document.addEventListener("mouseup", e => {
+document.addEventListener("mouseup", async e => {
   if (!drag) return;
-  const { taskId } = drag;
+  const { taskId, moved } = drag;
   const [a, b] = snapRange(drag.d0, drag.d1);
   drag = null;
   dragTipHide();
-  /* nacrtano OSTAJE vidljivo (ghost) dok popover ne završi */
-  pendingDraw = { taskId, a, b };
+  $$(".ghost").forEach(g => g.remove());
+  if (!moved) return;                       // običan klik nije crtanje
+  const od = iso(dateOfIdx(a)), do_ = iso(dateOfIdx(b));
+  /* CRTANJE = ODMAH KREIRA otvoreni termin, bez popovera i bez pitanja.
+     JEDINI izuzetak: kraj prije danas -> razlog produženja je OBAVEZAN. */
+  let kasni_razlog = "";
+  if (do_ < todayIso()) {
+    kasni_razlog = (await uiPrompt(t("kasniPitanje"), "") || "").trim();
+    if (!kasni_razlog) return;              // bez razloga nema kreiranja
+  }
+  const r = await api("/api/segments", "POST",
+    { task_id: taskId, datum_od: od, datum_do: do_, status: "otvoreno", kasni_razlog });
+  if (!r || !r.id) return;
+  DATA.segments.push({ id: r.id, task_id: taskId, datum_od: od, datum_do: do_,
+    status: "otvoreno", komentar: "", eskalacija: 0, esk_razlog: "", esk_datum: "",
+    kasni_razlog });
+  pushUndo({ label: t("noviTermin"),
+    run: async () => api(`/api/segments/${r.id}`, "DELETE") });
   ensureDpSelected(taskId);   // rad u DP-u -> otvori njegov panel desno
-  drawPendingGhost();
-  /* popover je VEZAN za nacrtanu traku — otvara se tačno ispod nje */
-  const g = $(".ghost.keep");
-  let cx = e.clientX, cy = e.clientY;
-  if (g) { const r = g.getBoundingClientRect(); cx = Math.max(8, r.left); cy = r.bottom + 6; }
-  openPop("new", null, cx, cy, {
-    taskId, od: iso(dateOfIdx(a)), do_: iso(dateOfIdx(b)),
-  });
+  renderAll();
+  histDirty();
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
@@ -1198,8 +1197,6 @@ function openPop(mode, segId, cx, cy, init = {}) {
 function closePop() {
   $("#pop").classList.add("hidden");
   popCtx = null;
-  pendingDraw = null;
-  $$(".ghost").forEach(g => g.remove());
 }
 
 /* termin probio rok? (otvoreno / u toku sa krajem u prošlosti) -> razlog obavezan */
@@ -2392,20 +2389,6 @@ yearSel.addEventListener("change", () => { YEAR = +yearSel.value; renderTimeline
 $("#btnAddDp").addEventListener("click", () => openDpDialog(null));
 $("#btnAddPopTop").addEventListener("click", () => openPopDialog());
 
-/* 📸 baseline: snimi plan + 👻 prikaži/sakrij ghost trake */
-$("#btnSnap").addEventListener("click", async () => {
-  if (!await uiConfirm(t("snapPitanje"))) return;
-  const r = await api("/api/baseline", "POST", {});
-  if (r) { await load(); uiToast(`${t("planSnimljen")}: ${r.count}`); }
-});
-function ghostBtn() { $("#btnGhost").classList.toggle("primary", SHOW_GHOST); }
-$("#btnGhost").addEventListener("click", () => {
-  SHOW_GHOST = !SHOW_GHOST;
-  localStorage.setItem("dp_ghost", SHOW_GHOST ? "1" : "0");
-  ghostBtn();
-  renderTimeline(true);
-});
-ghostBtn();
 undoBtn();
 $("#userBadge").addEventListener("click", askUser);
 renderUser();

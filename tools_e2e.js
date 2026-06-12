@@ -251,13 +251,6 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(800);
   ok("komentar dodan u panel", (await page.locator("#drComments").textContent()).includes("E2E test komentar"));
 
-  // ---------- 12d. baseline (📸 + 👻) ----------
-  await page.click("#btnSnap");
-  await page.waitForSelector(".swal2-confirm", { timeout: 5000 });
-  await page.click(".swal2-confirm");
-  await page.waitForTimeout(2000);                       // POST + load + toast (auto-nestaje)
-  ok("baseline: 👻 ghost trake u timelineu", (await page.locator(".blghost").count()) >= 4);
-
   // ---------- 12e. ±1 KW pomjeranje + undo ----------
   const segsA = (await (await page.request.get(BASE + "/api/data")).json()).segments;
   await page.locator('#drShift [data-shift="7"]').click();
@@ -292,43 +285,92 @@ function ok(name, cond, extra = "") {
   await page.click("#pfClear");
   await page.waitForTimeout(400);
 
-  // ---------- 12h. crtanje: živi brojač datuma + crtež NE nestaje dok je popover otvoren ----------
-  const asfRow = page.locator('.tl-row[data-task]', { hasText: "Asfaltiranje" }).first();
-  const trackBox = await asfRow.locator(".tl-track").boundingBox();
-  const y = trackBox.y + trackBox.height / 2;
-  await page.mouse.move(trackBox.x + 300, y);
+  // ---------- 12h. crtanje = ODMAH kreira (otvoreno), bez popovera i pitanja ----------
+  const segCount = async () => (await (await page.request.get(BASE + "/api/data")).json()).segments.length;
+  const lastSeg = async () => {
+    const ss = (await (await page.request.get(BASE + "/api/data")).json()).segments;
+    return ss.reduce((m, s) => (s.id > (m?.id || 0) ? s : m), null);
+  };
+  const rowBox = async name =>
+    page.locator('.tl-row[data-task]', { hasText: name }).first().locator(".tl-track").boundingBox();
+
+  // (a) crtanje koje ZAVRŠAVA PRIJE DANAS -> Swal traži razlog; Otkaži = ništa se ne kreira
+  let bA = await rowBox("Asfaltiranje");
+  let yA = bA.y + bA.height / 2;
+  await page.mouse.move(bA.x + 300, yA);
   await page.mouse.down();
-  await page.mouse.move(trackBox.x + 360, y, { steps: 4 });
-  await page.mouse.move(trackBox.x + 430, y, { steps: 4 });
+  await page.mouse.move(bA.x + 380, yA, { steps: 4 });
   ok("crtanje: živi brojač datuma vidljiv", await page.locator(".dragtip:not(.hidden)").isVisible());
   const tipTxt = await page.locator(".dragtip").textContent();
   ok("brojač: datumi + trajanje + KW", /\d{2}\.\d{2}\./.test(tipTxt) && /d · KW/.test(tipTxt), `(${tipTxt})`);
+  const cntBefore = await segCount();
   await page.mouse.up();
-  await page.waitForTimeout(500);
-  ok("poslije puštanja: popover otvoren", await page.locator("#pop:not(.hidden)").isVisible());
-  ok("poslije puštanja: crtež OSTAJE (ghost)", (await page.locator(".ghost.keep").count()) === 1);
+  await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
+  ok("kraj PRIJE danas -> traži razlog (Swal)", true);
+  await page.click(".swal2-cancel");
+  await page.waitForTimeout(600);
+  ok("otkazan razlog -> termin NIJE kreiran", (await segCount()) === cntBefore);
+
+  // (b) isti potez s razlogom -> kreira se s kasni_razlog
+  bA = await rowBox("Asfaltiranje");
+  yA = bA.y + bA.height / 2;
+  await page.mouse.move(bA.x + 300, yA);
+  await page.mouse.down();
+  await page.mouse.move(bA.x + 380, yA, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
+  await page.fill(".swal2-popup input.swal2-input", "kasni zbog dozvole");
+  await page.click(".swal2-confirm");
+  await page.waitForTimeout(800);
+  ok("razlog upisan -> termin kreiran", (await segCount()) === cntBefore + 1);
+  ok("kasni_razlog snimljen", (await lastSeg()).kasni_razlog === "kasni zbog dozvole");
+
+  // (c) crtanje POSLIJE danas -> NIŠTA ne pita: odmah otvoreno, bez popovera
+  const bM = await rowBox("Montaža");
+  const yM = bM.y + bM.height / 2;
+  await page.mouse.move(bM.x + 660, yM);
+  await page.mouse.down();
+  await page.mouse.move(bM.x + 740, yM, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(800);
+  ok("budući termin: NEMA Swal pitanja", (await page.locator(".swal2-popup").count()) === 0);
+  ok("budući termin: NEMA popovera", !(await page.locator("#pop:not(.hidden)").isVisible().catch(() => false)));
+  ok("budući termin: kreiran odmah", (await segCount()) === cntBefore + 2);
+  const segM = await lastSeg();
+  ok("default status = otvoreno", segM.status === "otvoreno");
   ok("brojač sakriven poslije puštanja", !(await page.locator(".dragtip:not(.hidden)").isVisible().catch(() => false)));
-  // redizajn popovera: datumi skriveni (read-only traka), komentar opcionalan
-  ok("popover: datum-polja skrivena po defaultu", (await page.locator("#popWhenEdit.hidden").count()) === 1);
-  ok("popover: read-only datum traka vidljiva", await page.locator("#popWhenDisp").isVisible());
-  ok("popover: komentar označen opcionalan", (await page.locator("#pop .pop-field .opt").first().textContent()).toLowerCase().includes("opciona"));
+
+  // (d) crtanje je PO DANU: kratak povlak (~12px) < 7 dana
+  const bH = await rowBox("Horizontalno");
+  const yH = bH.y + bH.height / 2;
+  await page.mouse.move(bH.x + 700, yH);
+  await page.mouse.down();
+  await page.mouse.move(bH.x + 712, yH, { steps: 3 });
+  await page.mouse.up();
+  await page.waitForTimeout(800);
+  const segH = await lastSeg();
+  const ndays = Math.round((new Date(segH.datum_do) - new Date(segH.datum_od)) / 864e5) + 1;
+  ok("crtanje PO DANU (kratak povlak < 7 dana)", ndays >= 1 && ndays < 7, `(${ndays}d)`);
+
+  // (e) dupli klik na traku = završeno; undo vraća; desni klik = editor
+  const segMEl = page.locator(`.seg[data-seg="${segM.id}"]`);
+  await segMEl.dblclick();
+  await page.waitForTimeout(800);
+  ok("dupli klik -> završeno", (await (await page.request.get(BASE + "/api/data")).json())
+    .segments.find(s => s.id === segM.id).status === "završeno");
+  await page.click("#btnUndo");
+  await page.waitForTimeout(800);
+  ok("undo vraća na otvoreno", (await (await page.request.get(BASE + "/api/data")).json())
+    .segments.find(s => s.id === segM.id).status === "otvoreno");
+  await page.locator(`.seg[data-seg="${segM.id}"]`).click({ button: "right" });
+  await page.waitForTimeout(400);
+  ok("desni klik -> editor otvoren", await page.locator("#pop:not(.hidden)").isVisible());
+  ok("editor: datum-polja skrivena po defaultu", (await page.locator("#popWhenEdit.hidden").count()) === 1);
+  ok("editor: read-only datum traka", await page.locator("#popWhenDisp").isVisible());
+  ok("editor: komentar opcionalan", (await page.locator("#pop .pop-field .opt").first().textContent()).toLowerCase().includes("opciona"));
   await page.click("#popWhenDisp");
   await page.waitForTimeout(200);
-  ok("popover: klik na datum otkriva ručno uređivanje", (await page.locator("#popWhenEdit.hidden").count()) === 0);
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(400);
-  ok("Esc: popover i crtež očišćeni", (await page.locator(".ghost").count()) === 0);
-
-  // ---------- 12i. crtanje PO DANU (ne po KW): kratak povlak < 7 dana ----------
-  const asfBox = await page.locator('.tl-row[data-task]', { hasText: "Asfaltiranje" }).first().locator(".tl-track").boundingBox();
-  const y2 = asfBox.y + asfBox.height / 2;
-  await page.mouse.move(asfBox.x + 600, y2);
-  await page.mouse.down();
-  await page.mouse.move(asfBox.x + 612, y2, { steps: 3 });   // ~12px ≈ 3-4 dana @ PX 3.8
-  await page.mouse.up();
-  await page.waitForTimeout(400);
-  const ndays = parseInt((((await page.locator("#popWhenDisp").textContent()) || "").match(/(\d+)\s*dana/) || [])[1] || "99", 10);
-  ok("crtanje je PO DANU (kratak povlak < 7 dana)", ndays >= 1 && ndays < 7, `(${ndays}d)`);
+  ok("editor: klik na datum otkriva ručno uređivanje", (await page.locator("#popWhenEdit.hidden").count()) === 0);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
   await page.click("#pfClear");
