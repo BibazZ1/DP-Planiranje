@@ -375,6 +375,9 @@ function swalBase(opts) {
     customClass: { container: "scifi-popup" },
     confirmButtonColor: "#10b981",
     cancelButtonColor: "#475569",
+    /* bez animacija — trenutno otvaranje/zatvaranje (nikad "zaglavljen" dijalog) */
+    showClass: { popup: "", backdrop: "swal2-backdrop-show", icon: "" },
+    hideClass: { popup: "", backdrop: "", icon: "" },
     ...opts,
   });
 }
@@ -888,6 +891,9 @@ function bindTimeline() {
   $$("#tlScroll .tl-row[data-task] .tl-track").forEach(track => {
     track.addEventListener("mousedown", e => {
       if (e.button !== 0 || e.target.closest(".seg")) return;
+      /* ne počinji crtanje dok je otvoren dijalog/popover (spriječi "duh" poteze) */
+      if ((typeof Swal !== "undefined" && Swal.isVisible()) ||
+          popCtx || $("dialog[open]")) return;
       e.preventDefault();
       const taskId = +track.closest(".tl-row").dataset.task;
       /* jedna aktivnost = JEDNA traka: ako termin postoji, zasvijetli ga umjesto crtanja */

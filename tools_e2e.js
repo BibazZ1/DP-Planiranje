@@ -308,8 +308,13 @@ function ok(name, cond, extra = "") {
   await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
   ok("kraj PRIJE danas -> traži razlog (Swal)", true);
   await page.click(".swal2-cancel");
-  await page.waitForTimeout(600);
+  // dijalog mora VIZUELNO nestati brzo (ne smije ostati "zaglavljen")
+  await page.waitForSelector(".swal2-container", { state: "detached", timeout: 1500 }).catch(() => {});
+  ok("Swal NESTANE poslije Otkaži (<1.5s)", (await page.locator(".swal2-container").count()) === 0);
+  await page.waitForTimeout(300);
   ok("otkazan razlog -> termin NIJE kreiran", (await segCount()) === cntBefore);
+  // klik na timeline NAKON zatvaranja ne smije pokrenuti novi 'duh' potez
+  ok("nema zaostalog dijaloga (bez 'duh' prompta)", (await page.locator(".swal2-popup").count()) === 0);
 
   // (b) isti potez s razlogom -> kreira se s kasni_razlog
   bA = await rowBox("Asfaltiranje");
@@ -321,7 +326,9 @@ function ok(name, cond, extra = "") {
   await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
   await page.fill(".swal2-popup input.swal2-input", "kasni zbog dozvole");
   await page.click(".swal2-confirm");
-  await page.waitForTimeout(800);
+  await page.waitForSelector(".swal2-container", { state: "detached", timeout: 1500 }).catch(() => {});
+  ok("Swal NESTANE poslije Sačuvaj (<1.5s)", (await page.locator(".swal2-container").count()) === 0);
+  await page.waitForTimeout(500);
   ok("razlog upisan -> termin kreiran", (await segCount()) === cntBefore + 1);
   ok("kasni_razlog snimljen", (await lastSeg()).kasni_razlog === "kasni zbog dozvole");
 
