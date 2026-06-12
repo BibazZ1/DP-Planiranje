@@ -695,3 +695,14 @@ span.flatpickr-weekday{color:#64748b!important}
   border-radius:9999px;padding:1px 7px;white-space:nowrap}
 .seg .latebadge{font:700 9.5px var(--mono);color:#fff;background:rgba(239,68,68,.85);
   border-radius:9999px;padding:0 6px;margin-right:4px;white-space:nowrap;flex:none}
+
+/* KRITICNO: padajuce liste (combo/flatpickr) moraju preko SLJEDECIH sekcija.
+   Svaka .glass sekcija pravi stacking context (backdrop-filter), pa kasnija
+   sekcija u DOM-u prekriva dropdown ranije sekcije i "guta" klikove! */
+#filterCard{position:relative;z-index:45}
+.tl-empty{padding:40px 24px;text-align:center;color:var(--mut);font-size:13.5px;line-height:1.8}
+.tl-empty b{color:var(--teal)}
+
+/* prigušene trake kad ne odgovaraju filteru — !important POBJEĐUJE segIn animaciju
+   (animation fill-mode:both inače trajno drži opacity:1 i "ne da" inline stilu!) */
+.seg.dim{opacity:.13!important;filter:saturate(.3)}

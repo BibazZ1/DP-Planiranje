@@ -180,61 +180,6 @@ STANDARD_AKTIVNOSTI = [
 ]
 
 
-def _monday(year, week):
-    return datetime.date.fromisocalendar(year, week, 1).isoformat()
-
-
-def _sunday(year, week):
-    return datetime.date.fromisocalendar(year, week, 7).isoformat()
-
-
-def _seed(cur):
-    """Početni podaci iz Muster Bauzeitenplan 1.1 (2026)."""
-    y = 2026
-    dp1 = {"Dozvole": (4, 5, "završeno"), "Priključak na POP": (12, 13, "otvoreno"),
-           "Pregled objekata": (5, 6, "završeno"), "Iskopni radovi": (8, 9, "završeno"),
-           "Horizontalno bušenje": (9, 9, "otvoreno"), "Asfaltiranje": (10, 10, "otvoreno"),
-           "Montaža": (11, 12, "otvoreno"), "Aktivacije": (16, 17, "otvoreno")}
-    dp2 = {"Dozvole": (13, 18, "završeno"), "Priključak na POP": (25, 25, "otvoreno"),
-           "Pregled objekata": (17, 19, "završeno"), "Iskopni radovi": (20, 22, "završeno"),
-           "Horizontalno bušenje": (21, 21, "otvoreno"), "Asfaltiranje": (26, 26, "otvoreno"),
-           "Montaža": (25, 26, "otvoreno"), "Aktivacije": (27, 31, "otvoreno")}
-    blocks = [
-        ("POP xyz-001", "DP 1", "Musterstrasse", "Max Mustermann", 32, 15, dp1),
-        ("POP xyz-001", "DP 2", "Landstrasse 123", "Max Mustermann", 26, 18, dp2),
-        ("POP xyz-002", "DP 3", "", "Max Mustermann", 35, 21, {}),
-    ]
-    now = now_iso()
-    pop_ids = {}
-    for pop, naziv, lok, vod, hp, ha, plan in blocks:
-        if pop not in pop_ids:
-            cur.execute(
-                "INSERT INTO pops(projekt,naziv,created_at) VALUES('Wandlitz',%s,%s) RETURNING id",
-                (pop, now))
-            pop_ids[pop] = cur.fetchone()[0]
-        cur.execute(
-            "INSERT INTO dps(pop,naziv,lokacija,voditelj,hp,ha,projekt,pop_id) "
-            "VALUES(%s,%s,%s,%s,%s,%s,'Wandlitz',%s) RETURNING id",
-            (pop, naziv, lok, vod, hp, ha, pop_ids[pop]))
-        dp_id = cur.fetchone()[0]
-        for akt, odjel in STANDARD_AKTIVNOSTI:
-            cur.execute(
-                "INSERT INTO tasks(dp_id,aktivnost,odjel) VALUES(%s,%s,%s) RETURNING id",
-                (dp_id, akt, odjel))
-            task_id = cur.fetchone()[0]
-            p = plan.get(akt)
-            if p:
-                kw_od, kw_do, st = p
-                cur.execute(
-                    "INSERT INTO segments(task_id,datum_od,datum_do,status) VALUES(%s,%s,%s,%s)",
-                    (task_id, _monday(y, kw_od), _sunday(y, kw_do), st))
-    # početni HP/HA POP-a = zbir njegovih DP-ova
-    cur.execute(
-        "UPDATE pops SET "
-        " hp=(SELECT COALESCE(SUM(hp),0) FROM dps WHERE pop_id=pops.id),"
-        " ha=(SELECT COALESCE(SUM(ha),0) FROM dps WHERE pop_id=pops.id)")
-
-
 def init_db(permanent_admin=""):
     """Kreira šemu ako ne postoji (sigurno i kad više gunicorn workera starta odjednom)."""
     con = None
@@ -251,9 +196,7 @@ def init_db(permanent_admin=""):
         # advisory lock: samo jedan worker kreira šemu, ostali čekaju
         cur.execute("SELECT pg_advisory_lock(727274001)")
         cur.execute(SCHEMA_SQL)
-        cur.execute("SELECT COUNT(*) FROM dps")
-        if cur.fetchone()[0] == 0:
-            _seed(cur)
+        # produkcija: NEMA demo seed podataka — POP/DP se kreiraju kroz aplikaciju
         if permanent_admin:
             cur.execute(
                 "INSERT INTO allowed_users(email,role,added_by,added_at) "

@@ -60,6 +60,7 @@ const I18N = {
     datumOd: "Datum od", datumDo: "Datum do", nemaRez: "nema rezultata", da: "Da",
     kasniChip: "kasni", kasniTip: "rok prošao, a termin nije završen",
     rokLbl: "rok", rokTip: "rok DP-a = kraj termina Aktivacija",
+    tlEmpty: "Nema DP-ova za izabrane filtere.<br>Očisti filtere, ili kreiraj <b>＋ Novi POP</b> pa <b>＋ Novi DP</b> pod izabranim projektom.",
     lockHint: "🔒 izaberi projekat gore da otključaš dodavanje POP-ova",
     popHint: "klik na karticu = historija + filter · ＋ DP = novi DP pod tim POP-om",
     noPops: "još nema POP-ova pod ovim projektom — dodaj prvi ↑",
@@ -130,6 +131,7 @@ const I18N = {
     datumOd: "Date from", datumDo: "Date to", nemaRez: "no results", da: "Yes",
     kasniChip: "late", kasniTip: "past due date and not finished",
     rokLbl: "due", rokTip: "DP due date = end of Activations",
+    tlEmpty: "No DPs match the selected filters.<br>Clear the filters, or create <b>＋ New POP</b> then <b>＋ New DP</b> under the selected project.",
     lockHint: "🔒 select a project above to unlock adding POPs",
     popHint: "click a card = history + filter · ＋ DP = new DP under that POP",
     noPops: "no POPs under this project yet — add the first ↑",
@@ -200,6 +202,7 @@ const I18N = {
     datumOd: "Datum von", datumDo: "Datum bis", nemaRez: "keine Treffer", da: "Ja",
     kasniChip: "verspätet", kasniTip: "Frist überschritten, nicht abgeschlossen",
     rokLbl: "Frist", rokTip: "DP-Frist = Ende der Aktivierungen",
+    tlEmpty: "Keine DPs für die gewählten Filter.<br>Filter leeren, oder <b>＋ Neuer POP</b> und dann <b>＋ Neuer DP</b> unter dem gewählten Projekt anlegen.",
     lockHint: "🔒 oben ein Projekt wählen, um das Anlegen von POPs freizuschalten",
     popHint: "Klick auf Karte = Verlauf + Filter · ＋ DP = neuer DP unter dem POP",
     noPops: "noch keine POPs in diesem Projekt — ersten anlegen ↑",
@@ -699,18 +702,22 @@ function renderTimeline(keepScroll) {
   const todayI = dayIdx(todayIso());
   const segsByTask = {};
   for (const s of DATA.segments) (segsByTask[s.task_id] ||= []).push(s);
+  /* prevodi unaprijed: unutar petlje "for (const t of rows)" t je TASK, ne i18n! */
+  const txtKasni = t("kasniTip");
 
   let html = headerBands(totalW);
+  let anyRow = false;
 
   for (const dp of sortedDps()) {
     if (!dpFilterOk(dp)) continue;
     const tasks = sortTasks(DATA.tasks.filter(t => t.dp_id === dp.id)
       .filter(t => !F.odj.size || F.odj.has(t.odjel)));
+    const segFilterOn = F.st.size || F.esk || F.kasni || F.dOd || F.dDo;
     const rows = tasks.filter(t => {
-      if (!F.st.size && !F.esk) return true;
+      if (!segFilterOn) return true;
       return (segsByTask[t.id] || []).some(segMatch);
     });
-    if (!rows.length && (F.st.size || F.esk || F.odj.size)) continue;
+    if (!rows.length && (segFilterOn || F.odj.size)) continue;
 
     const allSegs = DATA.tasks.filter(t => t.dp_id === dp.id)
       .flatMap(t => segsByTask[t.id] || []);
@@ -724,6 +731,7 @@ function renderTimeline(keepScroll) {
     const rokLate = rok && rok < todayIso() && pct < 100;
     const lateCnt = allSegs.filter(segLate).length;
 
+    anyRow = true;
     html += `<div class="tl-row group" data-dp="${dp.id}">
       <div class="tl-label">
         <div class="gr-info" title="${t("dpHistTip")}">
@@ -762,12 +770,12 @@ function renderTimeline(keepScroll) {
           const ka = s.esk_datum ? Math.max(a, Math.min(b, dayIdx(s.esk_datum))) : a;
           overlays += `<i class="eskpart" style="left:${(ka - a) * PX}px;width:${(b - ka + 1) * PX}px"></i>`;
         }
-        segs += `<div class="seg ${cls}${s.eskalacija ? " esk" : ""}${late ? " late" : ""}" data-seg="${s.id}"
-          style="left:${x}px;width:${w}px;${dim ? "opacity:.13;filter:saturate(.3)" : ""}">` +
+        segs += `<div class="seg ${cls}${s.eskalacija ? " esk" : ""}${late ? " late" : ""}${dim ? " dim" : ""}" data-seg="${s.id}"
+          style="left:${x}px;width:${w}px">` +
           overlays +
           `<i class="rs l" title="povuci rub = pomjeri početak"></i><i class="rs r" title="povuci rub = pomjeri kraj"></i>` +
           (s.eskalacija ? `<span class="warn">⚠</span>` : "") +
-          (late && w > 95 ? `<span class="latebadge" title="${t("kasniTip")}">⏰ +${lateDays(s)}d</span>` : "") +
+          (late && w > 95 ? `<span class="latebadge" title="${txtKasni}">⏰ +${lateDays(s)}d</span>` : "") +
           (w > 60 ? `<span>${fmt(s.datum_od).slice(0, 5)}–${fmt(s.datum_do).slice(0, 5)}</span>` : "") +
           (s.komentar && w > 150 ? `<span class="kom">· ${esc(s.komentar)}</span>` : "") +
           `</div>`;
@@ -785,6 +793,9 @@ function renderTimeline(keepScroll) {
         <div class="tl-track" style="width:${totalW}px;${trackBg()}">${segs}</div></div>`;
     }
   }
+
+  /* prazno stanje: objasni ZAŠTO nema redova i šta dalje */
+  if (!anyRow) html += `<div class="tl-empty">${t("tlEmpty")}</div>`;
 
   html = `<div class="tl-inner" style="position:relative;min-width:max-content">${html}
     ${todayI >= 0 && todayI < n ? `<i class="today-line" data-lbl="${t("danas")}" style="left:${LABELW + todayI * PX + PX / 2}px"></i>` : ""}</div>`;
