@@ -249,6 +249,15 @@ function ok(name, cond, extra = "") {
   // ---------- 12f. plan-vs-stvarnost ----------
   ok("plan-vs-stvarnost (HP/HA trake) prikazan", (await page.locator(".pv-wrap").count()) === 1);
 
+  // ---------- 12g. krupna vremena + Escape skida DP ali OSTAVLJA projekat ----------
+  ok("historija: krupno KO + KADA", (await page.locator("#drHist .evwhen b").count()) >= 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  ok("Esc: panel zatvoren", !(await page.locator("#drawer.open").isVisible().catch(() => false)));
+  ok("Esc: DP filter skinut", !(await chipX("data-xdp").isVisible().catch(() => false)));
+  ok("Esc: projekat OSTAJE", await chipX("data-xproj").isVisible());
+  ok("Esc: kunde OSTAJE", await chipX("data-xkunde").isVisible());
+
   await page.click("#pfClear");
   await page.waitForTimeout(400);
 

@@ -931,6 +931,8 @@ function bindTimeline() {
   $$("#tlScroll .seg").forEach(sg => {
     sg.addEventListener("dblclick", e => {
       e.stopPropagation();
+      const s = DATA.segments.find(x => x.id === +sg.dataset.seg);
+      if (s) ensureDpSelected(s.task_id);   // uređivanje -> otvori panel DP-a
       openPop("edit", +sg.dataset.seg, e.clientX, e.clientY);
     });
   });
@@ -1048,6 +1050,7 @@ document.addEventListener("mouseup", e => {
   const [a, b] = snapRange(drag.d0, drag.d1);
   drag = null;
   $$(".ghost").forEach(g => g.remove());
+  ensureDpSelected(taskId);   // rad u DP-u -> otvori njegov panel desno
   openPop("new", null, e.clientX, e.clientY, {
     taskId, od: iso(dateOfIdx(a)), do_: iso(dateOfIdx(b)),
   });
@@ -1056,7 +1059,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     if (drag) { drag = null; $$(".ghost").forEach(g => g.remove()); }
     if (popCtx) closePop();
-    else if (SEL && !$("dialog[open]")) { SEL = null; closeDrawer(); renderAll(); }
+    else if (SEL && !$("dialog[open]")) deselect();   // skini DP, zadrži projekat
   }
 });
 
@@ -1180,6 +1183,7 @@ $("#popEsk").addEventListener("change", () => {
   if (on && !$("#popEskDat").value) $("#popEskDat").value = todayIso();
 });
 $("#popCancel").addEventListener("click", closePop);
+$("#popClose").addEventListener("click", closePop);
 $("#popDel").addEventListener("click", async () => {
   if (popCtx?.mode !== "edit") return;
   const old = { ...DATA.segments.find(s => s.id === popCtx.segId) };
@@ -1615,6 +1619,26 @@ function selectDp(dpId) {
   renderAll();
 }
 function closeDrawer() { $("#drawer").classList.remove("open"); }
+/* zatvaranje panela (Esc/✕): skini DP/POP filter, ali OSTAVI projekat + kunde */
+function deselect() {
+  if (SEL) {
+    if (SEL.type === "dp") F.dp.delete(SEL.id);
+    else {
+      const p = DATA.pops.find(x => x.id === SEL.id);
+      if (p) F.pop.delete(p.naziv);
+    }
+  }
+  SEL = null;
+  closeDrawer();
+  renderAll();
+}
+/* rad unutar DP-a (crtanje/uređivanje termina) automatski otvara njegov panel */
+function ensureDpSelected(taskId) {
+  const tk = DATA.tasks.find(x => x.id === taskId);
+  if (!tk) return;
+  if (SEL && SEL.type === "dp" && SEL.id === tk.dp_id) return;
+  selectDp(tk.dp_id);
+}
 function openDrawer() {
   if (!SEL) return;
   let name, meta, hp, ha, typeLbl;
@@ -1759,9 +1783,13 @@ async function loadComments() {
   const r = await api(`/api/comments?dp_id=${SEL.id}`);
   if (!r || !SEL || `dp:${SEL.id}` !== key) return;
   $("#drComments").innerHTML = (r.comments || []).length
-    ? r.comments.map(c => `<div class="dc-row">${avatar(c.user)}<div class="dc-b">
-        <span class="dc-t">${esc(c.tekst)}</span>
-        <i>${esc(c.user || "?")} · ${fmtTs(c.ts)}</i></div></div>`).join("")
+    ? r.comments.map(c => {
+        const [dd, tt] = fmtTsParts(c.ts);
+        return `<div class="dc-row">${avatar(c.user)}<div class="dc-b">
+        <div class="evhead"><b class="evwho">${esc(c.user || "?")}</b>
+          <span class="evwhen"><b>${tt}</b><i>${dd}</i></span></div>
+        <span class="dc-t">${esc(c.tekst)}</span></div></div>`;
+      }).join("")
     : `<div class="dr-h empty">${t("nemaKom")}</div>`;
 }
 async function sendComment() {
@@ -1831,9 +1859,18 @@ function evRow(e) {
   const child = SEL && SEL.type === "pop" && (e.kind === "seg" || e.entity === "dp");
   const chLbl = e.kind === "seg" ? e.dp_naziv : e.label;
   const pre = child && chLbl ? `<small class="ch">${esc(chLbl)}</small> ` : "";
+  /* KO i KADA — krupno i jasno, na prvi pogled */
+  const [dd, tt] = fmtTsParts(e.ts);
   return `<div class="dr-h">${avatar(e.user)}<div class="bd">
-    <div class="tx">${pre}${evText(e)}</div>
-    <div class="sub">${e.user ? esc(e.user) : t("nepoznat")} · ${fmtTs(e.ts)}</div></div></div>`;
+    <div class="evhead">
+      <b class="evwho">${e.user ? esc(e.user) : t("nepoznat")}</b>
+      <span class="evwhen"><b>${tt}</b><i>${dd}</i></span>
+    </div>
+    <div class="tx">${pre}${evText(e)}</div></div></div>`;
+}
+function fmtTsParts(ts) {
+  const [d, tm] = String(ts).split("T");
+  return [fmt(d).slice(0, 6), (tm || "").slice(0, 5)];
 }
 /* drawer akcije: HP/HA upis, preimenovanje, brisanje */
 async function drNum(k) {
@@ -1849,7 +1886,7 @@ async function drNum(k) {
 }
 $("#drHp").addEventListener("change", () => drNum("hp"));
 $("#drHa").addEventListener("change", () => drNum("ha"));
-$("#drClose").addEventListener("click", () => { SEL = null; closeDrawer(); renderAll(); });
+$("#drClose").addEventListener("click", deselect);
 $("#drRename").addEventListener("click", async () => {
   if (!SEL) return;
   const obj = SEL.type === "pop" ? DATA.pops.find(p => p.id === SEL.id)
