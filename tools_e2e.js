@@ -24,6 +24,16 @@ function ok(name, cond, extra = "") {
   const list = id => page.locator(`#${id} ~ .combo-list, .combo:has(#${id}) .combo-list`).first();
   const chipX = sel => page.locator(`#activeBar .fchip[${sel}]`);
   const badge = () => page.locator("#fltBadge");
+  // searchable dialog picker: kucaj pa klikni opciju (allowNew: samo upiši)
+  const pickVal = id => page.locator(`#${id} .pick-in`).inputValue();
+  async function pick(id, value, { typeOnly = false } = {}) {
+    await page.click(`#${id} .pick-in`);
+    await page.fill(`#${id} .pick-in`, value);
+    await page.waitForTimeout(180);
+    if (typeOnly) { await page.locator(`#${id} .pick-in`).blur(); return; }
+    await page.locator(`#${id} .pick-list .pick-opt`).filter({ hasText: value }).first().click();
+    await page.waitForTimeout(220);
+  }
 
   // ---------- 1. učitavanje + auth ----------
   await page.goto(BASE + "/login", { waitUntil: "domcontentloaded" });
@@ -43,13 +53,17 @@ function ok(name, cond, extra = "") {
     (document.querySelector("#projMeta").textContent || "").trim().length > 0, null, { timeout: 10000 });
   await page.click("#btnAddPopTop");
   await page.waitForSelector("#dlgPop[open]", { timeout: 5000 });
-  ok("kaskada: Kunde SVIJETLI (glow)", await page.locator("#popKundeSel.glow-req").isVisible());
-  ok("kaskada: Projekat zaključan dok nema Kunde", await page.locator("#popProjSel").isDisabled());
-  await page.selectOption("#popKundeSel", "mih Gmbh");
-  await page.waitForTimeout(250);
-  ok("kaskada: poslije Kunde svijetli Projekat", await page.locator("#popProjSel.glow-req").isVisible());
-  const projCnt = await page.locator('#popProjSel option:not([value=""])').count();
+  ok("kaskada: Kunde SVIJETLI (glow)", await page.locator("#popKunde.glow-req").isVisible());
+  ok("kaskada: Projekat zaključan dok nema Kunde", await page.locator("#popProj.disabled").isVisible());
+  ok("kaskada: koraci indikator vidljiv", (await page.locator("#popSteps .dstep").count()) === 2);
+  await pick("popKunde", "mih Gmbh");
+  ok("kaskada: poslije Kunde svijetli Projekat", await page.locator("#popProj.glow-req").isVisible());
+  await page.click("#popProj .pick-in");
+  await page.waitForSelector("#popProj .pick-list:not([hidden]) .pick-opt", { timeout: 5000 });
+  const projCnt = await page.locator("#popProj .pick-list .pick-opt").count();
   ok("kaskada: projekti filtrirani po Kunde", projCnt === 2, `(${projCnt})`);
+  await page.locator("#popProj .pick-in").blur();
+  await page.waitForTimeout(150);
   await page.click('#frmPop button[value="cancel"]');
   await page.waitForTimeout(300);
   ok("kaskada: Odustani zatvara dijalog", !(await page.locator("#dlgPop[open]").isVisible().catch(() => false)));
@@ -97,8 +111,8 @@ function ok(name, cond, extra = "") {
   // ---------- 4. Novi POP (filteri pune kaskadu, ništa ne svijetli) ----------
   await page.click("#btnAddPopTop");
   await page.waitForSelector("#dlgPop[open]", { timeout: 5000 });
-  ok("dijalog: Kunde predizabran iz filtera", (await page.locator("#popKundeSel").inputValue()) === "mih Gmbh");
-  const preProj = await page.locator("#popProjSel").inputValue();
+  ok("dijalog: Kunde predizabran iz filtera", (await pickVal("popKunde")) === "mih Gmbh");
+  const preProj = await pickVal("popProj");
   ok("dijalog: Projekat predizabran iz filtera", preProj.includes("WANDLITZ"), `(${preProj})`);
   ok("dijalog: ništa ne svijetli (sve popunjeno)", (await page.locator("#dlgPop .glow-req").count()) === 0);
   await page.fill('#frmPop input[name="naziv"]', "POP TEST-1");
@@ -111,9 +125,9 @@ function ok(name, cond, extra = "") {
   // ---------- 5. Novi DP pod POP-om (kaskada do POP koraka) ----------
   await page.click("#btnAddDp");
   await page.waitForSelector("#dlgDp[open]", { timeout: 5000 });
-  ok("DP dijalog: Kunde+Projekat predizabrani", (await page.locator("#dpProjSel").inputValue()).includes("WANDLITZ"));
-  ok("DP dijalog: POP korak SVIJETLI", await page.locator('#frmDp input[name="pop"].glow-req').isVisible());
-  await page.fill('#frmDp input[name="pop"]', "POP TEST-1");
+  ok("DP dijalog: Kunde+Projekat predizabrani", (await pickVal("dpProj")).includes("WANDLITZ"));
+  ok("DP dijalog: POP korak SVIJETLI", await page.locator("#dpPop.glow-req").isVisible());
+  await pick("dpPop", "POP TEST-1");
   await page.fill('#frmDp input[name="naziv"]', "DP T1");
   await page.fill('#frmDp input[name="hp"]', "10");
   await page.click('#frmDp button[value="ok"]');
@@ -294,9 +308,29 @@ function ok(name, cond, extra = "") {
   ok("poslije puštanja: popover otvoren", await page.locator("#pop:not(.hidden)").isVisible());
   ok("poslije puštanja: crtež OSTAJE (ghost)", (await page.locator(".ghost.keep").count()) === 1);
   ok("brojač sakriven poslije puštanja", !(await page.locator(".dragtip:not(.hidden)").isVisible().catch(() => false)));
+  // redizajn popovera: datumi skriveni (read-only traka), komentar opcionalan
+  ok("popover: datum-polja skrivena po defaultu", (await page.locator("#popWhenEdit.hidden").count()) === 1);
+  ok("popover: read-only datum traka vidljiva", await page.locator("#popWhenDisp").isVisible());
+  ok("popover: komentar označen opcionalan", (await page.locator("#pop .pop-field .opt").first().textContent()).toLowerCase().includes("opciona"));
+  await page.click("#popWhenDisp");
+  await page.waitForTimeout(200);
+  ok("popover: klik na datum otkriva ručno uređivanje", (await page.locator("#popWhenEdit.hidden").count()) === 0);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(400);
   ok("Esc: popover i crtež očišćeni", (await page.locator(".ghost").count()) === 0);
+
+  // ---------- 12i. crtanje PO DANU (ne po KW): kratak povlak < 7 dana ----------
+  const asfBox = await page.locator('.tl-row[data-task]', { hasText: "Asfaltiranje" }).first().locator(".tl-track").boundingBox();
+  const y2 = asfBox.y + asfBox.height / 2;
+  await page.mouse.move(asfBox.x + 600, y2);
+  await page.mouse.down();
+  await page.mouse.move(asfBox.x + 612, y2, { steps: 3 });   // ~12px ≈ 3-4 dana @ PX 3.8
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const ndays = parseInt((((await page.locator("#popWhenDisp").textContent()) || "").match(/(\d+)\s*dana/) || [])[1] || "99", 10);
+  ok("crtanje je PO DANU (kratak povlak < 7 dana)", ndays >= 1 && ndays < 7, `(${ndays}d)`);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
   await page.click("#pfClear");
   await page.waitForTimeout(400);
 

@@ -27,6 +27,7 @@ const I18N = {
     brojHp: "Broj HP", brojHa: "Broj HA",
     dlgHint: "Automatski se kreira 8 standardnih aktivnosti.",
     noviTermin: "Novi termin", urediTermin: "Uredi termin",
+    opcionalno: "(opcionalno)", izmijeniDatume: "klik = ručno izmijeni datume",
     kTermina: "Termina", kEsk: "⚠ Eskalacije",
     slDp: "DP", slStatus: "Status", slOdjel: "Odjel",
     eskChip: "⚠ eskalacije", clearAll: "✕ očisti sve",
@@ -54,6 +55,9 @@ const I18N = {
     nepoznat: "nepoznat",
     noviPop: "Novi POP", noviPopH: "Novi POP", popNaziv: "Naziv POP",
     izaberiPh: "— izaberi —", popNovPh: "izaberi postojeći ili upiši novi…",
+    dpSub: "novi dionički plan — 8 aktivnosti automatski",
+    popSub: "nova POP/FCP tačka pod projektom",
+    kundePh: "izaberi klijenta…", projPh: "izaberi projekat…",
     foldFilteri: "Filteri", foldAnalitika: "Analitika", ocisti: "Očisti",
     aktivniFilteri: "aktivni filteri",
     aktivni: "Aktivni", ocistiSve: "Očisti sve", traziPh: "Pretraži…",
@@ -74,12 +78,6 @@ const I18N = {
     planVsHint: "plan = Σ HP/HA unesenih na DP-ovima · izvedeno = Azure Daily",
     rokLbl: "rok", rokTip: "rok DP-a = kraj termina Aktivacija",
     tlEmpty: "Nema DP-ova za izabrane filtere.<br>Očisti filtere, ili kreiraj <b>＋ Novi POP</b> pa <b>＋ Novi DP</b> pod izabranim projektom.",
-    lockHint: "🔒 izaberi projekat gore da otključaš dodavanje POP-ova",
-    popHint: "klik na karticu = historija + filter · ＋ DP = novi DP pod tim POP-om",
-    noPops: "još nema POP-ova pod ovim projektom — dodaj prvi ↑",
-    noPopsAny: "još nema nijednog POP-a — klikni ＋ Novi POP",
-    noDpsPop: "još nema DP-ova",
-    dodajDpTip: "Dodaj DP pod ovaj POP", popCardTip: "klik = historija ovog POP-a",
     drDpCount: "DP-ova", histTitle: "📜 Historija",
     histEmpty: "još nema zabilježenih aktivnosti", histLoad: "učitavam…",
     aKreirano: "kreirano", aObrisano: "obrisano", aTerminObrisan: "termin obrisan",
@@ -111,6 +109,7 @@ const I18N = {
     brojHp: "HP count", brojHa: "HA count",
     dlgHint: "8 standard activities are created automatically.",
     noviTermin: "New slot", urediTermin: "Edit slot",
+    opcionalno: "(optional)", izmijeniDatume: "click = edit dates manually",
     kTermina: "Slots", kEsk: "⚠ Escalations",
     slDp: "DP", slStatus: "Status", slOdjel: "Dept.",
     eskChip: "⚠ escalations", clearAll: "✕ clear all",
@@ -138,6 +137,9 @@ const I18N = {
     nepoznat: "unknown",
     noviPop: "New POP", noviPopH: "New POP", popNaziv: "POP name",
     izaberiPh: "— select —", popNovPh: "pick existing or type a new one…",
+    dpSub: "new section plan — 8 activities auto-created",
+    popSub: "new POP/FCP point under a project",
+    kundePh: "select a client…", projPh: "select a project…",
     foldFilteri: "Filters", foldAnalitika: "Analytics", ocisti: "Clear",
     aktivniFilteri: "active filters",
     aktivni: "Active", ocistiSve: "Clear all", traziPh: "Search…",
@@ -158,12 +160,6 @@ const I18N = {
     planVsHint: "plan = Σ HP/HA entered on DPs · actual = Azure Daily",
     rokLbl: "due", rokTip: "DP due date = end of Activations",
     tlEmpty: "No DPs match the selected filters.<br>Clear the filters, or create <b>＋ New POP</b> then <b>＋ New DP</b> under the selected project.",
-    lockHint: "🔒 select a project above to unlock adding POPs",
-    popHint: "click a card = history + filter · ＋ DP = new DP under that POP",
-    noPops: "no POPs under this project yet — add the first ↑",
-    noPopsAny: "no POPs yet — click ＋ New POP",
-    noDpsPop: "no DPs yet",
-    dodajDpTip: "Add a DP under this POP", popCardTip: "click = this POP's history",
     drDpCount: "DPs", histTitle: "📜 History",
     histEmpty: "no recorded activity yet", histLoad: "loading…",
     aKreirano: "created", aObrisano: "deleted", aTerminObrisan: "slot deleted",
@@ -195,6 +191,7 @@ const I18N = {
     brojHp: "Anzahl HP", brojHa: "Anzahl HA",
     dlgHint: "8 Standardaktivitäten werden automatisch angelegt.",
     noviTermin: "Neuer Termin", urediTermin: "Termin bearbeiten",
+    opcionalno: "(optional)", izmijeniDatume: "Klick = Daten manuell ändern",
     kTermina: "Termine", kEsk: "⚠ Eskalationen",
     slDp: "DP", slStatus: "Status", slOdjel: "Abteilung",
     eskChip: "⚠ Eskalationen", clearAll: "✕ alle löschen",
@@ -222,6 +219,9 @@ const I18N = {
     nepoznat: "unbekannt",
     noviPop: "Neuer POP", noviPopH: "Neuer POP", popNaziv: "POP-Name",
     izaberiPh: "— wählen —", popNovPh: "wählen oder neu eingeben…",
+    dpSub: "neuer DP — 8 Aktivitäten automatisch",
+    popSub: "neuer POP/FCP-Punkt unter einem Projekt",
+    kundePh: "Kunde wählen…", projPh: "Projekt wählen…",
     foldFilteri: "Filter", foldAnalitika: "Analyse", ocisti: "Leeren",
     aktivniFilteri: "aktive Filter",
     aktivni: "Aktiv", ocistiSve: "Alle leeren", traziPh: "Suchen…",
@@ -242,12 +242,6 @@ const I18N = {
     planVsHint: "Plan = Σ HP/HA der DPs · Ist = Azure Daily",
     rokLbl: "Frist", rokTip: "DP-Frist = Ende der Aktivierungen",
     tlEmpty: "Keine DPs für die gewählten Filter.<br>Filter leeren, oder <b>＋ Neuer POP</b> und dann <b>＋ Neuer DP</b> unter dem gewählten Projekt anlegen.",
-    lockHint: "🔒 oben ein Projekt wählen, um das Anlegen von POPs freizuschalten",
-    popHint: "Klick auf Karte = Verlauf + Filter · ＋ DP = neuer DP unter dem POP",
-    noPops: "noch keine POPs in diesem Projekt — ersten anlegen ↑",
-    noPopsAny: "noch keine POPs — auf ＋ Neuer POP klicken",
-    noDpsPop: "noch keine DPs",
-    dodajDpTip: "DP unter diesem POP anlegen", popCardTip: "Klick = Verlauf dieses POP",
     drDpCount: "DPs", histTitle: "📜 Verlauf",
     histEmpty: "noch keine Aktivitäten erfasst", histLoad: "lädt…",
     aKreirano: "erstellt", aObrisano: "gelöscht", aTerminObrisan: "Termin gelöscht",
@@ -889,24 +883,13 @@ function esc(s) {
 }
 
 /* ---------- timeline interactions ---------- */
+/* crtanje i razvlačenje su PO DANU (ne po sedmici) — ivica završava tačno
+   na danu gdje pustiš, čak i kad je timeline zumiran na sedmice */
 function snapRange(i0, i1) {
-  let a = Math.min(i0, i1), b = Math.max(i0, i1);
-  if (!dayMode()) {                       // snap to full ISO weeks
-    const da = dateOfIdx(a), db = dateOfIdx(b);
-    da.setDate(da.getDate() - ((da.getDay() + 6) % 7));
-    db.setDate(db.getDate() + (7 - (db.getDay() || 7)));
-    a = Math.max(0, Math.round((da - yearStart()) / 864e5));
-    b = Math.min(daysInYear() - 1, Math.round((db - yearStart()) / 864e5));
-  }
-  return [a, b];
+  return [Math.min(i0, i1), Math.max(i0, i1)];
 }
-function snapEdge(i, side) {                // snap a single edge to week bounds when zoomed out
-  i = Math.max(0, Math.min(daysInYear() - 1, i));
-  if (dayMode()) return i;
-  const d = dateOfIdx(i);
-  if (side === "l") d.setDate(d.getDate() - ((d.getDay() + 6) % 7));   // back to monday
-  else d.setDate(d.getDate() + (7 - (d.getDay() || 7)));              // forward to sunday
-  return Math.max(0, Math.min(daysInYear() - 1, Math.round((d - yearStart()) / 864e5)));
+function snapEdge(i) {
+  return Math.max(0, Math.min(daysInYear() - 1, i));
 }
 function trackDay(e, track) {
   const r = track.getBoundingClientRect();
@@ -1059,8 +1042,8 @@ document.addEventListener("mousemove", e => {
   if (!segResize) return;
   const i = trackDay(e, segResize.track);
   let a = segResize.a, b = segResize.b;
-  if (segResize.side === "l") a = snapEdge(Math.min(i, b), "l");
-  else b = snapEdge(Math.max(i, a), "r");
+  if (segResize.side === "l") a = snapEdge(Math.min(i, b));
+  else b = snapEdge(Math.max(i, a));
   segResize.curA = a; segResize.curB = b;
   segResize.segEl.style.left = a * PX + "px";
   segResize.segEl.style.width = Math.max(PX, (b - a + 1) * PX) + "px";
@@ -1095,7 +1078,11 @@ document.addEventListener("mouseup", e => {
   pendingDraw = { taskId, a, b };
   ensureDpSelected(taskId);   // rad u DP-u -> otvori njegov panel desno
   drawPendingGhost();
-  openPop("new", null, e.clientX, e.clientY, {
+  /* popover je VEZAN za nacrtanu traku — otvara se tačno ispod nje */
+  const g = $(".ghost.keep");
+  let cx = e.clientX, cy = e.clientY;
+  if (g) { const r = g.getBoundingClientRect(); cx = Math.max(8, r.left); cy = r.bottom + 6; }
+  openPop("new", null, cx, cy, {
     taskId, od: iso(dateOfIdx(a)), do_: iso(dateOfIdx(b)),
   });
 });
@@ -1157,9 +1144,11 @@ async function offerShiftFollowing(segId, fromOd, delta) {
 /* ---------- popover ---------- */
 function popDurUpd() {
   const od = $("#popOd").value, do_ = $("#popDo").value;
-  $("#popDur").innerHTML = od && do_ && do_ >= od
-    ? `⏱ <b>${durDays(od, do_)}</b> ${t("dana")} · KW${isoWeekOf(od)}–KW${isoWeekOf(do_)}`
-    : "";
+  $("#popWhenDisp").innerHTML = od && do_ && do_ >= od
+    ? `📅 <b>${fmt(od).slice(0, 6)}</b><i class="pw-arr">→</i><b>${fmt(do_).slice(0, 6)}</b>` +
+      `<span class="pw-n">${durDays(od, do_)} ${t("dana")} · KW${isoWeekOf(od)}–KW${isoWeekOf(do_)}</span>` +
+      `<i class="pw-pen">✎</i>`
+    : `📅 —`;
 }
 function openPop(mode, segId, cx, cy, init = {}) {
   const pop = $("#pop");
@@ -1185,6 +1174,7 @@ function openPop(mode, segId, cx, cy, init = {}) {
   $("#popCtx").innerHTML = tk.aktivnost
     ? `<span class="pc-dot" style="background:${aktColor(tk.aktivnost)}"></span>` +
       `${esc(dp.naziv || "")} <i>▸</i> <b>${esc(tk.aktivnost)}</b>` : "";
+  $("#popWhenEdit").classList.add("hidden");   // datumi su skriveni (dolaze iz crteža)
   popDurUpd();
   $("#popKom").value = s.komentar || "";
   $("#popEsk").checked = !!s.eskalacija;
@@ -1201,7 +1191,9 @@ function openPop(mode, segId, cx, cy, init = {}) {
   const W = 300, H = pop.offsetHeight || 330;
   pop.style.left = Math.min(cx, innerWidth - W - 16) + "px";
   pop.style.top = Math.min(cy + 10, innerHeight - H - 16) + "px";
-  $("#popKom").focus();
+  /* termin probio rok -> fokus na obavezni razlog; inače NE traži komentar
+     (Enter sprema odmah) */
+  if (popLate()) $("#popKasni").focus();
 }
 function closePop() {
   $("#pop").classList.add("hidden");
@@ -1224,6 +1216,16 @@ $$("#popStatus .stpill").forEach(p => p.addEventListener("click", () => {
 }));
 $("#popDo").addEventListener("change", () => { updateKasniVis(); popDurUpd(); });
 $("#popOd").addEventListener("change", popDurUpd);
+/* klik na datumsku traku = ručno fino podešavanje datuma (inače skriveno) */
+$("#popWhenDisp").addEventListener("click", () => {
+  const ed = $("#popWhenEdit");
+  ed.classList.toggle("hidden");
+  if (!ed.classList.contains("hidden")) $("#popOd").focus();
+});
+/* Enter bilo gdje u popoveru = Sačuvaj (ne moraš ništa kliknuti) */
+$("#pop").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); $("#popSave").click(); }
+});
 $("#popKasni").addEventListener("input", () => $("#popKasni").classList.remove("err"));
 $("#popEsk").addEventListener("change", () => {
   const on = $("#popEsk").checked;
@@ -1617,58 +1619,172 @@ function kundeOf(projekt) {
   const r = projRowsAll().find(p => p.projektname === projekt);
   return r ? (r.kunde || "—") : "";
 }
-/* napuni select; ako je samo jedna opcija, odmah je izaberi (manje klikova) */
-function fillCascSelect(sel, opts, current) {
-  const cur = opts.includes(current) ? current : (opts.length === 1 ? opts[0] : "");
-  sel.innerHTML = `<option value="" disabled${cur ? "" : " selected"}>${t("izaberiPh")}</option>` +
-    opts.map(v => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(v)}</option>`).join("");
-  sel.value = cur;
-  return cur;
+function popOptions(projekt) {
+  return [...new Set(DATA.pops
+    .filter(p => !projekt || p.projekt === projekt)
+    .map(p => p.naziv).filter(Boolean))].sort(cmpStr);
 }
-/* prvi prazan obavezan korak SVIJETLI; koraci poslije njega su zaključani */
-function cascadeGlow(fields) {
-  let blocked = false, focusEl = null;
-  fields.forEach(el => {
-    const empty = !(el.value || "").trim();
-    el.disabled = blocked;
-    const glow = !blocked && empty;
-    el.classList.toggle("glow-req", glow);
-    if (glow && !focusEl) focusEl = el;
-    if (empty) blocked = true;
+
+/* ---------- searchable picker (kucaš -> filtrira; ▾ otvara sve) ----------
+   allowNew=true (POP polje): dozvoljava upis posve novog naziva */
+function makePicker(root, { onPick, allowNew = false, placeholder = "" } = {}) {
+  const inp = root.querySelector(".pick-in");
+  const list = root.querySelector(".pick-list");
+  const cv = root.querySelector(".pick-cv");
+  let committed = "", getOpts = () => [];
+  inp.placeholder = placeholder;
+  const value = () => allowNew ? inp.value.trim() : committed;
+
+  function render(q) {
+    const ql = (q || "").trim().toLowerCase();
+    const all = getOpts();
+    const hits = ql ? all.filter(o => o.toLowerCase().includes(ql)) : all;
+    let html = hits.slice(0, 80).map(o => {
+      const i = ql ? o.toLowerCase().indexOf(ql) : -1;
+      const lbl = i >= 0
+        ? esc(o.slice(0, i)) + "<b>" + esc(o.slice(i, i + ql.length)) + "</b>" + esc(o.slice(i + ql.length))
+        : esc(o);
+      return `<div class="pick-opt${o === committed ? " sel" : ""}" data-v="${esc(o)}">${lbl}</div>`;
+    }).join("");
+    const exact = all.some(o => o.toLowerCase() === ql);
+    if (allowNew && ql && !exact)
+      html += `<div class="pick-opt pick-new" data-v="${esc(q.trim())}">＋ „${esc(q.trim())}"</div>`;
+    if (!html) html = `<div class="pick-empty">${t("nemaRez")}</div>`;
+    list.innerHTML = html;
+    list.hidden = false;
+    root.classList.add("open");
+  }
+  function close() { list.hidden = true; root.classList.remove("open"); }
+  function commit(v, fire = true) {
+    committed = v || "";
+    inp.value = committed;
+    close();
+    if (fire && onPick) onPick(committed);
+  }
+
+  inp.addEventListener("focus", () => { if (!inp.disabled) render(inp.value); });
+  inp.addEventListener("input", () => { render(inp.value); if (allowNew && onPick) onPick(value()); });
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const first = list.querySelector(".pick-opt");
+      if (first) commit(first.dataset.v);
+      else if (allowNew && inp.value.trim()) { close(); if (onPick) onPick(value()); }
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const opts = [...list.querySelectorAll(".pick-opt")];
+      if (!opts.length) return;
+      let i = opts.findIndex(o => o.classList.contains("act"));
+      opts.forEach(o => o.classList.remove("act"));
+      i = e.key === "ArrowDown" ? (i + 1) % opts.length : (i - 1 + opts.length) % opts.length;
+      opts[i].classList.add("act");
+      opts[i].scrollIntoView({ block: "nearest" });
+    }
   });
-  return focusEl;
+  inp.addEventListener("blur", () => setTimeout(() => {
+    close();
+    if (!allowNew) inp.value = committed;   // bez allowNew: vrati na potvrđeno
+  }, 160));
+  list.addEventListener("pointerdown", e => {
+    const o = e.target.closest(".pick-opt");
+    if (!o) return;
+    e.preventDefault();
+    commit(o.dataset.v);
+  });
+  cv.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    if (inp.disabled) return;
+    if (list.hidden) { inp.focus(); render(""); } else close();
+  });
+
+  return {
+    get: value,
+    set(v, fire = false) { commit(v, fire); },
+    options(fn) { getOpts = typeof fn === "function" ? fn : () => fn; },
+    enable(on) { inp.disabled = !on; root.classList.toggle("disabled", !on); },
+    glow(on) { root.classList.toggle("glow-req", on); },
+    focus() { inp.focus(); },
+    isOpen() { return !list.hidden; },
+    closeList: close,
+    inp,
+  };
+}
+
+/* prvi prazan obavezan korak SVIJETLI + dobija fokus; daljnji su zaključani.
+   Ujedno crta korakovni indikator (Kunde › Projekat › POP). */
+function refreshCascade(cfg) {
+  let blocked = false, focusP = null;
+  const states = cfg.pickers.map(p => {
+    p.enable(!blocked);
+    const v = p.get();
+    const cur = !blocked && !v;
+    p.glow(cur);
+    if (cur && !focusP) focusP = p;
+    const st = v ? "done" : (cur ? "cur" : "wait");
+    if (!v) blocked = true;
+    return st;
+  });
+  if (cfg.steps) cfg.steps.innerHTML = cfg.labels.map((lbl, i) =>
+    `<span class="dstep ${states[i]}"><b>${states[i] === "done" ? "✓" : i + 1}</b>${esc(lbl)}</span>`
+  ).join('<i class="dstep-sep">›</i>');
+  return focusP;
+}
+/* napuni picker; ako je samo jedna opcija -> auto-izaberi (manje klikova) */
+function loadPicker(picker, opts, preferred) {
+  picker.options(opts);
+  const pick = opts.includes(preferred) ? preferred : (opts.length === 1 ? opts[0] : "");
+  picker.set(pick);
+}
+
+/* ---------- pickeri za dijaloge (instanciraju se jednom) ---------- */
+const POPK = {}, DPK = {};
+const POP_CFG = { get pickers() { return [POPK.kunde, POPK.projekt]; },
+  steps: null, labels: ["Kunde", "Projekat"] };
+const DP_CFG = { get pickers() { return [DPK.kunde, DPK.projekt, DPK.pop]; },
+  steps: null, labels: ["Kunde", "Projekat", "POP"] };
+
+function initDialogPickers() {
+  POP_CFG.steps = $("#popSteps"); POP_CFG.labels = [t("kunde"), t("projekat")];
+  DP_CFG.steps = $("#dpSteps");  DP_CFG.labels = [t("kunde"), t("projDaily"), "POP"];
+
+  POPK.kunde = makePicker($("#popKunde"), { placeholder: t("kundePh"), onPick() {
+    loadPicker(POPK.projekt, projOptions(POPK.kunde.get()), "");
+    const f = refreshCascade(POP_CFG);
+    (f && f !== POPK.kunde ? f : { focus: () => $("#frmPop [name=naziv]").focus() }).focus();
+  } });
+  POPK.projekt = makePicker($("#popProj"), { placeholder: t("projPh"), onPick() {
+    refreshCascade(POP_CFG); $("#frmPop [name=naziv]").focus();
+  } });
+
+  DPK.kunde = makePicker($("#dpKunde"), { placeholder: t("kundePh"), onPick() {
+    loadPicker(DPK.projekt, projOptions(DPK.kunde.get()), "");
+    DPK.pop.options(() => popOptions(DPK.projekt.get())); DPK.pop.set("");
+    const f = refreshCascade(DP_CFG);
+    if (f && f !== DPK.kunde) f.focus();
+  } });
+  DPK.projekt = makePicker($("#dpProj"), { placeholder: t("projPh"), onPick() {
+    DPK.pop.options(() => popOptions(DPK.projekt.get())); DPK.pop.set("");
+    const f = refreshCascade(DP_CFG);
+    if (f && f !== DPK.projekt) f.focus();
+  } });
+  DPK.pop = makePicker($("#dpPop"), { allowNew: true, placeholder: t("popNovPh"), onPick() {
+    refreshCascade(DP_CFG);
+  } });
 }
 
 /* "+ Novi POP" — uvijek dostupan; Kunde/Projekat predloženi iz filtera */
 function openPopDialog() {
-  const frm = $("#frmPop");
-  frm.reset();
-  const kSel = $("#popKundeSel"), pSel = $("#popProjSel");
+  $("#frmPop").reset();
+  POP_CFG.labels = [t("kunde"), t("projekat")];
+  POPK.kunde.inp.placeholder = t("kundePh");
+  POPK.projekt.inp.placeholder = t("projPh");
   const pref = effProjName() || "";
   const kunde = pref ? kundeOf(pref) : (PROJ.kunde || "");
-  fillCascSelect(kSel, kundeOptions(), kunde);
-  fillCascSelect(pSel, projOptions(kSel.value), kSel.value ? pref : "");
-  const f = popCascade();
+  loadPicker(POPK.kunde, kundeOptions(), kunde);
+  loadPicker(POPK.projekt, projOptions(POPK.kunde.get()), POPK.kunde.get() ? pref : "");
+  const f = refreshCascade(POP_CFG);
   $("#dlgPop").showModal();
-  (f || frm.elements.naziv).focus();
-}
-function popCascade() {
-  return cascadeGlow([$("#popKundeSel"), $("#popProjSel")]);
-}
-function popCard(p) {
-  const dps = DATA.dps.filter(d => d.pop_id === p.id);
-  const sel = SEL && SEL.type === "pop" && SEL.id === p.id;
-  return `<div class="pop-card${sel ? " sel" : ""}" data-pop="${p.id}" title="${t("popCardTip")}">
-    <div class="pc-head">
-      <span class="pop-badge">${esc(p.naziv)}</span>
-      <span class="pc-cnt">${dps.length} DP</span>
-      <button class="pc-adddp" title="${t("dodajDpTip")}">＋ DP</button>
-    </div>
-    <div class="pc-nums">HP <b>${p.hp || 0}</b> · HA <b>${p.ha || 0}</b></div>
-    <div class="pc-dps">${dps.length
-      ? dps.map(d => chip(esc(d.naziv), "dp", F.dp.has(d.id), `data-cdp="${d.id}"`)).join("")
-      : `<span class="hint">${t("noDpsPop")}</span>`}</div>
-  </div>`;
+  setTimeout(() => (f ? f.focus() : $("#frmPop [name=naziv]").focus()), 30);
 }
 /* promjena projekt-filtera mijenja i opseg DP/POP svuda -> renderAll */
 function projFilterChanged() {
@@ -2016,92 +2132,97 @@ $("#drDel").addEventListener("click", async () => {
 });
 
 /* ---------- dijalozi: novi POP / novi DP (pod POP-om ili slobodno) ---------- */
-function fillPopList(projekt) {
-  $("#dlPops").innerHTML = DATA.pops
-    .filter(p => !projekt || p.projekt === projekt)
-    .map(p => `<option value="${esc(p.naziv)}">`).join("");
-}
+initDialogPickers();
+
 function openDpDialog(popId) {
-  const frm = $("#frmDp");
-  frm.reset();
+  $("#frmDp").reset();
+  DP_CFG.labels = [t("kunde"), t("projDaily"), "POP"];
+  DPK.kunde.inp.placeholder = t("kundePh");
+  DPK.projekt.inp.placeholder = t("projPh");
+  DPK.pop.inp.placeholder = t("popNovPh");
   const p = popId ? DATA.pops.find(x => x.id === popId) : null;
-  const kSel = $("#dpKundeSel"), pSel = $("#dpProjSel"), popIn = frm.elements.pop;
   $("#dpPopId").value = p ? p.id : "";
   $("#dpUnder").classList.toggle("hidden", !p);
+  $("#dpSteps").classList.toggle("hidden", !!p);
   $("#dpKundeRow").classList.toggle("hidden", !!p);
   $("#dpProjRow").classList.toggle("hidden", !!p);
   $("#dpPopRow").classList.toggle("hidden", !!p);
-  kSel.required = pSel.required = popIn.required = !p;
-  popIn.placeholder = t("popNovPh");
   if (p) {
     /* ＋ DP s POP kartice: kontekst je zaključan, kaskada nije potrebna */
     $("#dpUnder").innerHTML =
       `${esc(p.projekt || "—")} <i>▸</i> <b>${esc(p.naziv)}</b> <i>▸</i> ${t("noviDpH")}`;
-    pSel.innerHTML = `<option value="${esc(p.projekt || "")}" selected>${esc(p.projekt || "")}</option>`;
-    pSel.value = p.projekt || "";
-    popIn.value = p.naziv;
-    [kSel, pSel, popIn].forEach(el => { el.disabled = false; el.classList.remove("glow-req"); });
+    DPK.projekt.options([p.projekt || ""]); DPK.projekt.set(p.projekt || "");
+    DPK.kunde.set(kundeOf(p.projekt) || "");
+    DPK.pop.options(() => popOptions(p.projekt)); DPK.pop.set(p.naziv);
+    DP_CFG.pickers.forEach(pk => { pk.enable(true); pk.glow(false); });
   } else {
     const pref = effProjName() || "";
     const kunde = pref ? kundeOf(pref) : (PROJ.kunde || "");
-    fillCascSelect(kSel, kundeOptions(), kunde);
-    fillCascSelect(pSel, projOptions(kSel.value), kSel.value ? pref : "");
+    loadPicker(DPK.kunde, kundeOptions(), kunde);
+    loadPicker(DPK.projekt, projOptions(DPK.kunde.get()), DPK.kunde.get() ? pref : "");
+    DPK.pop.options(() => popOptions(DPK.projekt.get()));
     /* tačno jedan POP u filteru, pod izabranim projektom -> predloži ga */
     const selPop = F.pop.size === 1 ? [...F.pop][0] : "";
-    popIn.value = selPop && DATA.pops.some(x => x.naziv === selPop && x.projekt === pSel.value)
-      ? selPop : "";
+    DPK.pop.set(selPop && DATA.pops.some(x => x.naziv === selPop && x.projekt === DPK.projekt.get())
+      ? selPop : "");
   }
-  fillPopList(pSel.value.trim());
   $("#dlgDp").showModal();
   if (!p) {
-    const f = dpCascade();
-    (f || frm.elements.naziv).focus();
+    const f = refreshCascade(DP_CFG);
+    setTimeout(() => (f ? f.focus() : $("#frmDp [name=naziv]").focus()), 30);
+  } else {
+    setTimeout(() => $("#frmDp [name=naziv]").focus(), 30);
   }
 }
-function dpCascade() {
-  return cascadeGlow([$("#dpKundeSel"), $("#dpProjSel"), $("#frmDp").elements.pop]);
-}
-$("#popKundeSel").addEventListener("change", () => {
-  fillCascSelect($("#popProjSel"), projOptions($("#popKundeSel").value), "");
-  const f = popCascade();
-  ((f && f !== $("#popKundeSel")) ? f : $("#frmPop").elements.naziv).focus();
-});
-$("#popProjSel").addEventListener("change", () => {
-  popCascade();
-  $("#frmPop").elements.naziv.focus();
-});
-$("#dpKundeSel").addEventListener("change", () => {
-  fillCascSelect($("#dpProjSel"), projOptions($("#dpKundeSel").value), "");
-  fillPopList($("#dpProjSel").value);
-  const f = dpCascade();
-  if (f && f !== $("#dpKundeSel")) f.focus();
-});
-$("#dpProjSel").addEventListener("change", () => {
-  fillPopList($("#dpProjSel").value);
-  const f = dpCascade();
-  if (f && f !== $("#dpProjSel")) f.focus();
-});
-$("#frmDp [name=pop]").addEventListener("input", dpCascade);
+
 $("#frmPop").addEventListener("submit", async e => {
-  if (e.submitter && e.submitter.value === "cancel") return;
-  const body = Object.fromEntries(new FormData(e.target).entries());
-  body.projekt = ($("#popProjSel").value || "").trim();
-  if (!body.projekt) return;                 // projekat je obavezan (select required)
-  e.target.reset();
+  e.preventDefault();
+  if (e.submitter && e.submitter.value === "cancel") { $("#dlgPop").close(); return; }
+  const projekt = POPK.projekt.get();
+  if (!POPK.kunde.get() || !projekt) { refreshCascade(POP_CFG); return; }
+  const naziv = $("#frmPop [name=naziv]").value.trim();
+  if (!naziv) { $("#frmPop [name=naziv]").focus(); return; }
+  const body = { projekt, naziv,
+    hp: $("#frmPop [name=hp]").value, ha: $("#frmPop [name=ha]").value };
   try {
     await api("/api/pops", "POST", body);
   } catch {
     uiAlert(t("popPostoji"), "warning");
     return;
   }
+  $("#dlgPop").close();
   await load();
 });
-/* Escape u dijalogu: prvo zatvori autocomplete/datalist, NE cijeli dijalog */
+
+$("#frmDp").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (e.submitter && e.submitter.value === "cancel") { $("#dlgDp").close(); return; }
+  const naziv = $("#frmDp [name=naziv]").value.trim();
+  if (!naziv) { $("#frmDp [name=naziv]").focus(); return; }
+  const body = { naziv, hp: $("#frmDp [name=hp]").value, ha: $("#frmDp [name=ha]").value };
+  const popId = $("#dpPopId").value;
+  if (popId) {
+    body.pop_id = popId;
+  } else {
+    body.projekt = DPK.projekt.get();
+    body.pop = DPK.pop.get();
+    if (!DPK.kunde.get() || !body.projekt || !body.pop) { refreshCascade(DP_CFG); return; }
+  }
+  await api("/api/dps", "POST", body);
+  $("#dlgDp").close();
+  await load();
+});
+
+/* ✕ u zaglavlju dijaloga */
+$$(".dlg-x").forEach(b => b.addEventListener("click", () => $("#" + b.dataset.close).close()));
+/* Escape: prvo zatvori otvoreni picker-dropdown, NE cijeli dijalog */
 $$("#dlgDp, #dlgPop").forEach(d => d.addEventListener("cancel", e => {
-  const ae = document.activeElement;
-  if (ae && ae.tagName === "INPUT" && ae.hasAttribute("list")) {
+  const open = d.querySelector(".pick.open");
+  if (open) {
     e.preventDefault();
-    ae.blur();
+    open.classList.remove("open");
+    open.querySelector(".pick-list").hidden = true;
+    open.querySelector(".pick-in").blur();
   }
 }));
 
@@ -2286,15 +2407,6 @@ $("#btnGhost").addEventListener("click", () => {
 });
 ghostBtn();
 undoBtn();
-$("#frmDp").addEventListener("submit", async e => {
-  if (e.submitter && e.submitter.value === "cancel") return;
-  const fd = new FormData(e.target);
-  const body = Object.fromEntries(fd.entries());
-  if (!body.pop_id) delete body.pop_id;
-  await api("/api/dps", "POST", body);
-  e.target.reset();
-  await load();
-});
 $("#userBadge").addEventListener("click", askUser);
 renderUser();
 
