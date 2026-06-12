@@ -118,7 +118,11 @@ function ok(name, cond, extra = "") {
     task_id: tAkt.id, datum_od: "2026-05-04", datum_do: "2026-05-17", status: "otvoreno" } });
   await page.request.post(BASE + "/api/segments", { data: {
     task_id: tasks.find(t => t.aktivnost === "Dozvole").id,
-    datum_od: "2026-07-06", datum_do: "2026-07-19", status: "u toku" } });
+    datum_od: "2026-07-06", datum_do: "2026-07-19", status: "završeno" } });
+  // jedna aktivnost = JEDNA traka: drugi termin na istom redu mora biti odbijen
+  const dup = await page.request.post(BASE + "/api/segments", { data: {
+    task_id: tIskop.id, datum_od: "2026-08-03", datum_do: "2026-08-09", status: "otvoreno" } });
+  ok("jedna traka po aktivnosti (409 na drugu)", dup.status() === 409);
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector(".seg", { timeout: 10000 });
   // refiltriranje nakon reload-a (filteri se ne pamte) — ponovo izaberi projekat
@@ -132,9 +136,10 @@ function ok(name, cond, extra = "") {
   // ---------- 7. status čipovi ----------
   const segVisible = async () => page.locator(".seg").evaluateAll(els =>
     els.filter(e => !e.classList.contains("dim")).length);
-  await page.click('.chip[data-st="u toku"]');
+  ok("nema više 'u toku' čipa", (await page.locator('.chip[data-st="u toku"]').count()) === 0);
+  await page.click('.chip[data-st="završeno"]');
   await page.waitForTimeout(400);
-  ok("status filter: samo 'u toku' istaknut", (await segVisible()) === 1);
+  ok("status filter: samo 'završeno' istaknut", (await segVisible()) === 1);
   ok("status -> AKTIVNI čip", await chipX("data-xst").isVisible());
   await chipX("data-xst").click();
   await page.waitForTimeout(400);

@@ -467,6 +467,12 @@ def edit_task(task_id):
 @api_login_required
 def add_segment():
     j = request.get_json(force=True)
+    # jedna aktivnost = JEDNA traka: drugi termin na istom redu nije dozvoljen
+    ex = db().execute("SELECT id FROM segments WHERE task_id=%s",
+                      (j["task_id"],)).fetchone()
+    if ex:
+        return jsonify({"error": "termin već postoji za ovu aktivnost",
+                        "id": ex["id"]}), 409
     cur = db().execute(
         "INSERT INTO segments(task_id,datum_od,datum_do,status,komentar,eskalacija,"
         "esk_razlog,esk_datum,kasni_razlog) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",

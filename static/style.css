@@ -706,3 +706,16 @@ span.flatpickr-weekday{color:#64748b!important}
 /* prigušene trake kad ne odgovaraju filteru — !important POBJEĐUJE segIn animaciju
    (animation fill-mode:both inače trajno drži opacity:1 i "ne da" inline stilu!) */
 .seg.dim{opacity:.13!important;filter:saturate(.3)}
+
+/* ================== jasnija tabela + uocljiviji komentari ================== */
+/* zebra: svaki drugi red aktivnosti blago svjetliji (lakse pracenje reda) */
+.tl-row.zeb>.tl-label{background:rgba(255,255,255,.025)}
+.tl-row[data-task]>.tl-label:hover{background:rgba(16,185,129,.07)}
+/* red DP grupe: jasnije odvojen od aktivnosti */
+.tl-row.group>.tl-label{background:linear-gradient(90deg,rgba(16,185,129,.10),rgba(30,41,59,.4))}
+.tl-row.group{border-top:1px solid rgba(16,185,129,.22)}
+/* komentar na traci: uocljiva zuta oznaka + tekst */
+.seg .kombadge{font-size:11px;line-height:1;margin-right:3px;flex:none;
+  filter:drop-shadow(0 0 4px rgba(245,158,11,.8))}
+.seg .kom{color:#fde68a;font-weight:600;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-size:10.5px}

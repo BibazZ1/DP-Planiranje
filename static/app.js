@@ -491,7 +491,6 @@ function renderKpis() {
   $("#kpis").innerHTML = `
     <div class="kpi blue click${F.st.size || F.esk ? "" : " on"}" data-all="1" title="${t("clearAll")}"><div class="num" data-n="${segs.length}">0</div><div class="lbl">${t("kTermina")}</div></div>
     <div class="kpi teal click${F.st.has("završeno") ? " on" : ""}" data-st="završeno"><div class="num" data-n="${c("završeno")}">0</div><div class="lbl">${stT("završeno")}</div></div>
-    <div class="kpi amber click${F.st.has("u toku") ? " on" : ""}" data-st="u toku"><div class="num" data-n="${c("u toku")}">0</div><div class="lbl">${stT("u toku")}</div></div>
     <div class="kpi red click${F.st.has("otvoreno") ? " on" : ""}" data-st="otvoreno"><div class="num" data-n="${c("otvoreno")}">0</div><div class="lbl">${stT("otvoreno")}</div></div>
     <div class="kpi red click${F.esk ? " on" : ""}" data-esk="1"><div class="num" data-n="${esk}">0</div><div class="lbl">${t("kEsk")}</div></div>
     <div class="kpi red click${F.kasni ? " on" : ""}" data-late="1" title="${t("kasniTip")}"><div class="num" data-n="${segs.filter(segLate).length}">0</div><div class="lbl">⏰ ${t("kasniChip")}</div></div>
@@ -586,7 +585,6 @@ function renderSlicers() {
     <div class="sl-row">
       <span class="sl-lbl"><i class="ic">🚦</i> ${t("statusLbl")}</span>
       ${chip(`${stT("otvoreno")}${cnt(nSt("otvoreno"))}`, "mini st-otvoreno", F.st.has("otvoreno"), `data-st="otvoreno"`)}
-      ${chip(`${stT("u toku")}${cnt(nSt("u toku"))}`, "mini st-utoku", F.st.has("u toku"), `data-st="u toku"`)}
       ${chip(`${stT("završeno")}${cnt(nSt("završeno"))}`, "mini st-zavrseno", F.st.has("završeno"), `data-st="završeno"`)}
       ${chip(`⚠${cnt(nEsk)}`, "mini esk", F.esk, `data-esk="1" title="${t("eskChip")}"`)}
       ${chip(`⏰ ${t("kasniChip")}${cnt(DATA.segments.filter(segLate).length)}`, "mini late", F.kasni, `data-late="1" title="${t("kasniTip")}"`)}
@@ -668,7 +666,8 @@ function headerBands(totalW) {
     d2.setDate(d2.getDate() + (8 - (d2.getDay() || 7)) % 7);  // first monday
     while (d2 < new Date(YEAR + 1, 0, 1)) {
       const a = Math.round((d2 - yearStart()) / 864e5);
-      days += `<div class="hb" style="left:${a * PX}px;width:${wpx}px">${wpx >= 30 ? String(d2.getDate()).padStart(2, "0") + "." + String(d2.getMonth() + 1).padStart(2, "0") + "." : ""}</div>`;
+      /* samo dan (bez mjeseca) — mjesec se vidi u traci iznad */
+      days += `<div class="hb" style="left:${a * PX}px;width:${wpx}px">${wpx >= 18 ? String(d2.getDate()) : ""}</div>`;
       d2.setDate(d2.getDate() + 7);
     }
   }
@@ -732,6 +731,7 @@ function renderTimeline(keepScroll) {
     const lateCnt = allSegs.filter(segLate).length;
 
     anyRow = true;
+    let ri = 0;
     html += `<div class="tl-row group" data-dp="${dp.id}">
       <div class="tl-label">
         <div class="gr-info" title="${t("dpHistTip")}">
@@ -756,7 +756,7 @@ function renderTimeline(keepScroll) {
         if (b < 0 || a > n - 1) continue;
         const x = a * PX, w = Math.max(PX, (b - a + 1) * PX);
         const dim = !segMatch(s);
-        const cls = s.status === "završeno" ? "st-zavrseno" : s.status === "u toku" ? "st-utoku" : "st-otvoreno";
+        const cls = s.status === "završeno" ? "st-zavrseno" : "st-otvoreno";
         /* zakašnjeli (auto-produženi) dio: od planiranog kraja do danas
            - s razlogom: ljubičasta šrafura · bez razloga: crveno-bijela, traži unos */
         let overlays = "";
@@ -777,10 +777,11 @@ function renderTimeline(keepScroll) {
           (s.eskalacija ? `<span class="warn">⚠</span>` : "") +
           (late && w > 95 ? `<span class="latebadge" title="${txtKasni}">⏰ +${lateDays(s)}d</span>` : "") +
           (w > 60 ? `<span>${fmt(s.datum_od).slice(0, 5)}–${fmt(s.datum_do).slice(0, 5)}</span>` : "") +
-          (s.komentar && w > 150 ? `<span class="kom">· ${esc(s.komentar)}</span>` : "") +
+          (s.komentar && w > 30 ? `<span class="kombadge" title="${esc(s.komentar)}">💬</span>` : "") +
+          (s.komentar && w > 150 ? `<span class="kom">${esc(s.komentar)}</span>` : "") +
           `</div>`;
       }
-      html += `<div class="tl-row" data-task="${t.id}" style="--ac:${aktColor(t.aktivnost)}">
+      html += `<div class="tl-row${ri++ % 2 ? " zeb" : ""}" data-task="${t.id}" style="--ac:${aktColor(t.aktivnost)}">
         <div class="tl-label cols">
           <span class="c-pop cell" data-fpop="${esc(dp.pop)}" title="klik = filtriraj POP ${esc(dp.pop)}">${esc(dp.pop)}</span>
           <span class="c-dp cell" data-fdp="${dp.id}" title="klik = filtriraj ${esc(dp.naziv)}">${esc(dp.naziv)}</span>
@@ -840,6 +841,9 @@ function bindTimeline() {
       if (e.button !== 0 || e.target.closest(".seg")) return;
       e.preventDefault();
       const taskId = +track.closest(".tl-row").dataset.task;
+      /* jedna aktivnost = JEDNA traka: ako termin postoji, zasvijetli ga umjesto crtanja */
+      const existing = DATA.segments.find(s => s.task_id === taskId);
+      if (existing) { flashSegs(s => s.id === existing.id); return; }
       drag = { taskId, track, d0: trackDay(e, track), d1: trackDay(e, track), moved: false };
       ghost();
     });
@@ -1088,7 +1092,7 @@ function hcShow(el, ev) {
   const tk = DATA.tasks.find(x => x.id === s.task_id) || {};
   const late = s.status !== "završeno" && s.datum_do < todayIso();
   const hist = (DATA.history || []).filter(h => h.seg_id === s.id);
-  const stCls = s.status === "završeno" ? "teal" : s.status === "u toku" ? "amber" : "red";
+  const stCls = s.status === "završeno" ? "teal" : "red";
   hcEl.innerHTML = `
     <div class="hc-head"><span class="hc-dot" style="background:${aktColor(tk.aktivnost)}"></span>
       <b>${esc(tk.aktivnost || "")}</b><span class="hc-st ${stCls}">${esc(stT(s.status))}</span></div>
@@ -1187,11 +1191,11 @@ function renderStats() {
   const C = (id, cfg) => charts[id] = new Chart($(id), cfg);
   const taskOf = s => DATA.tasks.find(t => t.id === s.task_id);
 
-  const STATUSI = ["završeno", "u toku", "otvoreno"];
+  const STATUSI = ["završeno", "otvoreno"];
   C("#chStatus", { type: "doughnut", data: {
       labels: STATUSI.map(stT),
       datasets: [{ data: STATUSI.map(c),
-        backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
+        backgroundColor: ["#10b981", "#ef4444"],
         borderColor: "#1e293b", borderWidth: 3, hoverOffset: 8 }] },
     options: { maintainAspectRatio: false, cutout: "70%",
       onHover: chartCursor,
@@ -1213,7 +1217,6 @@ function renderStats() {
       labels: odj,
       datasets: [
         { label: stT("završeno"), data: byOdj("završeno"), backgroundColor: "#10b981", borderRadius: 5 },
-        { label: stT("u toku"), data: byOdj("u toku"), backgroundColor: "#f59e0b", borderRadius: 5 },
         { label: stT("otvoreno"), data: byOdj("otvoreno"), backgroundColor: "#ef4444", borderRadius: 5 }] },
     options: { maintainAspectRatio: false,
       onHover: chartCursor,
@@ -1582,6 +1585,15 @@ $("#frmPop").addEventListener("submit", async e => {
   }
   await load();
 });
+/* Escape u dijalogu: prvo zatvori autocomplete/datalist, NE cijeli dijalog */
+$$("#dlgDp, #dlgPop").forEach(d => d.addEventListener("cancel", e => {
+  const ae = document.activeElement;
+  if (ae && ae.tagName === "INPUT" && ae.hasAttribute("list")) {
+    e.preventDefault();
+    ae.blur();
+  }
+}));
+
 /* ---------- ULAZNE-style autocomplete: kucaš -> padajuće sugestije ---------- */
 function comboOpts(id) {
   if (id === "fPop")
