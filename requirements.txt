@@ -1,5 +1,6 @@
 # DP Planiranje - produkcija (Docker) i lokalni razvoj
 flask==3.1.2
+flask-compress==1.23
 gunicorn==23.0.0
 msal==1.34.0
 psycopg2-binary==2.9.11

@@ -33,6 +33,15 @@ SQL_PWD = os.environ.get("SQL_PWD", "")
 app = Flask(__name__)
 app.json.ensure_ascii = False
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+# statika se kešira 7 dana — sigurno jer linkovi nose ?v=<git hash> (cache busting)
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 7 * 24 * 3600
+
+# gzip/brotli kompresija (kao ULAZNE-FAKTURE) — app.js/CSS/JSON višestruko manji
+try:
+    from flask_compress import Compress
+    Compress(app)
+except ImportError:
+    pass  # lokalni dev bez instaliranog paketa i dalje radi
 
 # --- sesija / kolačići (isti princip kao ULAZNE-FAKTURE) ---
 _secret = os.environ.get("API_SECRET_KEY", "")
@@ -255,7 +264,8 @@ def deploy_status():
 @login_required
 def index():
     return render_template("index.html", auth={
-        "email": g.user_email, "name": g.user_name, "is_admin": g.is_admin})
+        "email": g.user_email, "name": g.user_name, "is_admin": g.is_admin},
+        v=APP_GIT_VERSION)
 
 
 @app.route("/api/data")
@@ -272,9 +282,11 @@ def api_data():
         "SELECT id, dp_id, aktivnost, odjel FROM tasks ORDER BY dp_id, id")]
     segments = [dict(r) for r in db().execute(
         "SELECT * FROM segments ORDER BY task_id, datum_od")]
+    # samo svježa historija (hovercard) — puna historija ide kroz /api/history;
+    # bez limita bi payload rastao neograničeno s mjesecima korištenja
     history = [dict(r) for r in db().execute(
         'SELECT seg_id, ts, "user", polje, vrijednost FROM seg_history '
-        "ORDER BY ts DESC, id DESC")]
+        "ORDER BY ts DESC, id DESC LIMIT 500")]
     return jsonify({"dps": dps, "pops": pops, "tasks": tasks, "segments": segments,
                     "history": history})
 
