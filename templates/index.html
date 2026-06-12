@@ -186,8 +186,12 @@
     <h3 data-i18n="noviDpH">Novi DP</h3>
     <input type="hidden" name="pop_id" id="dpPopId">
     <div class="dlg-crumb hidden" id="dpUnder"></div>
-    <label id="dpProjRow"><span data-i18n="projDaily">Projekat (Daily)</span> <input name="projekt" list="dlProj" placeholder="npr. Wandlitz" autocomplete="off"></label>
-    <label id="dpPopRow">POP/FCP ID <input name="pop" list="dlPops" required placeholder="POP xyz-003" autocomplete="off"></label>
+    <label id="dpKundeRow"><span>🏢 <span data-i18n="kunde">Kunde</span></span>
+      <select id="dpKundeSel" required></select></label>
+    <label id="dpProjRow"><span>📁 <span data-i18n="projDaily">Projekat (Daily)</span></span>
+      <select name="projekt" id="dpProjSel" required disabled></select></label>
+    <label id="dpPopRow"><span>🗼 POP/FCP ID</span>
+      <input name="pop" list="dlPops" required disabled placeholder="POP xyz-003" autocomplete="off"></label>
     <label><span data-i18n="nazivDp">Naziv DP</span> <input name="naziv" required placeholder="DP 4"></label>
     <label><span data-i18n="lokacija">Lokacija / dionica</span> <input name="lokacija"></label>
     <label><span data-i18n="voditelj">Voditelj projekta</span> <input name="voditelj"></label>
@@ -197,7 +201,7 @@
     </div>
     <p class="hint" data-i18n="dlgHint">Automatski se kreira 8 standardnih aktivnosti.</p>
     <menu>
-      <button value="cancel" class="btn" data-i18n="odustani">Odustani</button>
+      <button value="cancel" formnovalidate class="btn" data-i18n="odustani">Odustani</button>
       <button value="ok" class="btn primary" data-i18n="sacuvaj">Sačuvaj</button>
     </menu>
   </form>
@@ -206,21 +210,21 @@
 <dialog id="dlgPop">
   <form method="dialog" id="frmPop">
     <h3 data-i18n="noviPopH">Novi POP</h3>
-    <div class="dlg-crumb hidden" id="popProjBadge"></div>
-    <label id="popProjRow"><span data-i18n="projekat">Projekat</span>
-      <select name="projekt" id="popProjSel" required></select></label>
+    <label id="popKundeRow"><span>🏢 <span data-i18n="kunde">Kunde</span></span>
+      <select id="popKundeSel" required></select></label>
+    <label id="popProjRow"><span>📁 <span data-i18n="projekat">Projekat</span></span>
+      <select name="projekt" id="popProjSel" required disabled></select></label>
     <label><span data-i18n="popNaziv">Naziv POP</span> <input name="naziv" required placeholder="POP xyz-003" autocomplete="off"></label>
     <div class="row2">
       <label><span data-i18n="brojHp">Broj HP</span> <input name="hp" type="number" min="0" value="0"></label>
       <label><span data-i18n="brojHa">Broj HA</span> <input name="ha" type="number" min="0" value="0"></label>
     </div>
     <menu>
-      <button value="cancel" class="btn" data-i18n="odustani">Odustani</button>
+      <button value="cancel" formnovalidate class="btn" data-i18n="odustani">Odustani</button>
       <button value="ok" class="btn primary" data-i18n="sacuvaj">Sačuvaj</button>
     </menu>
   </form>
 </dialog>
-<datalist id="dlProj"></datalist>
 <datalist id="dlPops"></datalist>
 
 <!-- bočni panel: KOMANDNI CENTAR izabranog POP-a / DP-a -->

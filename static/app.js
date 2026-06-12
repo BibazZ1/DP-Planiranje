@@ -53,6 +53,7 @@ const I18N = {
     userPrompt: "Upiši svoje ime (bilježi se u historiji izmjena):",
     nepoznat: "nepoznat",
     noviPop: "Novi POP", noviPopH: "Novi POP", popNaziv: "Naziv POP",
+    izaberiPh: "— izaberi —", popNovPh: "izaberi postojeći ili upiši novi…",
     foldFilteri: "Filteri", foldAnalitika: "Analitika", ocisti: "Očisti",
     aktivniFilteri: "aktivni filteri",
     aktivni: "Aktivni", ocistiSve: "Očisti sve", traziPh: "Pretraži…",
@@ -136,6 +137,7 @@ const I18N = {
     userPrompt: "Enter your name (recorded in the change history):",
     nepoznat: "unknown",
     noviPop: "New POP", noviPopH: "New POP", popNaziv: "POP name",
+    izaberiPh: "— select —", popNovPh: "pick existing or type a new one…",
     foldFilteri: "Filters", foldAnalitika: "Analytics", ocisti: "Clear",
     aktivniFilteri: "active filters",
     aktivni: "Active", ocistiSve: "Clear all", traziPh: "Search…",
@@ -219,6 +221,7 @@ const I18N = {
     userPrompt: "Name eingeben (wird im Änderungsverlauf gespeichert):",
     nepoznat: "unbekannt",
     noviPop: "Neuer POP", noviPopH: "Neuer POP", popNaziv: "POP-Name",
+    izaberiPh: "— wählen —", popNovPh: "wählen oder neu eingeben…",
     foldFilteri: "Filter", foldAnalitika: "Analyse", ocisti: "Leeren",
     aktivniFilteri: "aktive Filter",
     aktivni: "Aktiv", ocistiSve: "Alle leeren", traziPh: "Suchen…",
@@ -878,6 +881,7 @@ function renderTimeline(keepScroll) {
   sc.scrollLeft = sl; sc.scrollTop = st;
   $("#zLabel").textContent = zoomLabel();
   bindTimeline();
+  drawPendingGhost();   // nacrtani raspon preživi re-render dok je popover otvoren
 }
 
 function esc(s) {
@@ -920,12 +924,16 @@ function bindTimeline() {
       if (existing) { flashSegs(s => s.id === existing.id); return; }
       drag = { taskId, track, d0: trackDay(e, track), d1: trackDay(e, track), moved: false };
       ghost();
+      const [a, b] = snapRange(drag.d0, drag.d1);
+      dragTipShow(e, a, b);
     });
     track.addEventListener("mousemove", e => {
       if (!drag || drag.track !== track) return;
       drag.d1 = trackDay(e, track);
       drag.moved = true;
       ghost();
+      const [a, b] = snapRange(drag.d0, drag.d1);
+      dragTipShow(e, a, b);
     });
   });
   $$("#tlScroll .seg").forEach(sg => {
@@ -1015,6 +1023,37 @@ function ghost() {
   drag.track.appendChild(g);
 }
 
+/* živi brojač datuma na ivici dok crtaš / razvlačiš — vidiš TAČAN datum prije puštanja */
+const dragTip = document.createElement("div");
+dragTip.className = "dragtip hidden";
+document.body.appendChild(dragTip);
+function dragTipShow(e, a, b) {
+  const nd = b - a + 1;
+  dragTip.innerHTML =
+    `<b>${fmt(iso(dateOfIdx(a))).slice(0, 6)}</b><span class="dt-arr">→</span>` +
+    `<b>${fmt(iso(dateOfIdx(b))).slice(0, 6)}</b>` +
+    `<span class="dt-n">${nd}d · KW${isoWeekOf(dateOfIdx(b))}</span>`;
+  dragTip.classList.remove("hidden");
+  dragTip.style.left = Math.min(e.clientX + 16, innerWidth - 200) + "px";
+  dragTip.style.top = Math.max(8, e.clientY - 46) + "px";
+}
+function dragTipHide() { dragTip.classList.add("hidden"); }
+
+/* nacrtani raspon OSTAJE vidljiv dok je popover otvoren (ne "nestaje" crtež) */
+let pendingDraw = null;   // {taskId, a, b}
+function drawPendingGhost() {
+  if (drag) return;                       // tokom aktivnog crtanja ghost() to radi
+  $$(".ghost").forEach(g => g.remove());
+  if (!pendingDraw) return;
+  const track = $(`#tlScroll .tl-row[data-task="${pendingDraw.taskId}"] .tl-track`);
+  if (!track) return;
+  const g = document.createElement("div");
+  g.className = "ghost keep";
+  g.style.left = pendingDraw.a * PX + "px";
+  g.style.width = (pendingDraw.b - pendingDraw.a + 1) * PX + "px";
+  track.appendChild(g);
+}
+
 /* live resize of an existing termin by dragging its edge */
 document.addEventListener("mousemove", e => {
   if (!segResize) return;
@@ -1025,9 +1064,11 @@ document.addEventListener("mousemove", e => {
   segResize.curA = a; segResize.curB = b;
   segResize.segEl.style.left = a * PX + "px";
   segResize.segEl.style.width = Math.max(PX, (b - a + 1) * PX) + "px";
+  dragTipShow(e, a, b);   // živi datum na ivici i pri razvlačenju
 });
 document.addEventListener("mouseup", async () => {
   if (!segResize) return;
+  dragTipHide();
   const sr = segResize; segResize = null;
   sr.segEl.classList.remove("resizing");
   const a = sr.curA ?? sr.a, b = sr.curB ?? sr.b;
@@ -1049,15 +1090,18 @@ document.addEventListener("mouseup", e => {
   const { taskId } = drag;
   const [a, b] = snapRange(drag.d0, drag.d1);
   drag = null;
-  $$(".ghost").forEach(g => g.remove());
+  dragTipHide();
+  /* nacrtano OSTAJE vidljivo (ghost) dok popover ne završi */
+  pendingDraw = { taskId, a, b };
   ensureDpSelected(taskId);   // rad u DP-u -> otvori njegov panel desno
+  drawPendingGhost();
   openPop("new", null, e.clientX, e.clientY, {
     taskId, od: iso(dateOfIdx(a)), do_: iso(dateOfIdx(b)),
   });
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
-    if (drag) { drag = null; $$(".ghost").forEach(g => g.remove()); }
+    if (drag) { drag = null; dragTipHide(); $$(".ghost").forEach(g => g.remove()); }
     if (popCtx) closePop();
     else if (SEL && !$("dialog[open]")) deselect();   // skini DP, zadrži projekat
   }
@@ -1159,7 +1203,12 @@ function openPop(mode, segId, cx, cy, init = {}) {
   pop.style.top = Math.min(cy + 10, innerHeight - H - 16) + "px";
   $("#popKom").focus();
 }
-function closePop() { $("#pop").classList.add("hidden"); popCtx = null; }
+function closePop() {
+  $("#pop").classList.add("hidden");
+  popCtx = null;
+  pendingDraw = null;
+  $$(".ghost").forEach(g => g.remove());
+}
 
 /* termin probio rok? (otvoreno / u toku sa krajem u prošlosti) -> razlog obavezan */
 function popLate() {
@@ -1487,8 +1536,6 @@ function renderProj() {
   syncCombo("pfKunde", PROJ.kunde);
   syncCombo("pfCode", PROJ.code);
   syncCombo("pfProj", PROJ.name);
-  /* datalist za dijalog "+ Novi DP" — uvijek svi projekti */
-  $("#dlProj").innerHTML = PROJ.rows.map(p => `<option value="${esc(p.projektname)}">`).join("");
 
   const s = PROJ.sync || {};
   $("#projMeta").textContent =
@@ -1536,12 +1583,12 @@ function renderProj() {
       ${card("grey", lastWork ? fmt(lastWork) : "—", t("zadnjiRad"))}
     </div>${pv}`;
 
-  /* "+ Novi POP" / "+ Novi DP" su otključani SAMO kad je izabran TAČNO JEDAN
-     projekat (POP se kreira pod projektom, a DP pod POP-om tog projekta) */
+  /* "+ Novi POP" / "+ Novi DP" su UVIJEK otključani — dijalog vodi kroz
+     kaskadu Kunde → Projekat (→ POP); izabrani filteri su samo prijedlog */
   const pname = effProjName();
   const bPop = $("#btnAddPopTop"), bDp = $("#btnAddDp");
-  if (bPop) { bPop.disabled = !pname; bPop.title = pname ? `→ ${pname}` : t("lockHint"); }
-  if (bDp) { bDp.disabled = !pname; bDp.title = pname ? `→ ${pname}` : t("lockHint"); }
+  if (bPop) { bPop.disabled = false; bPop.title = pname ? `→ ${pname}` : ""; }
+  if (bDp) { bDp.disabled = false; bDp.title = pname ? `→ ${pname}` : ""; }
 }
 /* prijedlog projekta za dijaloge: izabrani, ili jedini u filteru */
 function effProjName() {
@@ -1549,17 +1596,64 @@ function effProjName() {
   const f = projFiltered();
   return (PROJ.kunde || PROJ.code) && f.length === 1 ? f[0].projektname : null;
 }
-/* "+ Novi POP" — projekat je ZAKLJUČAN na izabrani (dugme je inače onemogućeno) */
-function openPopDialog(pname) {
-  if (!pname) return;
-  const sel = $("#popProjSel");
-  sel.innerHTML = `<option value="${esc(pname)}" selected>${esc(pname)}</option>`;
-  sel.disabled = true;
-  $("#frmPop").reset();
-  sel.value = pname;
-  $("#popProjBadge").classList.remove("hidden");
-  $("#popProjBadge").innerHTML = `${esc(pname)} <i>▸</i> <b>${t("noviPop")}</b>`;
+/* ---------- kaskada Kunde → Projekat (→ POP) za dijaloge kreiranja ----------
+   Azure projekti + "siročići" koji postoje samo na POP/DP zapisima (kunde "—") */
+function projRowsAll() {
+  const known = new Set(PROJ.rows.map(p => p.projektname));
+  const orphan = [...new Set([...DATA.pops, ...DATA.dps]
+    .map(x => x.projekt).filter(p => p && !known.has(p)))]
+    .map(p => ({ projektname: p, kunde: "—" }));
+  return PROJ.rows.concat(orphan);
+}
+function kundeOptions() {
+  return [...new Set(projRowsAll().map(p => p.kunde || "—"))].sort(cmpStr);
+}
+function projOptions(kunde) {
+  return [...new Set(projRowsAll()
+    .filter(p => !kunde || (p.kunde || "—") === kunde)
+    .map(p => p.projektname).filter(Boolean))].sort(cmpStr);
+}
+function kundeOf(projekt) {
+  const r = projRowsAll().find(p => p.projektname === projekt);
+  return r ? (r.kunde || "—") : "";
+}
+/* napuni select; ako je samo jedna opcija, odmah je izaberi (manje klikova) */
+function fillCascSelect(sel, opts, current) {
+  const cur = opts.includes(current) ? current : (opts.length === 1 ? opts[0] : "");
+  sel.innerHTML = `<option value="" disabled${cur ? "" : " selected"}>${t("izaberiPh")}</option>` +
+    opts.map(v => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(v)}</option>`).join("");
+  sel.value = cur;
+  return cur;
+}
+/* prvi prazan obavezan korak SVIJETLI; koraci poslije njega su zaključani */
+function cascadeGlow(fields) {
+  let blocked = false, focusEl = null;
+  fields.forEach(el => {
+    const empty = !(el.value || "").trim();
+    el.disabled = blocked;
+    const glow = !blocked && empty;
+    el.classList.toggle("glow-req", glow);
+    if (glow && !focusEl) focusEl = el;
+    if (empty) blocked = true;
+  });
+  return focusEl;
+}
+
+/* "+ Novi POP" — uvijek dostupan; Kunde/Projekat predloženi iz filtera */
+function openPopDialog() {
+  const frm = $("#frmPop");
+  frm.reset();
+  const kSel = $("#popKundeSel"), pSel = $("#popProjSel");
+  const pref = effProjName() || "";
+  const kunde = pref ? kundeOf(pref) : (PROJ.kunde || "");
+  fillCascSelect(kSel, kundeOptions(), kunde);
+  fillCascSelect(pSel, projOptions(kSel.value), kSel.value ? pref : "");
+  const f = popCascade();
   $("#dlgPop").showModal();
+  (f || frm.elements.naziv).focus();
+}
+function popCascade() {
+  return cascadeGlow([$("#popKundeSel"), $("#popProjSel")]);
 }
 function popCard(p) {
   const dps = DATA.dps.filter(d => d.pop_id === p.id);
@@ -1931,25 +2025,63 @@ function openDpDialog(popId) {
   const frm = $("#frmDp");
   frm.reset();
   const p = popId ? DATA.pops.find(x => x.id === popId) : null;
+  const kSel = $("#dpKundeSel"), pSel = $("#dpProjSel"), popIn = frm.elements.pop;
   $("#dpPopId").value = p ? p.id : "";
   $("#dpUnder").classList.toggle("hidden", !p);
+  $("#dpKundeRow").classList.toggle("hidden", !!p);
   $("#dpProjRow").classList.toggle("hidden", !!p);
   $("#dpPopRow").classList.toggle("hidden", !!p);
-  frm.elements.pop.required = !p;
+  kSel.required = pSel.required = popIn.required = !p;
+  popIn.placeholder = t("popNovPh");
   if (p) {
+    /* ＋ DP s POP kartice: kontekst je zaključan, kaskada nije potrebna */
     $("#dpUnder").innerHTML =
       `${esc(p.projekt || "—")} <i>▸</i> <b>${esc(p.naziv)}</b> <i>▸</i> ${t("noviDpH")}`;
-    frm.elements.projekt.value = p.projekt || "";
-    frm.elements.pop.value = p.naziv;
+    pSel.innerHTML = `<option value="${esc(p.projekt || "")}" selected>${esc(p.projekt || "")}</option>`;
+    pSel.value = p.projekt || "";
+    popIn.value = p.naziv;
+    [kSel, pSel, popIn].forEach(el => { el.disabled = false; el.classList.remove("glow-req"); });
   } else {
-    /* projekat je zaključan na izabrani u filterima (dugme je inače onemogućeno) */
-    const pname = effProjName();
-    frm.elements.projekt.value = pname || "";
-    frm.elements.projekt.readOnly = !!pname;
+    const pref = effProjName() || "";
+    const kunde = pref ? kundeOf(pref) : (PROJ.kunde || "");
+    fillCascSelect(kSel, kundeOptions(), kunde);
+    fillCascSelect(pSel, projOptions(kSel.value), kSel.value ? pref : "");
+    /* tačno jedan POP u filteru, pod izabranim projektom -> predloži ga */
+    const selPop = F.pop.size === 1 ? [...F.pop][0] : "";
+    popIn.value = selPop && DATA.pops.some(x => x.naziv === selPop && x.projekt === pSel.value)
+      ? selPop : "";
   }
-  fillPopList(frm.elements.projekt.value.trim());
+  fillPopList(pSel.value.trim());
   $("#dlgDp").showModal();
+  if (!p) {
+    const f = dpCascade();
+    (f || frm.elements.naziv).focus();
+  }
 }
+function dpCascade() {
+  return cascadeGlow([$("#dpKundeSel"), $("#dpProjSel"), $("#frmDp").elements.pop]);
+}
+$("#popKundeSel").addEventListener("change", () => {
+  fillCascSelect($("#popProjSel"), projOptions($("#popKundeSel").value), "");
+  const f = popCascade();
+  ((f && f !== $("#popKundeSel")) ? f : $("#frmPop").elements.naziv).focus();
+});
+$("#popProjSel").addEventListener("change", () => {
+  popCascade();
+  $("#frmPop").elements.naziv.focus();
+});
+$("#dpKundeSel").addEventListener("change", () => {
+  fillCascSelect($("#dpProjSel"), projOptions($("#dpKundeSel").value), "");
+  fillPopList($("#dpProjSel").value);
+  const f = dpCascade();
+  if (f && f !== $("#dpKundeSel")) f.focus();
+});
+$("#dpProjSel").addEventListener("change", () => {
+  fillPopList($("#dpProjSel").value);
+  const f = dpCascade();
+  if (f && f !== $("#dpProjSel")) f.focus();
+});
+$("#frmDp [name=pop]").addEventListener("input", dpCascade);
 $("#frmPop").addEventListener("submit", async e => {
   if (e.submitter && e.submitter.value === "cancel") return;
   const body = Object.fromEntries(new FormData(e.target).entries());
@@ -2137,7 +2269,7 @@ yearSel.value = YEAR;
 yearSel.addEventListener("change", () => { YEAR = +yearSel.value; renderTimeline(false); });
 
 $("#btnAddDp").addEventListener("click", () => openDpDialog(null));
-$("#btnAddPopTop").addEventListener("click", () => openPopDialog(effProjName()));
+$("#btnAddPopTop").addEventListener("click", () => openPopDialog());
 
 /* 📸 baseline: snimi plan + 👻 prikaži/sakrij ghost trake */
 $("#btnSnap").addEventListener("click", async () => {
@@ -2154,7 +2286,6 @@ $("#btnGhost").addEventListener("click", () => {
 });
 ghostBtn();
 undoBtn();
-$("#frmDp [name=projekt]").addEventListener("input", e => fillPopList(e.target.value.trim()));
 $("#frmDp").addEventListener("submit", async e => {
   if (e.submitter && e.submitter.value === "cancel") return;
   const fd = new FormData(e.target);

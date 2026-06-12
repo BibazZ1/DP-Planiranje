@@ -33,9 +33,26 @@ function ok(name, cond, extra = "") {
   ok("auth ime prikazano", (await page.textContent("#userName")).trim().length > 1);
   ok("admin dugme vidljivo (admin)", await page.locator("#btnAdmin").isVisible());
 
-  // dugmad zaključana bez projekta
-  ok("Novi POP onemogućen bez projekta", await page.locator("#btnAddPopTop").isDisabled());
-  ok("Novi DP onemogućen bez projekta", await page.locator("#btnAddDp").isDisabled());
+  // dugmad UVIJEK otključana — dijalog vodi kroz kaskadu Kunde→Projekat
+  ok("Novi POP otključan i bez projekta", !(await page.locator("#btnAddPopTop").isDisabled()));
+  ok("Novi DP otključan i bez projekta", !(await page.locator("#btnAddDp").isDisabled()));
+
+  // ---------- 1b. kaskada u POP dijalogu (bez ijednog filtera) ----------
+  // sačekaj da se Azure projekti učitaju (pune opcije kaskade)
+  await page.waitForFunction(() =>
+    (document.querySelector("#projMeta").textContent || "").trim().length > 0, null, { timeout: 10000 });
+  await page.click("#btnAddPopTop");
+  await page.waitForSelector("#dlgPop[open]", { timeout: 5000 });
+  ok("kaskada: Kunde SVIJETLI (glow)", await page.locator("#popKundeSel.glow-req").isVisible());
+  ok("kaskada: Projekat zaključan dok nema Kunde", await page.locator("#popProjSel").isDisabled());
+  await page.selectOption("#popKundeSel", "mih Gmbh");
+  await page.waitForTimeout(250);
+  ok("kaskada: poslije Kunde svijetli Projekat", await page.locator("#popProjSel.glow-req").isVisible());
+  const projCnt = await page.locator('#popProjSel option:not([value=""])').count();
+  ok("kaskada: projekti filtrirani po Kunde", projCnt === 2, `(${projCnt})`);
+  await page.click('#frmPop button[value="cancel"]');
+  await page.waitForTimeout(300);
+  ok("kaskada: Odustani zatvara dijalog", !(await page.locator("#dlgPop[open]").isVisible().catch(() => false)));
 
   // ---------- 2. Kunde combo ----------
   await page.click("#pfKunde");
@@ -77,13 +94,13 @@ function ok(name, cond, extra = "") {
   // prazno stanje s objašnjenjem (nema DP-ova pod ovim projektom)
   ok("prazno stanje objašnjeno (tl-empty)", await page.locator(".tl-empty").isVisible());
 
-  // ---------- 4. Novi POP (otključan + projekat zaključan) ----------
-  ok("Novi POP otključan s projektom", !(await page.locator("#btnAddPopTop").isDisabled()));
+  // ---------- 4. Novi POP (filteri pune kaskadu, ništa ne svijetli) ----------
   await page.click("#btnAddPopTop");
   await page.waitForSelector("#dlgPop[open]", { timeout: 5000 });
-  ok("dijalog: projekat zaključan", await page.locator("#popProjSel").isDisabled());
-  const lockedVal = await page.locator("#popProjSel").inputValue();
-  ok("dijalog: zaključan na izabrani projekat", lockedVal.includes("WANDLITZ"), `(${lockedVal})`);
+  ok("dijalog: Kunde predizabran iz filtera", (await page.locator("#popKundeSel").inputValue()) === "mih Gmbh");
+  const preProj = await page.locator("#popProjSel").inputValue();
+  ok("dijalog: Projekat predizabran iz filtera", preProj.includes("WANDLITZ"), `(${preProj})`);
+  ok("dijalog: ništa ne svijetli (sve popunjeno)", (await page.locator("#dlgPop .glow-req").count()) === 0);
   await page.fill('#frmPop input[name="naziv"]', "POP TEST-1");
   await page.fill('#frmPop input[name="hp"]', "10");
   await page.fill('#frmPop input[name="ha"]', "5");
@@ -91,11 +108,11 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(800);
   ok("POP kreiran (bez greške)", !(await page.locator("#dlgPop[open]").isVisible().catch(() => false)));
 
-  // ---------- 5. Novi DP pod POP-om ----------
+  // ---------- 5. Novi DP pod POP-om (kaskada do POP koraka) ----------
   await page.click("#btnAddDp");
   await page.waitForSelector("#dlgDp[open]", { timeout: 5000 });
-  const projRO = await page.locator('#frmDp input[name="projekt"]').evaluate(el => el.readOnly);
-  ok("DP dijalog: projekat readonly", projRO);
+  ok("DP dijalog: Kunde+Projekat predizabrani", (await page.locator("#dpProjSel").inputValue()).includes("WANDLITZ"));
+  ok("DP dijalog: POP korak SVIJETLI", await page.locator('#frmDp input[name="pop"].glow-req').isVisible());
   await page.fill('#frmDp input[name="pop"]', "POP TEST-1");
   await page.fill('#frmDp input[name="naziv"]', "DP T1");
   await page.fill('#frmDp input[name="hp"]', "10");
@@ -258,6 +275,28 @@ function ok(name, cond, extra = "") {
   ok("Esc: projekat OSTAJE", await chipX("data-xproj").isVisible());
   ok("Esc: kunde OSTAJE", await chipX("data-xkunde").isVisible());
 
+  await page.click("#pfClear");
+  await page.waitForTimeout(400);
+
+  // ---------- 12h. crtanje: živi brojač datuma + crtež NE nestaje dok je popover otvoren ----------
+  const asfRow = page.locator('.tl-row[data-task]', { hasText: "Asfaltiranje" }).first();
+  const trackBox = await asfRow.locator(".tl-track").boundingBox();
+  const y = trackBox.y + trackBox.height / 2;
+  await page.mouse.move(trackBox.x + 300, y);
+  await page.mouse.down();
+  await page.mouse.move(trackBox.x + 360, y, { steps: 4 });
+  await page.mouse.move(trackBox.x + 430, y, { steps: 4 });
+  ok("crtanje: živi brojač datuma vidljiv", await page.locator(".dragtip:not(.hidden)").isVisible());
+  const tipTxt = await page.locator(".dragtip").textContent();
+  ok("brojač: datumi + trajanje + KW", /\d{2}\.\d{2}\./.test(tipTxt) && /d · KW/.test(tipTxt), `(${tipTxt})`);
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+  ok("poslije puštanja: popover otvoren", await page.locator("#pop:not(.hidden)").isVisible());
+  ok("poslije puštanja: crtež OSTAJE (ghost)", (await page.locator(".ghost.keep").count()) === 1);
+  ok("brojač sakriven poslije puštanja", !(await page.locator(".dragtip:not(.hidden)").isVisible().catch(() => false)));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  ok("Esc: popover i crtež očišćeni", (await page.locator(".ghost").count()) === 0);
   await page.click("#pfClear");
   await page.waitForTimeout(400);
 
