@@ -678,3 +678,6 @@ span.flatpickr-weekday{color:#64748b!important}
 .flatpickr-months .flatpickr-prev-month svg,.flatpickr-months .flatpickr-next-month svg{fill:#94a3b8!important}
 .flatpickr-months .flatpickr-prev-month:hover svg,.flatpickr-months .flatpickr-next-month:hover svg{fill:#10b981!important}
 
+
+/* onemogucena dugmad (Novi POP/DP bez izabranog projekta) */
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}

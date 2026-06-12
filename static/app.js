@@ -1292,8 +1292,12 @@ function renderProj() {
       ${card("grey", lastWork ? fmt(lastWork) : "—", t("zadnjiRad"))}
     </div>`;
 
-  /* POP▸DP kartice su uklonjene — POP/DP se sada filtriraju kroz filter panel
-     (autocomplete polja), a kreiranje ide kroz "+ Novi POP" / "+ Novi DP" u headeru */
+  /* "+ Novi POP" / "+ Novi DP" su otključani SAMO kad je izabran TAČNO JEDAN
+     projekat (POP se kreira pod projektom, a DP pod POP-om tog projekta) */
+  const pname = effProjName();
+  const bPop = $("#btnAddPopTop"), bDp = $("#btnAddDp");
+  if (bPop) { bPop.disabled = !pname; bPop.title = pname ? `→ ${pname}` : t("lockHint"); }
+  if (bDp) { bDp.disabled = !pname; bDp.title = pname ? `→ ${pname}` : t("lockHint"); }
 }
 /* prijedlog projekta za dijaloge: izabrani, ili jedini u filteru */
 function effProjName() {
@@ -1301,18 +1305,16 @@ function effProjName() {
   const f = projFiltered();
   return (PROJ.kunde || PROJ.code) && f.length === 1 ? f[0].projektname : null;
 }
-/* "+ Novi POP" — projekat se bira u dijalogu (nema više zaključavanja) */
+/* "+ Novi POP" — projekat je ZAKLJUČAN na izabrani (dugme je inače onemogućeno) */
 function openPopDialog(pname) {
+  if (!pname) return;
   const sel = $("#popProjSel");
-  const active = PROJ.kunde || PROJ.code || PROJ.name;
-  const list = active ? projFiltered().map(p => p.projektname) : PROJ.rows.map(p => p.projektname);
-  const names = [...new Set(list.filter(Boolean))].sort(cmpStr);
-  if (pname && !names.includes(pname)) names.unshift(pname);
-  sel.innerHTML = `<option value="" disabled${pname ? "" : " selected"}>${t("sviProj")}</option>` +
-    names.map(n => `<option value="${esc(n)}"${n === pname ? " selected" : ""}>${esc(n)}</option>`).join("");
+  sel.innerHTML = `<option value="${esc(pname)}" selected>${esc(pname)}</option>`;
+  sel.disabled = true;
   $("#frmPop").reset();
-  if (pname) sel.value = pname;
-  $("#popProjBadge").classList.add("hidden");
+  sel.value = pname;
+  $("#popProjBadge").classList.remove("hidden");
+  $("#popProjBadge").innerHTML = `${esc(pname)} <i>▸</i> <b>${t("noviPop")}</b>`;
   $("#dlgPop").showModal();
 }
 function popCard(p) {
@@ -1517,6 +1519,11 @@ function openDpDialog(popId) {
       `${esc(p.projekt || "—")} <i>▸</i> <b>${esc(p.naziv)}</b> <i>▸</i> ${t("noviDpH")}`;
     frm.elements.projekt.value = p.projekt || "";
     frm.elements.pop.value = p.naziv;
+  } else {
+    /* projekat je zaključan na izabrani u filterima (dugme je inače onemogućeno) */
+    const pname = effProjName();
+    frm.elements.projekt.value = pname || "";
+    frm.elements.projekt.readOnly = !!pname;
   }
   fillPopList(frm.elements.projekt.value.trim());
   $("#dlgDp").showModal();
@@ -1650,13 +1657,9 @@ $("#pfClear").addEventListener("click", () => {
   F.dOd = F.dDo = ""; clearDate("fDateOd"); clearDate("fDateDo");
   projFilterChanged();
 });
-$("#btnProjSync").addEventListener("click", async () => {
-  const b = $("#btnProjSync");
-  b.disabled = true; b.textContent = "⟳ sync…";
-  try { await api("/api/projects/sync", "POST"); } catch (e) { /* greška se prikaže u meta */ }
-  await loadProjects();
-  b.disabled = false; b.textContent = "⟳ Sync";
-});
+/* sync iz Azure radi server automatski svakih 30 min — frontend samo
+   periodično povuče svježe podatke (nema više ručnog Sync dugmeta) */
+setInterval(loadProjects, 30 * 60 * 1000);
 
 /* ---------- jezik ---------- */
 function applyLang() {

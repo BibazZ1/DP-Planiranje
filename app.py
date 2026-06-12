@@ -643,8 +643,17 @@ def export_xlsx():
 
 
 database.init_db(permanent_admin=PERMANENT_ADMIN)
-# sync iz Azure pri pokretanju aplikacije (u pozadini, ne blokira start)
-threading.Thread(target=sync_projects_from_azure, daemon=True).start()
+
+
+def _sync_loop():
+    """Automatski sync iz Azure: odmah pri startu pa svakih 30 minuta
+    (ručno Sync dugme je uklonjeno iz UI-ja)."""
+    while True:
+        sync_projects_from_azure()
+        time.sleep(30 * 60)
+
+
+threading.Thread(target=_sync_loop, daemon=True).start()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
