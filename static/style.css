@@ -681,3 +681,17 @@ span.flatpickr-weekday{color:#64748b!important}
 
 /* onemogucena dugmad (Novi POP/DP bez izabranog projekta) */
 .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+
+/* ================== kasni termini + rok DP-a (Aktivacije) ================== */
+.chip.late{--cc:var(--red)}
+.rokb{display:inline-flex;align-items:center;gap:4px;font:600 10px var(--mono);
+  color:#fbbf24;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);
+  border-radius:9999px;padding:1px 8px;white-space:nowrap}
+.rokb.late{color:#f87171;background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.45);
+  animation:rokPulse 2.2s ease-in-out infinite}
+@keyframes rokPulse{50%{box-shadow:0 0 10px rgba(239,68,68,.45)}}
+.latecnt{display:inline-flex;align-items:center;font:700 10px var(--mono);color:#f87171;
+  background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.4);
+  border-radius:9999px;padding:1px 7px;white-space:nowrap}
+.seg .latebadge{font:700 9.5px var(--mono);color:#fff;background:rgba(239,68,68,.85);
+  border-radius:9999px;padding:0 6px;margin-right:4px;white-space:nowrap;flex:none}

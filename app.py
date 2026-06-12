@@ -590,6 +590,8 @@ def _seg_rows():
         ' t.aktivnost AS "Aktivnost", t.odjel AS "Odjel", s.status AS "Status", '
         ' s.datum_od AS "Od", s.datum_do AS "Do", '
         " CASE s.eskalacija WHEN 1 THEN 'da' ELSE 'ne' END AS \"Eskalacija\", "
+        " CASE WHEN s.status <> 'završeno' AND s.datum_do < to_char(CURRENT_DATE,'YYYY-MM-DD') "
+        "      THEN (CURRENT_DATE - s.datum_do::date)::text ELSE '' END AS \"Kasni (dana)\", "
         ' s.esk_datum AS "Datum eskalacije", s.esk_razlog AS "Razlog eskalacije", '
         ' s.kasni_razlog AS "Razlog kašnjenja", s.komentar AS "Komentar" '
         "FROM segments s JOIN tasks t ON t.id=s.task_id JOIN dps d ON d.id=t.dp_id "
@@ -631,7 +633,7 @@ def export_xlsx():
             c.alignment = Alignment(horizontal="center")
         for r in rows:
             ws.append(list(r.values()))
-        for col, w_ in zip("ABCDEFGHIJKLMNOP", (13, 7, 18, 16, 6, 6, 20, 15, 11, 12, 12, 11, 13, 30, 30, 30)):
+        for col, w_ in zip("ABCDEFGHIJKLMNOPQ", (13, 7, 18, 16, 6, 6, 20, 15, 11, 12, 12, 11, 11, 13, 30, 30, 30)):
             ws.column_dimensions[col].width = w_
         ws.freeze_panes = "A2"
         ws.auto_filter.ref = ws.dimensions

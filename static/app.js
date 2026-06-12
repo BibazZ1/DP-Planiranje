@@ -58,6 +58,8 @@ const I18N = {
     aktivni: "Aktivni", ocistiSve: "Očisti sve", traziPh: "Pretraži…",
     statusLbl: "Status", odjelLbl: "Odjel",
     datumOd: "Datum od", datumDo: "Datum do", nemaRez: "nema rezultata", da: "Da",
+    kasniChip: "kasni", kasniTip: "rok prošao, a termin nije završen",
+    rokLbl: "rok", rokTip: "rok DP-a = kraj termina Aktivacija",
     lockHint: "🔒 izaberi projekat gore da otključaš dodavanje POP-ova",
     popHint: "klik na karticu = historija + filter · ＋ DP = novi DP pod tim POP-om",
     noPops: "još nema POP-ova pod ovim projektom — dodaj prvi ↑",
@@ -126,6 +128,8 @@ const I18N = {
     aktivni: "Active", ocistiSve: "Clear all", traziPh: "Search…",
     statusLbl: "Status", odjelLbl: "Department",
     datumOd: "Date from", datumDo: "Date to", nemaRez: "no results", da: "Yes",
+    kasniChip: "late", kasniTip: "past due date and not finished",
+    rokLbl: "due", rokTip: "DP due date = end of Activations",
     lockHint: "🔒 select a project above to unlock adding POPs",
     popHint: "click a card = history + filter · ＋ DP = new DP under that POP",
     noPops: "no POPs under this project yet — add the first ↑",
@@ -194,6 +198,8 @@ const I18N = {
     aktivni: "Aktiv", ocistiSve: "Alle leeren", traziPh: "Suchen…",
     statusLbl: "Status", odjelLbl: "Abteilung",
     datumOd: "Datum von", datumDo: "Datum bis", nemaRez: "keine Treffer", da: "Ja",
+    kasniChip: "verspätet", kasniTip: "Frist überschritten, nicht abgeschlossen",
+    rokLbl: "Frist", rokTip: "DP-Frist = Ende der Aktivierungen",
     lockHint: "🔒 oben ein Projekt wählen, um das Anlegen von POPs freizuschalten",
     popHint: "Klick auf Karte = Verlauf + Filter · ＋ DP = neuer DP unter dem POP",
     noPops: "noch keine POPs in diesem Projekt — ersten anlegen ↑",
@@ -257,7 +263,7 @@ let drag = null;                  // {taskId, trackEl, d0, d1, moved}
 let segResize = null;             // {id, side:'l'|'r', segEl, track, a, b, curA, curB}
 let popCtx = null;                // {mode:'new'|'edit', taskId, segId, status}
 const F = { dp: new Set(), pop: new Set(), st: new Set(), odj: new Set(), esk: false,
-            dOd: "", dDo: "" };
+            kasni: false, dOd: "", dDo: "" };
 let SEL = null;                   // {type:'pop'|'dp', id} — otvorena historija u draweru
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -356,9 +362,15 @@ async function uiPrompt(title, val = "") {
 }
 
 /* ---------- filtering ---------- */
+/* kasni = rok (datum_do) prošao, a termin nije završen — računa se automatski */
+function segLate(s) { return s.status !== "završeno" && s.datum_do < todayIso(); }
+function lateDays(s) {
+  return Math.max(1, Math.round((new Date(todayIso()) - new Date(s.datum_do)) / 864e5));
+}
 function segMatch(s) {
   if (F.st.size && !F.st.has(s.status)) return false;
   if (F.esk && !s.eskalacija) return false;
+  if (F.kasni && !segLate(s)) return false;
   /* datumski filter: termin se preklapa sa izabranim rasponom */
   if (F.dOd && s.datum_do < F.dOd) return false;
   if (F.dDo && s.datum_od > F.dDo) return false;
@@ -479,16 +491,19 @@ function renderKpis() {
     <div class="kpi amber click${F.st.has("u toku") ? " on" : ""}" data-st="u toku"><div class="num" data-n="${c("u toku")}">0</div><div class="lbl">${stT("u toku")}</div></div>
     <div class="kpi red click${F.st.has("otvoreno") ? " on" : ""}" data-st="otvoreno"><div class="num" data-n="${c("otvoreno")}">0</div><div class="lbl">${stT("otvoreno")}</div></div>
     <div class="kpi red click${F.esk ? " on" : ""}" data-esk="1"><div class="num" data-n="${esk}">0</div><div class="lbl">${t("kEsk")}</div></div>
+    <div class="kpi red click${F.kasni ? " on" : ""}" data-late="1" title="${t("kasniTip")}"><div class="num" data-n="${segs.filter(segLate).length}">0</div><div class="lbl">⏰ ${t("kasniChip")}</div></div>
     <div class="kpi purple"><div class="num" data-n="${hp}">0</div><div class="lbl">HP</div></div>
     <div class="kpi purple"><div class="num" data-n="${ha}">0</div><div class="lbl">HA</div></div>`;
   $$("#kpis .num").forEach(el => countUp(el, +el.dataset.n));
   $$("#kpis .kpi.click").forEach(k => k.addEventListener("click", () => {
-    if (k.dataset.all) { F.st.clear(); F.esk = false; }
+    if (k.dataset.all) { F.st.clear(); F.esk = false; F.kasni = false; }
     else if (k.dataset.st) { const v = k.dataset.st; F.st.has(v) ? F.st.delete(v) : F.st.add(v); }
     else if (k.dataset.esk) F.esk = !F.esk;
+    else if (k.dataset.late) F.kasni = !F.kasni;
     renderAll();
     if (k.dataset.st) flashSegs(s => s.status === k.dataset.st);
     if (k.dataset.esk && F.esk) flashSegs(s => !!s.eskalacija);
+    if (k.dataset.late && F.kasni) flashSegs(segLate);
   }));
 }
 
@@ -509,7 +524,7 @@ function renderSlicers() {
   /* broj aktivnih filtera -> crvena značka na "Filteri" dugmetu (kao ULAZNE-FAKTURE) */
   const nProj = (PROJ.kunde ? 1 : 0) + (PROJ.code ? 1 : 0) + (PROJ.name ? 1 : 0);
   const nAct = F.pop.size + F.dp.size + F.st.size + F.odj.size + (F.esk ? 1 : 0) + nProj
-    + (F.dOd ? 1 : 0) + (F.dDo ? 1 : 0);
+    + (F.kasni ? 1 : 0) + (F.dOd ? 1 : 0) + (F.dDo ? 1 : 0);
   const badge = $("#fltBadge");
   if (badge) { badge.textContent = nAct; badge.classList.toggle("hidden", !nAct); }
   /* ✕ na POP/DP combo poljima vidljiv samo kad ima izbora */
@@ -532,6 +547,7 @@ function renderSlicers() {
   [...F.st].forEach(s => act.push(fchip(esc(stT(s)), `data-xst="${esc(s)}"`)));
   [...F.odj].forEach(o => act.push(fchip(esc(o), `data-xodj="${esc(o)}"`)));
   if (F.esk) act.push(fchip(`⚠ ${t("kEsk")}`, `data-xesk="1"`));
+  if (F.kasni) act.push(fchip(`⏰ ${t("kasniChip")}`, `data-xlate="1"`));
   if (F.dOd) act.push(fchip(`📅 ≥ ${fmt(F.dOd)}`, `data-xdod="1"`));
   if (F.dDo) act.push(fchip(`📅 ≤ ${fmt(F.dDo)}`, `data-xddo="1"`));
   const ab = $("#activeBar");
@@ -542,7 +558,7 @@ function renderSlicers() {
     $$("#activeBar .fchip").forEach(ch => ch.addEventListener("click", () => {
       const clearedProj = ch.dataset.clearall || ch.dataset.xkunde || ch.dataset.xproj || ch.dataset.xcode;
       if (ch.dataset.clearall) {
-        F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false;
+        F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false; F.kasni = false;
         F.dOd = F.dDo = ""; clearDate("fDateOd"); clearDate("fDateDo");
         PROJ.kunde = PROJ.code = PROJ.name = "";
       }
@@ -554,6 +570,7 @@ function renderSlicers() {
       else if (ch.dataset.xst) F.st.delete(ch.dataset.xst);
       else if (ch.dataset.xodj) F.odj.delete(ch.dataset.xodj);
       else if (ch.dataset.xesk) F.esk = false;
+      else if (ch.dataset.xlate) F.kasni = false;
       else if (ch.dataset.xdod) { F.dOd = ""; clearDate("fDateOd"); }
       else if (ch.dataset.xddo) { F.dDo = ""; clearDate("fDateDo"); }
       if (clearedProj) projFilterChanged(); else renderAll();
@@ -569,6 +586,7 @@ function renderSlicers() {
       ${chip(`${stT("u toku")}${cnt(nSt("u toku"))}`, "mini st-utoku", F.st.has("u toku"), `data-st="u toku"`)}
       ${chip(`${stT("završeno")}${cnt(nSt("završeno"))}`, "mini st-zavrseno", F.st.has("završeno"), `data-st="završeno"`)}
       ${chip(`⚠${cnt(nEsk)}`, "mini esk", F.esk, `data-esk="1" title="${t("eskChip")}"`)}
+      ${chip(`⏰ ${t("kasniChip")}${cnt(DATA.segments.filter(segLate).length)}`, "mini late", F.kasni, `data-late="1" title="${t("kasniTip")}"`)}
     </div>
     <div class="sl-row">
       <span class="sl-lbl"><i class="ic">🏗</i> ${t("odjelLbl")}</span>
@@ -579,6 +597,7 @@ function renderSlicers() {
     if (ch.dataset.st) { const v = ch.dataset.st; F.st.has(v) ? F.st.delete(v) : F.st.add(v); }
     else if (ch.dataset.odj) { const v = ch.dataset.odj; F.odj.has(v) ? F.odj.delete(v) : F.odj.add(v); }
     else if (ch.dataset.esk) F.esk = !F.esk;
+    else if (ch.dataset.late) F.kasni = !F.kasni;
     renderAll();
   }));
 }
@@ -698,10 +717,19 @@ function renderTimeline(keepScroll) {
     const pct = allSegs.length
       ? Math.round(allSegs.filter(s => s.status === "završeno").length / allSegs.length * 100) : 0;
 
+    /* rok DP-a = kraj termina aktivnosti "Aktivacije" (kraj gradnje = aktivacija) */
+    const aktTask = DATA.tasks.find(tk => tk.dp_id === dp.id && /aktivacij/i.test(tk.aktivnost));
+    const rokSegs = aktTask ? (segsByTask[aktTask.id] || []) : [];
+    const rok = rokSegs.length ? rokSegs.map(s => s.datum_do).sort().pop() : "";
+    const rokLate = rok && rok < todayIso() && pct < 100;
+    const lateCnt = allSegs.filter(segLate).length;
+
     html += `<div class="tl-row group" data-dp="${dp.id}">
       <div class="tl-label">
         <div class="gr-info" title="${t("dpHistTip")}">
-          <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(dp.pop)}</span><b>${esc(dp.naziv)}</b></div>
+          <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(dp.pop)}</span><b>${esc(dp.naziv)}</b>
+            ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">⏱ ${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}
+            ${lateCnt ? `<span class="latecnt" title="${t("kasniTip")}">⏰ ${lateCnt}</span>` : ""}</div>
           <span class="meta">${dp.lokacija ? esc(dp.lokacija) + " · " : ""}HP ${dp.hp} · HA ${dp.ha}</span></div>
         <div class="gr-side"><span class="pbar"><i style="width:${pct}%"></i></span>
           <span class="pct">${pct}%</span>
@@ -739,6 +767,7 @@ function renderTimeline(keepScroll) {
           overlays +
           `<i class="rs l" title="povuci rub = pomjeri početak"></i><i class="rs r" title="povuci rub = pomjeri kraj"></i>` +
           (s.eskalacija ? `<span class="warn">⚠</span>` : "") +
+          (late && w > 95 ? `<span class="latebadge" title="${t("kasniTip")}">⏰ +${lateDays(s)}d</span>` : "") +
           (w > 60 ? `<span>${fmt(s.datum_od).slice(0, 5)}–${fmt(s.datum_do).slice(0, 5)}</span>` : "") +
           (s.komentar && w > 150 ? `<span class="kom">· ${esc(s.komentar)}</span>` : "") +
           `</div>`;
@@ -1653,7 +1682,7 @@ function clearDate(id) {
 /* ✕ Očisti = poništi SVE filtere odjednom */
 $("#pfClear").addEventListener("click", () => {
   PROJ.kunde = PROJ.code = PROJ.name = "";
-  F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false;
+  F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false; F.kasni = false;
   F.dOd = F.dDo = ""; clearDate("fDateOd"); clearDate("fDateDo");
   projFilterChanged();
 });
