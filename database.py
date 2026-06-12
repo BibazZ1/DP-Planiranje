@@ -161,6 +161,28 @@ CREATE TABLE IF NOT EXISTS allowed_users(
     added_by TEXT DEFAULT '',
     added_at TEXT DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS dp_comments(
+    id SERIAL PRIMARY KEY,
+    dp_id INTEGER NOT NULL REFERENCES dps(id) ON DELETE CASCADE,
+    ts TEXT NOT NULL,
+    "user" TEXT DEFAULT '',
+    tekst TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_comments_dp ON dp_comments(dp_id, id);
+CREATE TABLE IF NOT EXISTS baseline_segs(
+    id SERIAL PRIMARY KEY,
+    snap_ts TEXT NOT NULL,
+    "user" TEXT DEFAULT '',
+    task_id INTEGER NOT NULL,
+    datum_od TEXT NOT NULL,
+    datum_do TEXT NOT NULL,
+    status TEXT DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_base_task ON baseline_segs(snap_ts, task_id);
+CREATE TABLE IF NOT EXISTS meta(
+    key TEXT PRIMARY KEY,
+    value TEXT DEFAULT ''
+);
 CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity, entity_id, ts);
 CREATE INDEX IF NOT EXISTS idx_sh_seg ON seg_history(seg_id);
 CREATE INDEX IF NOT EXISTS idx_seg_task ON segments(task_id);

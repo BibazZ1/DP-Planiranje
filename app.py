@@ -175,6 +175,127 @@ def sync_projects_from_azure():
         _sync_lock.release()
 
 
+# ==================================================================================
+# 📧 E-MAIL (SMTP kao ULAZNE-FAKTURE) — šalje SAMO u produkciji (Docker),
+# u razvoju/testovima samo loguje da ne zatrpava inbox
+# ==================================================================================
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587") or 587)
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
+
+
+def send_mail(to_list, subject, html):
+    if not to_list:
+        return False
+    if not IS_DOCKER:
+        print(f"[MAIL-DEV] '{subject}' -> {to_list}")
+        return True
+    if not (SMTP_SERVER and SMTP_USER and SMTP_PASS):
+        print("[MAIL] SMTP nije konfigurisan — preskačem.")
+        return False
+    import smtplib
+    from email.mime.text import MIMEText
+    msg = MIMEText(html, "html", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = f"DP Planiranje <{SMTP_USER}>"
+    msg["To"] = ", ".join(to_list)
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as s:
+            s.starttls()
+            s.login(SMTP_USER, SMTP_PASS)
+            s.sendmail(SMTP_USER, to_list, msg.as_string())
+        return True
+    except Exception as e:
+        print("[MAIL] greška:", e)
+        return False
+
+
+def _emails(only_admins=False):
+    con = database.connect()
+    cur = con.cursor()
+    cur.execute("SELECT email FROM allowed_users" +
+                (" WHERE role='admin'" if only_admins else ""))
+    out = [r[0] for r in cur.fetchall()]
+    con.close()
+    return out
+
+
+_MAIL_TBL = ("<table style='border-collapse:collapse;font-family:sans-serif;"
+             "font-size:13px'>{}</table>")
+
+
+def _mail_rows(rows):
+    if not rows:
+        return "<tr><td style='padding:4px 10px;color:#888'>—</td></tr>"
+    return "".join(
+        "<tr>" + "".join(
+            f"<td style='padding:4px 10px;border-bottom:1px solid #e2e8f0'>{c if c is not None else ''}</td>"
+            for c in r) + "</tr>"
+        for r in rows)
+
+
+def _digest_html():
+    """Sedmični pregled: šta kasni, šta počinje ove sedmice, aktivne eskalacije."""
+    con = database.connect()
+    cur = con.cursor()
+    today = datetime.date.today().isoformat()
+    week_end = (datetime.date.today() + datetime.timedelta(days=7)).isoformat()
+    cur.execute(
+        "SELECT d.pop, d.naziv, t.aktivnost, s.datum_do, "
+        " (CURRENT_DATE - s.datum_do::date) "
+        "FROM segments s JOIN tasks t ON t.id=s.task_id JOIN dps d ON d.id=t.dp_id "
+        "WHERE s.status <> 'završeno' AND s.datum_do < %s ORDER BY s.datum_do", (today,))
+    late = cur.fetchall()
+    cur.execute(
+        "SELECT d.pop, d.naziv, t.aktivnost, s.datum_od, s.datum_do "
+        "FROM segments s JOIN tasks t ON t.id=s.task_id JOIN dps d ON d.id=t.dp_id "
+        "WHERE s.datum_od >= %s AND s.datum_od < %s ORDER BY s.datum_od",
+        (today, week_end))
+    starting = cur.fetchall()
+    cur.execute(
+        "SELECT d.pop, d.naziv, t.aktivnost, s.esk_razlog "
+        "FROM segments s JOIN tasks t ON t.id=s.task_id JOIN dps d ON d.id=t.dp_id "
+        "WHERE s.eskalacija=1")
+    esk = cur.fetchall()
+    con.close()
+    dom = os.environ.get("APP_DOMAIN", "")
+    return (f"<h2 style='font-family:sans-serif'>DP Planiranje — sedmični pregled</h2>"
+            f"<h3 style='font-family:sans-serif;color:#dc2626'>⏰ Kasni ({len(late)})</h3>"
+            + _MAIL_TBL.format(_mail_rows(
+                [(p, d, a, dd, f"+{n} dana") for p, d, a, dd, n in late]))
+            + f"<h3 style='font-family:sans-serif'>📅 Počinje ove sedmice ({len(starting)})</h3>"
+            + _MAIL_TBL.format(_mail_rows(starting))
+            + f"<h3 style='font-family:sans-serif;color:#d97706'>⚠ Aktivne eskalacije ({len(esk)})</h3>"
+            + _MAIL_TBL.format(_mail_rows(esk))
+            + f"<p style='font-family:sans-serif'><a href='{dom}'>Otvori DP Planiranje →</a></p>")
+
+
+def _notify_eskalacija(seg_id):
+    """Instant mail adminima kad neko digne eskalaciju (u pozadini)."""
+    def run():
+        try:
+            con = database.connect()
+            cur = con.cursor()
+            cur.execute(
+                "SELECT d.pop, d.naziv, t.aktivnost, s.datum_od, s.datum_do, s.esk_razlog "
+                "FROM segments s JOIN tasks t ON t.id=s.task_id "
+                "JOIN dps d ON d.id=t.dp_id WHERE s.id=%s", (seg_id,))
+            r = cur.fetchone()
+            con.close()
+            if not r:
+                return
+            dom = os.environ.get("APP_DOMAIN", "")
+            send_mail(_emails(only_admins=True),
+                      f"⚠ Eskalacija: {r[1]} — {r[2]}",
+                      f"<p style='font-family:sans-serif'>⚠ <b>{r[0]} · {r[1]}</b> — {r[2]} "
+                      f"({r[3]} – {r[4]})<br>Razlog: {r[5] or '—'}</p>"
+                      f"<p><a href='{dom}'>Otvori DP Planiranje →</a></p>")
+        except Exception as e:
+            print("[MAIL] eskalacija:", e)
+    threading.Thread(target=run, daemon=True).start()
+
+
 @app.route("/api/health")
 def api_health():
     """Healthcheck za Docker — provjerava i bazu."""
@@ -287,8 +408,14 @@ def api_data():
     history = [dict(r) for r in db().execute(
         'SELECT seg_id, ts, "user", polje, vrijednost FROM seg_history '
         "ORDER BY ts DESC, id DESC LIMIT 500")]
+    # baseline (👻 ghost trake) = zadnji snimak plana
+    base = db().execute("SELECT MAX(snap_ts) AS ts FROM baseline_segs").fetchone()
+    baseline = [dict(r) for r in db().execute(
+        "SELECT task_id, datum_od, datum_do FROM baseline_segs WHERE snap_ts=%s",
+        (base["ts"],))] if base and base["ts"] else []
     return jsonify({"dps": dps, "pops": pops, "tasks": tasks, "segments": segments,
-                    "history": history})
+                    "history": history, "baseline": baseline,
+                    "baseline_ts": base["ts"] if base else None})
 
 
 @app.route("/api/pops", methods=["POST"])
@@ -486,6 +613,8 @@ def add_segment():
         if j.get(k):
             log_hist(seg_id, k, j[k])
     db().commit()
+    if j.get("eskalacija"):
+        _notify_eskalacija(seg_id)
     return jsonify({"id": seg_id}), 201
 
 
@@ -524,7 +653,55 @@ def edit_segment(seg_id):
                     else:
                         log_hist(seg_id, k, v or "(obrisano)")
         db().commit()
+        # nova eskalacija (0 -> 1) -> instant mail adminima
+        if old is not None and sets.get("eskalacija") == 1 and not old["eskalacija"]:
+            _notify_eskalacija(seg_id)
     return jsonify({"ok": True})
+
+
+@app.route("/api/comments")
+@api_login_required
+def get_comments():
+    """Komentari po DP-u (komandni centar u bočnom panelu)."""
+    dp_id = request.args.get("dp_id", type=int)
+    rows = [dict(r) for r in db().execute(
+        'SELECT id, ts, "user", tekst FROM dp_comments '
+        "WHERE dp_id=%s ORDER BY id DESC LIMIT 100", (dp_id,))]
+    return jsonify({"comments": rows})
+
+
+@app.route("/api/comments", methods=["POST"])
+@api_login_required
+def add_comment():
+    j = request.get_json(force=True)
+    tekst = (j.get("tekst") or "").strip()[:500]
+    dp_id = j.get("dp_id")
+    if not tekst or not dp_id:
+        return jsonify({"error": "prazan komentar"}), 400
+    cur = db().execute(
+        'INSERT INTO dp_comments(dp_id,ts,"user",tekst) '
+        "VALUES(%s,%s,%s,%s) RETURNING id",
+        (dp_id, now_iso(), req_user(), tekst))
+    cid = cur.fetchone()["id"]
+    audit("dp", dp_id, "komentar", novo=tekst[:120])
+    db().commit()
+    return jsonify({"id": cid}), 201
+
+
+@app.route("/api/baseline", methods=["POST"])
+@api_login_required
+def snap_baseline():
+    """📸 Snimi trenutni plan kao baseline — ghost trake pokazuju kasnija pomjeranja."""
+    snap = now_iso()
+    db().execute(
+        'INSERT INTO baseline_segs(snap_ts,"user",task_id,datum_od,datum_do,status) '
+        "SELECT %s, %s, task_id, datum_od, datum_do, status FROM segments",
+        (snap, req_user()))
+    n = db().execute("SELECT COUNT(*) AS n FROM baseline_segs WHERE snap_ts=%s",
+                     (snap,)).fetchone()["n"]
+    audit("baseline", 0, "plan snimljen", novo=f"{n} termina", label=snap)
+    db().commit()
+    return jsonify({"snap_ts": snap, "count": n}), 201
 
 
 @app.route("/api/projects")
@@ -673,7 +850,35 @@ def _sync_loop():
         time.sleep(30 * 60)
 
 
+def _digest_loop():
+    """Sedmični e-mail pregled: ponedjeljkom od 07h, tačno jednom
+    (advisory lock + meta zapis štite od duplikata kroz više workera)."""
+    while True:
+        try:
+            now = datetime.datetime.now()
+            if now.weekday() == 0 and now.hour >= 7:
+                today = now.date().isoformat()
+                con = database.connect()
+                cur = con.cursor()
+                cur.execute("SELECT pg_try_advisory_lock(727274002)")
+                if cur.fetchone()[0]:
+                    cur.execute("SELECT value FROM meta WHERE key='digest_sent'")
+                    r = cur.fetchone()
+                    if (not r or r[0] != today) and send_mail(
+                            _emails(), "DP Planiranje — sedmični pregled", _digest_html()):
+                        cur.execute(
+                            "INSERT INTO meta(key,value) VALUES('digest_sent',%s) "
+                            "ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value", (today,))
+                        con.commit()
+                    cur.execute("SELECT pg_advisory_unlock(727274002)")
+                con.close()
+        except Exception as e:
+            print("[MAIL] digest loop:", e)
+        time.sleep(30 * 60)
+
+
 threading.Thread(target=_sync_loop, daemon=True).start()
+threading.Thread(target=_digest_loop, daemon=True).start()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))

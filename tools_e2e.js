@@ -191,6 +191,64 @@ function ok(name, cond, extra = "") {
   ok("klik na DP -> kunde popunjen", await chipX("data-xkunde").isVisible());
   ok("klik na DP -> DP čip", await chipX("data-xdp").isVisible());
   ok("klik na DP -> bočni panel (HP/HA + historija)", await page.locator("#drawer.open").isVisible());
+
+  // ---------- 12c. komandni centar u panelu ----------
+  const addDaysStr = (s, n) => { const d = new Date(s); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  ok("panel: progress ring", await page.locator("#drStats .drs-ring").isVisible());
+  ok("panel: rok (Aktivacije) prikazan", await page.locator("#drStats .drs-rok").isVisible());
+  ok("panel: 8 aktivnosti", (await page.locator("#drActs .da-row").count()) === 8);
+
+  const segCntBefore = (await (await page.request.get(BASE + "/api/data")).json()).segments.length;
+  await page.locator("#drActs .da-row.noseg").first().click();   // klik crta sedmicu
+  await page.waitForTimeout(1000);
+  const segCntAfter = (await (await page.request.get(BASE + "/api/data")).json()).segments.length;
+  ok("panel: klik na 'bez termina' crta termin", segCntAfter === segCntBefore + 1);
+
+  const stBefore = await page.locator('#drActs .da-row[data-seg]').first().getAttribute("data-st");
+  await page.locator('#drActs .da-row[data-seg]').first().click(); // quick toggle statusa
+  await page.waitForTimeout(1000);
+  const stAfter = await page.locator('#drActs .da-row[data-seg]').first().getAttribute("data-st");
+  ok("panel: klik mijenja status", stAfter !== stBefore);
+  ok("undo dugme aktivno", !(await page.locator("#btnUndo").isDisabled()));
+  await page.click("#btnUndo");
+  await page.waitForTimeout(1000);
+  ok("undo vraća status", (await page.locator('#drActs .da-row[data-seg]').first()
+    .getAttribute("data-st")) === stBefore);
+
+  await page.fill("#drCIn", "E2E test komentar");
+  await page.click("#drCSend");
+  await page.waitForTimeout(800);
+  ok("komentar dodan u panel", (await page.locator("#drComments").textContent()).includes("E2E test komentar"));
+
+  // ---------- 12d. baseline (📸 + 👻) ----------
+  await page.click("#btnSnap");
+  await page.waitForSelector(".swal2-confirm", { timeout: 5000 });
+  await page.click(".swal2-confirm");
+  await page.waitForTimeout(2000);                       // POST + load + toast (auto-nestaje)
+  ok("baseline: 👻 ghost trake u timelineu", (await page.locator(".blghost").count()) >= 4);
+
+  // ---------- 12e. ±1 KW pomjeranje + undo ----------
+  const segsA = (await (await page.request.get(BASE + "/api/data")).json()).segments;
+  await page.locator('#drShift [data-shift="7"]').click();
+  await page.waitForSelector(".swal2-confirm", { timeout: 5000 });
+  await page.click(".swal2-confirm");
+  await page.waitForTimeout(2500);
+  const segsB = (await (await page.request.get(BASE + "/api/data")).json()).segments;
+  ok("±KW: svi termini pomjereni +7d", segsB.every(s2 => {
+    const s1 = segsA.find(x => x.id === s2.id);
+    return s1 && addDaysStr(s1.datum_od, 7) === s2.datum_od;
+  }));
+  await page.click("#btnUndo");
+  await page.waitForTimeout(2500);
+  const segsC = (await (await page.request.get(BASE + "/api/data")).json()).segments;
+  ok("undo vraća ±KW pomjeranje", segsC.every(s2 => {
+    const s1 = segsA.find(x => x.id === s2.id);
+    return s1 && s1.datum_od === s2.datum_od;
+  }));
+
+  // ---------- 12f. plan-vs-stvarnost ----------
+  ok("plan-vs-stvarnost (HP/HA trake) prikazan", (await page.locator(".pv-wrap").count()) === 1);
+
   await page.click("#pfClear");
   await page.waitForTimeout(400);
 
