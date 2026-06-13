@@ -1876,7 +1876,6 @@ function openDrawer() {
   $("#drHa").value = ha ?? 0;
   $("#drawer").classList.add("open");
   renderDrawerStats();
-  renderDrawerActs();
   loadComments();
   loadDrawerHist();
 }
@@ -1949,45 +1948,8 @@ async function shiftAll(days) {
   } });
   await load();
 }
-function renderDrawerActs() {
-  if (!SEL || SEL.type !== "dp") { $("#drActs").innerHTML = ""; return; }
-  const tasks = DATA.tasks.filter(tk => tk.dp_id === SEL.id);
-  $("#drActs").innerHTML = `<h4>🧩 ${t("aktTitle")} <span class="hint">${t("aktKlikTip")}</span></h4>` +
-    tasks.map(tk => {
-      const s = DATA.segments.find(x => x.task_id === tk.id);
-      const lateS = s && segLate(s);
-      const ic = !s ? `<span class="da-ic none">◌</span>`
-        : s.status === "završeno" ? `<span class="da-ic done">✓</span>`
-        : lateS ? `<span class="da-ic late">⚠</span>` : `<span class="da-ic open">○</span>`;
-      return `<div class="da-row${s ? "" : " noseg"}" data-task="${tk.id}"${s
-        ? ` data-seg="${s.id}" data-st="${esc(s.status)}"` : ""}>
-        ${ic}<span class="da-name">${esc(tk.aktivnost)}</span>
-        ${lateS ? `<span class="da-late">+${lateDays(s)}d</span>` : ""}
-        <span class="da-dates">${s
-          ? `${fmt(s.datum_od).slice(0, 6)}–${fmt(s.datum_do).slice(0, 6)}`
-          : t("bezTermina")}</span>
-      </div>`;
-    }).join("");
-  $$("#drActs .da-row").forEach(row => row.addEventListener("click", async () => {
-    const segId = +row.dataset.seg;
-    if (!segId) {
-      /* bez termina -> klik kreira sedmicu od danas */
-      const od = todayIso();
-      const r = await api("/api/segments", "POST",
-        { task_id: +row.dataset.task, datum_od: od, datum_do: addDays(od, 6), status: "otvoreno" });
-      if (r && r.id) pushUndo({ label: t("noviTermin"),
-        run: async () => api(`/api/segments/${r.id}`, "DELETE") });
-      await load();
-      return;
-    }
-    const cur = row.dataset.st;
-    const next = cur === "završeno" ? "otvoreno" : "završeno";
-    await api(`/api/segments/${segId}`, "PATCH", { status: next });
-    pushUndo({ label: t("statusLbl"),
-      run: async () => api(`/api/segments/${segId}`, "PATCH", { status: cur }) });
-    await load();
-  }));
-}
+/* AKTIVNOSTI lista uklonjena iz panela — duplirala je tabelu (svaka aktivnost je
+   već red u timelineu sa statusom/datumima; status se mijenja duplim klikom na traku). */
 async function loadComments() {
   const wrap = $("#drCommentsWrap");
   if (!SEL || SEL.type !== "dp") { wrap.classList.add("hidden"); return; }
@@ -1998,10 +1960,11 @@ async function loadComments() {
   $("#drComments").innerHTML = (r.comments || []).length
     ? r.comments.map(c => {
         const [dd, tt] = fmtTsParts(c.ts);
-        return `<div class="dc-row">${avatar(c.user)}<div class="dc-b">
-        <div class="evhead"><b class="evwho">${esc(c.user || "?")}</b>
-          <span class="evwhen"><b>${tt}</b><i>${dd}</i></span></div>
-        <span class="dc-t">${esc(c.tekst)}</span></div></div>`;
+        const ini = (c.user || "?").trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
+        return `<div class="dc-row">
+          <span class="dc-time"><b>${tt}</b><i>${dd}</i></span>
+          <div class="dc-b"><span class="dc-t">${esc(c.tekst)}</span>
+            <span class="dc-who">${esc(ini)} · ${esc(c.user || "?")}</span></div></div>`;
       }).join("")
     : `<div class="dr-h empty">${t("nemaKom")}</div>`;
 }

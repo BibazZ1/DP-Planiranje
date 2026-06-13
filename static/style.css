@@ -813,13 +813,19 @@ span.flatpickr-weekday{color:#64748b!important}
 .da-dates{font:600 10px var(--mono);color:var(--mut);flex:none}
 .dr-comments{margin-bottom:10px}
 .dr-comments h4{margin:0 0 6px;font-size:9.5px;color:var(--mut);text-transform:uppercase;letter-spacing:1.4px}
-.dr-clist{max-height:160px;overflow-y:auto;margin-bottom:7px}
-.dc-row{display:flex;gap:8px;margin-bottom:6px;animation:fadeSlide .25s ease both}
-@keyframes fadeSlide{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-.dc-b{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;
-  padding:6px 10px;flex:1;min-width:0}
-.dc-t{font-size:12px;word-break:break-word;display:block}
-.dc-b i{font-style:normal;font-size:9.5px;color:var(--mut2);display:block;margin-top:2px}
+.dr-clist{max-height:190px;overflow-y:auto;margin-bottom:7px}
+/* kompaktni komentari: vrijeme lijevo (krupno emerald), tekst desno tijesno */
+.dc-row{display:flex;gap:8px;margin-bottom:4px;align-items:flex-start;
+  animation:fadeSlide .2s ease both}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.dc-time{flex:none;display:flex;flex-direction:column;align-items:center;line-height:1.1;
+  background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:7px;
+  padding:3px 6px;min-width:42px}
+.dc-time b{font:700 12px var(--mono);color:#34d399}
+.dc-time i{font-style:normal;font:600 8.5px var(--mono);color:var(--mut)}
+.dc-b{flex:1;min-width:0;padding:1px 0}
+.dc-t{font-size:12px;line-height:1.35;word-break:break-word;display:block;color:var(--txt)}
+.dc-who{display:block;font-size:9px;color:var(--mut2);margin-top:1px}
 .dr-cnew{display:flex;gap:6px}
 .dr-cnew input{flex:1;border:1px solid var(--line);border-radius:8px;background:var(--field);
   color:var(--txt);padding:6px 10px;font-size:12px;font-family:inherit}

@@ -227,29 +227,16 @@ function ok(name, cond, extra = "") {
   const addDaysStr = (s, n) => { const d = new Date(s); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
   ok("panel: progress ring", await page.locator("#drStats .drs-ring").isVisible());
   ok("panel: rok (Aktivacije) prikazan", await page.locator("#drStats .drs-rok").isVisible());
-  ok("panel: 8 aktivnosti", (await page.locator("#drActs .da-row").count()) === 8);
+  // AKTIVNOSTI lista UKLONJENA iz panela (duplirala je tabelu)
+  ok("panel: nema duplirane AKTIVNOSTI liste", (await page.locator("#drActs").count()) === 0);
 
-  const segCntBefore = (await (await page.request.get(BASE + "/api/data")).json()).segments.length;
-  await page.locator("#drActs .da-row.noseg").first().click();   // klik crta sedmicu
-  await page.waitForTimeout(1000);
-  const segCntAfter = (await (await page.request.get(BASE + "/api/data")).json()).segments.length;
-  ok("panel: klik na 'bez termina' crta termin", segCntAfter === segCntBefore + 1);
-
-  const stBefore = await page.locator('#drActs .da-row[data-seg]').first().getAttribute("data-st");
-  await page.locator('#drActs .da-row[data-seg]').first().click(); // quick toggle statusa
-  await page.waitForTimeout(1000);
-  const stAfter = await page.locator('#drActs .da-row[data-seg]').first().getAttribute("data-st");
-  ok("panel: klik mijenja status", stAfter !== stBefore);
-  ok("undo dugme aktivno", !(await page.locator("#btnUndo").isDisabled()));
-  await page.click("#btnUndo");
-  await page.waitForTimeout(1000);
-  ok("undo vraća status", (await page.locator('#drActs .da-row[data-seg]').first()
-    .getAttribute("data-st")) === stBefore);
-
+  // komentari: kompaktni, s istaknutim vremenom (dc-time)
   await page.fill("#drCIn", "E2E test komentar");
   await page.click("#drCSend");
   await page.waitForTimeout(800);
   ok("komentar dodan u panel", (await page.locator("#drComments").textContent()).includes("E2E test komentar"));
+  ok("komentar: istaknuto vrijeme (dc-time)", await page.locator("#drComments .dc-time b").first().isVisible());
+  ok("komentar: prikazan datum uz vrijeme", (await page.locator("#drComments .dc-time i").first().textContent()).trim().length >= 4);
 
   // ---------- 12e. ±1 KW pomjeranje + undo ----------
   const segsA = (await (await page.request.get(BASE + "/api/data")).json()).segments;
