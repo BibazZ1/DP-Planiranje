@@ -21,14 +21,15 @@ const I18N = {
     otpustiPitanje: "Otpustiti projekat (drugi će moći preuzeti)?",
     kasniTitle: "Kasne aktivnosti", kasniModalHint: "klik na red = produži rok i upiši razlog",
     kasniBubbleTip: "Termini kojima je rok prošao, a nisu završeni — klik za pregled",
-    kasniBubbleN: "kasni", nemaKasnih: "Nema zakašnjelih termina ✨",
+    kasniBubbleN: "kasni", nemaKasnih: "Nema zakašnjelih termina",
     origLbl: "originalno", pomjereno: "pomjereno", produzi: "Produži",
+    cekaDp: "čeka DP", cekaDpTip: "POP još nema nijedan DP — klik za detalje, ＋ DP za dodavanje", dodajDp: "＋ DP",
     zoomOut: "Umanji", zoomIn: "Uvećaj", zoomFit: "Cijela godina",
     zDani: "dani", zSedmice: "sedmice", zMjeseci: "mjeseci",
     stOtvoreno: "otvoreno", stUToku: "u toku", stZavrseno: "završeno",
     od: "od", do: "do", komentar: "komentar", komPh: "npr. čeka se dozvola…",
-    kasniLbl: "⏰ razlog produženja — termin probio rok (obavezno)",
-    kasniPh: "zašto još nije gotovo?", esk: "⚠ eskalacija",
+    kasniLbl: "razlog produženja — termin probio rok (obavezno)",
+    kasniPh: "zašto još nije gotovo?", esk: "eskalacija",
     eskOd: "eskalacija od datuma", eskRazlog: "razlog eskalacije", eskPh: "šta je zapelo?",
     obrisi: "Obriši", otkazi: "Otkaži", sacuvaj: "Sačuvaj", odustani: "Odustani",
     noviDpH: "Novi DP", projDaily: "Projekat (Daily)", nazivDp: "Naziv DP",
@@ -37,22 +38,22 @@ const I18N = {
     dlgHint: "Automatski se kreira 8 standardnih aktivnosti.",
     noviTermin: "Novi termin", urediTermin: "Uredi termin",
     opcionalno: "(opcionalno)", izmijeniDatume: "klik = ručno izmijeni datume",
-    kTermina: "Termina", kEsk: "⚠ Eskalacije",
+    kTermina: "Termina", kEsk: "Eskalacije",
     slDp: "DP", slStatus: "Status", slOdjel: "Odjel",
-    eskChip: "⚠ eskalacije", clearAll: "✕ očisti sve",
+    eskChip: "eskalacije", clearAll: "✕ očisti sve",
     sviKunde: "— svi kunde —", sviProj: "— svi projekti —", sviCode: "— svi code —",
     projekata: "projekata", sviProjekti: "svi projekti", filterLbl: "filter",
-    syncUToku: "⟳ sync u toku…", syncGreska: "⚠ sync greška", syncLbl: "sync",
+    syncUToku: "⟳ sync u toku…", syncGreska: "sync greška", syncLbl: "sync",
     trasa: "Trasa (m)", haM: "HA (m)", haKom: "HA kom", montaza: "Montaža",
     zadnjiRad: "Zadnji rad", dpUPlanu: "DP u planu",
     dpChipHint: "klik na DP = filtriraj timeline ispod",
     noDp: "nema DP-ova vezanih za ovaj izbor — kod \"+ Novi DP\" upiši projekat",
-    eskTitle: "⚠ Eskalacije — šta je zapelo", thDp: "DP", thAkt: "Aktivnost",
+    eskTitle: "Eskalacije — šta je zapelo", thDp: "DP", thAkt: "Aktivnost",
     thTermin: "Termin", thStatus: "Status", thRazlog: "Razlog", thKomentar: "Komentar",
-    noEsk: "Nema aktivnih eskalacija ✨",
+    noEsk: "Nema aktivnih eskalacija",
     kasni: "KASNI", kasniDoDanas: "produženo do danas",
-    razlogProd: "razlog produženja", razlogNijeUpisan: "⚠ nije upisan — dupli klik!",
-    hist: "📜 Historija", noHist: "nema zabilježenih promjena", hcEdit: "dupli klik = uredi",
+    razlogProd: "razlog produženja", razlogNijeUpisan: "nije upisan — dupli klik!",
+    hist: "Historija", noHist: "nema zabilježenih promjena", hcEdit: "dupli klik = uredi",
     hKreirano: "kreirano", hStatus: "status", hPocetak: "početak", hKraj: "kraj",
     hEskalacija: "eskalacija", hEskOd: "eskalacija od", obrisano: "(obrisano)",
     promptAkt: "Naziv nove aktivnosti:", promptNaziv: "Naziv aktivnosti:",
@@ -84,7 +85,7 @@ const I18N = {
     planVsHint: "plan = Σ HP/HA unesenih na DP-ovima · izvedeno = Azure Daily",
     rokLbl: "rok", rokTip: "rok DP-a = kraj termina Aktivacija",
     tlEmpty: "Nema DP-ova za izabrane filtere.<br>Očisti filtere, ili kreiraj <b>＋ Novi POP</b> pa <b>＋ Novi DP</b> pod izabranim projektom.",
-    drDpCount: "DP-ova", histTitle: "📜 Historija",
+    drDpCount: "DP-ova", histTitle: "Historija",
     histEmpty: "još nema zabilježenih aktivnosti", histLoad: "učitavam…",
     aKreirano: "kreirano", aObrisano: "obrisano", aTerminObrisan: "termin obrisan",
     aAktDodana: "aktivnost dodana", aAktObrisana: "aktivnost obrisana",
@@ -109,14 +110,15 @@ const I18N = {
     otpustiPitanje: "Release project (others can claim it)?",
     kasniTitle: "Late activities", kasniModalHint: "click a row = extend the deadline and add a reason",
     kasniBubbleTip: "Slots past their deadline and not finished — click to review",
-    kasniBubbleN: "late", nemaKasnih: "No overdue slots ✨",
+    kasniBubbleN: "late", nemaKasnih: "No overdue slots",
     origLbl: "original", pomjereno: "moved", produzi: "Extend",
+    cekaDp: "awaiting DP", cekaDpTip: "POP has no DP yet — click for details, ＋ DP to add one", dodajDp: "＋ DP",
     zoomOut: "Zoom out", zoomIn: "Zoom in", zoomFit: "Whole year",
     zDani: "days", zSedmice: "weeks", zMjeseci: "months",
     stOtvoreno: "open", stUToku: "in progress", stZavrseno: "done",
     od: "from", do: "to", komentar: "comment", komPh: "e.g. waiting for permit…",
-    kasniLbl: "⏰ extension reason — deadline passed (required)",
-    kasniPh: "why is it not finished yet?", esk: "⚠ escalation",
+    kasniLbl: "extension reason — deadline passed (required)",
+    kasniPh: "why is it not finished yet?", esk: "escalation",
     eskOd: "escalation from date", eskRazlog: "escalation reason", eskPh: "what is stuck?",
     obrisi: "Delete", otkazi: "Cancel", sacuvaj: "Save", odustani: "Cancel",
     noviDpH: "New DP", projDaily: "Project (Daily)", nazivDp: "DP name",
@@ -125,22 +127,22 @@ const I18N = {
     dlgHint: "8 standard activities are created automatically.",
     noviTermin: "New slot", urediTermin: "Edit slot",
     opcionalno: "(optional)", izmijeniDatume: "click = edit dates manually",
-    kTermina: "Slots", kEsk: "⚠ Escalations",
+    kTermina: "Slots", kEsk: "Escalations",
     slDp: "DP", slStatus: "Status", slOdjel: "Dept.",
-    eskChip: "⚠ escalations", clearAll: "✕ clear all",
+    eskChip: "escalations", clearAll: "✕ clear all",
     sviKunde: "— all clients —", sviProj: "— all projects —", sviCode: "— all codes —",
     projekata: "projects", sviProjekti: "all projects", filterLbl: "filter",
-    syncUToku: "⟳ sync running…", syncGreska: "⚠ sync error", syncLbl: "sync",
+    syncUToku: "⟳ sync running…", syncGreska: "sync error", syncLbl: "sync",
     trasa: "Route (m)", haM: "HA (m)", haKom: "HA pcs", montaza: "Installation",
     zadnjiRad: "Last work", dpUPlanu: "DPs in plan",
     dpChipHint: "click a DP = filter timeline below",
     noDp: "no DPs linked to this selection — enter the project in \"+ New DP\"",
-    eskTitle: "⚠ Escalations — what is stuck", thDp: "DP", thAkt: "Activity",
+    eskTitle: "Escalations — what is stuck", thDp: "DP", thAkt: "Activity",
     thTermin: "Slot", thStatus: "Status", thRazlog: "Reason", thKomentar: "Comment",
-    noEsk: "No active escalations ✨",
+    noEsk: "No active escalations",
     kasni: "LATE", kasniDoDanas: "extended to today",
-    razlogProd: "extension reason", razlogNijeUpisan: "⚠ not entered — double-click!",
-    hist: "📜 History", noHist: "no recorded changes", hcEdit: "double-click = edit",
+    razlogProd: "extension reason", razlogNijeUpisan: "not entered — double-click!",
+    hist: "History", noHist: "no recorded changes", hcEdit: "double-click = edit",
     hKreirano: "created", hStatus: "status", hPocetak: "start", hKraj: "end",
     hEskalacija: "escalation", hEskOd: "escalation from", obrisano: "(cleared)",
     promptAkt: "Name of the new activity:", promptNaziv: "Activity name:",
@@ -172,7 +174,7 @@ const I18N = {
     planVsHint: "plan = Σ HP/HA entered on DPs · actual = Azure Daily",
     rokLbl: "due", rokTip: "DP due date = end of Activations",
     tlEmpty: "No DPs match the selected filters.<br>Clear the filters, or create <b>＋ New POP</b> then <b>＋ New DP</b> under the selected project.",
-    drDpCount: "DPs", histTitle: "📜 History",
+    drDpCount: "DPs", histTitle: "History",
     histEmpty: "no recorded activity yet", histLoad: "loading…",
     aKreirano: "created", aObrisano: "deleted", aTerminObrisan: "slot deleted",
     aAktDodana: "activity added", aAktObrisana: "activity deleted",
@@ -197,14 +199,15 @@ const I18N = {
     otpustiPitanje: "Projekt freigeben (andere können übernehmen)?",
     kasniTitle: "Verspätete Aktivitäten", kasniModalHint: "Zeile klicken = Frist verlängern und Grund eingeben",
     kasniBubbleTip: "Termine über der Frist, nicht abgeschlossen — zum Ansehen klicken",
-    kasniBubbleN: "verspätet", nemaKasnih: "Keine überfälligen Termine ✨",
+    kasniBubbleN: "verspätet", nemaKasnih: "Keine überfälligen Termine",
     origLbl: "ursprünglich", pomjereno: "verschoben", produzi: "Verlängern",
+    cekaDp: "wartet auf DP", cekaDpTip: "POP hat noch keinen DP — Klick für Details, ＋ DP zum Hinzufügen", dodajDp: "＋ DP",
     zoomOut: "Verkleinern", zoomIn: "Vergrößern", zoomFit: "Ganzes Jahr",
     zDani: "Tage", zSedmice: "Wochen", zMjeseci: "Monate",
     stOtvoreno: "offen", stUToku: "laufend", stZavrseno: "fertig",
     od: "von", do: "bis", komentar: "Kommentar", komPh: "z. B. warten auf Genehmigung…",
-    kasniLbl: "⏰ Verlängerungsgrund — Termin überschritten (Pflicht)",
-    kasniPh: "warum noch nicht fertig?", esk: "⚠ Eskalation",
+    kasniLbl: "Verlängerungsgrund — Termin überschritten (Pflicht)",
+    kasniPh: "warum noch nicht fertig?", esk: "Eskalation",
     eskOd: "Eskalation ab Datum", eskRazlog: "Eskalationsgrund", eskPh: "was klemmt?",
     obrisi: "Löschen", otkazi: "Abbrechen", sacuvaj: "Speichern", odustani: "Abbrechen",
     noviDpH: "Neuer DP", projDaily: "Projekt (Daily)", nazivDp: "DP-Name",
@@ -213,22 +216,22 @@ const I18N = {
     dlgHint: "8 Standardaktivitäten werden automatisch angelegt.",
     noviTermin: "Neuer Termin", urediTermin: "Termin bearbeiten",
     opcionalno: "(optional)", izmijeniDatume: "Klick = Daten manuell ändern",
-    kTermina: "Termine", kEsk: "⚠ Eskalationen",
+    kTermina: "Termine", kEsk: "Eskalationen",
     slDp: "DP", slStatus: "Status", slOdjel: "Abteilung",
-    eskChip: "⚠ Eskalationen", clearAll: "✕ alle löschen",
+    eskChip: "Eskalationen", clearAll: "✕ alle löschen",
     sviKunde: "— alle Kunden —", sviProj: "— alle Projekte —", sviCode: "— alle Codes —",
     projekata: "Projekte", sviProjekti: "alle Projekte", filterLbl: "Filter",
-    syncUToku: "⟳ Sync läuft…", syncGreska: "⚠ Sync-Fehler", syncLbl: "Sync",
+    syncUToku: "⟳ Sync läuft…", syncGreska: "Sync-Fehler", syncLbl: "Sync",
     trasa: "Trasse (m)", haM: "HA (m)", haKom: "HA Stk.", montaza: "Montage",
     zadnjiRad: "Letzte Arbeit", dpUPlanu: "DPs im Plan",
     dpChipHint: "Klick auf DP = Timeline unten filtern",
     noDp: "keine DPs für diese Auswahl — Projekt bei \"+ Neuer DP\" eintragen",
-    eskTitle: "⚠ Eskalationen — was klemmt", thDp: "DP", thAkt: "Aktivität",
+    eskTitle: "Eskalationen — was klemmt", thDp: "DP", thAkt: "Aktivität",
     thTermin: "Termin", thStatus: "Status", thRazlog: "Grund", thKomentar: "Kommentar",
-    noEsk: "Keine aktiven Eskalationen ✨",
+    noEsk: "Keine aktiven Eskalationen",
     kasni: "VERSPÄTET", kasniDoDanas: "bis heute verlängert",
-    razlogProd: "Verlängerungsgrund", razlogNijeUpisan: "⚠ nicht eingetragen — Doppelklick!",
-    hist: "📜 Verlauf", noHist: "keine Änderungen erfasst", hcEdit: "Doppelklick = bearbeiten",
+    razlogProd: "Verlängerungsgrund", razlogNijeUpisan: "nicht eingetragen — Doppelklick!",
+    hist: "Verlauf", noHist: "keine Änderungen erfasst", hcEdit: "Doppelklick = bearbeiten",
     hKreirano: "erstellt", hStatus: "Status", hPocetak: "Beginn", hKraj: "Ende",
     hEskalacija: "Eskalation", hEskOd: "Eskalation ab", obrisano: "(gelöscht)",
     promptAkt: "Name der neuen Aktivität:", promptNaziv: "Name der Aktivität:",
@@ -260,7 +263,7 @@ const I18N = {
     planVsHint: "Plan = Σ HP/HA der DPs · Ist = Azure Daily",
     rokLbl: "Frist", rokTip: "DP-Frist = Ende der Aktivierungen",
     tlEmpty: "Keine DPs für die gewählten Filter.<br>Filter leeren, oder <b>＋ Neuer POP</b> und dann <b>＋ Neuer DP</b> unter dem gewählten Projekt anlegen.",
-    drDpCount: "DPs", histTitle: "📜 Verlauf",
+    drDpCount: "DPs", histTitle: "Verlauf",
     histEmpty: "noch keine Aktivitäten erfasst", histLoad: "lädt…",
     aKreirano: "erstellt", aObrisano: "gelöscht", aTerminObrisan: "Termin gelöscht",
     aAktDodana: "Aktivität hinzugefügt", aAktObrisana: "Aktivität gelöscht",
@@ -320,6 +323,11 @@ const F = { dp: new Set(), pop: new Set(), st: new Set(), odj: new Set(), esk: f
             kasni: false, dOd: "", dDo: "" };
 let SEL = null;                   // {type:'pop'|'dp', id} — otvorena historija u draweru
 
+/* monohromne SVG ikone (bez emojija) — nasljeđuju boju teksta (currentColor) */
+const ICON = {
+  lock: '<svg class="i-ic" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+  trash: '<svg class="i-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+};
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
@@ -406,7 +414,7 @@ function taskProjekt(taskId) {
 /* greška servera: 403 zaključan -> ponudi zahtjev za pristup; ostalo -> alert */
 async function handleApiErr(e) {
   if (e && e.status === 403 && e.data && e.data.projekt) {
-    if (await uiConfirm(`🔒 ${e.message} Zatraži pristup?`)) {
+    if (await uiConfirm(`${e.message} Zatraži pristup?`)) {
       try { await api("/api/claims/request", "POST", { projekt: e.data.projekt });
         uiToast(t("zahtjevPoslan")); } catch (x) { /* ignore */ }
     }
@@ -416,7 +424,7 @@ async function handleApiErr(e) {
 }
 function lockToast(projekt) {
   const o = projOwner(projekt);
-  uiToast(`🔒 ${t("vlasnikLbl")}: ${o ? (o.name || o.email) : "?"}`, "warning");
+  uiToast(`${t("vlasnikLbl")}: ${o ? (o.name || o.email) : "?"}`, "warning");
 }
 /* claim kontrola u filter panelu — vidljiva kad je izabran tačno jedan projekat */
 function renderProjClaim() {
@@ -427,12 +435,12 @@ function renderProjClaim() {
   const mine = !!o && ((o.email || "").toLowerCase() === myEmail() ||
                        (window.AUTH && window.AUTH.is_admin));
   if (!o) {
-    pc.innerHTML = `<span class="claim-lbl">📁 ${esc(PROJ.name)}</span>` +
+    pc.innerHTML = `<span class="claim-lbl">${esc(PROJ.name)}</span>` +
       `<span class="claim-free">🔓 ${t("slobodanProj")}</span>` +
       `<button class="btn sm primary" id="btnClaim">${t("preuzmiProj")}</button>`;
   } else {
-    pc.innerHTML = `<span class="claim-lbl">📁 ${esc(PROJ.name)}</span>` +
-      `<span class="claim-chip${mine ? " mine" : ""}">🔒 ${t("vlasnikLbl")}: <b>${esc(o.name || o.email)}</b></span>` +
+    pc.innerHTML = `<span class="claim-lbl">${esc(PROJ.name)}</span>` +
+      `<span class="claim-chip${mine ? " mine" : ""}">${ICON.lock} ${t("vlasnikLbl")}: <b>${esc(o.name || o.email)}</b></span>` +
       (mine ? `<button class="btn sm" id="btnRelease">${t("otpustiProj")}</button>`
             : `<button class="btn sm" id="btnReqAccess">${t("zatraziPristup")}</button>`);
   }
@@ -495,7 +503,7 @@ async function uiPrompt(title, val = "") {
   return r.isConfirmed ? (r.value || "") : null;
 }
 
-/* logički redoslijed gradnje — za 🔗 upozorenja o zavisnostima */
+/* logički redoslijed gradnje — za upozorenja o zavisnostima */
 const DEP_ORDER = ["Dozvole", "Pregled objekata", "Iskopni radovi", "Horizontalno bušenje",
                    "Asfaltiranje", "Montaža", "Priključak na POP", "Aktivacije"];
 
@@ -566,7 +574,7 @@ function renderLateBubble() {
   if (!b) return;
   const n = lateSegs().length;
   b.classList.toggle("hidden", n === 0);
-  b.innerHTML = `⏰ <b>${n}</b> ${t("kasniBubbleN")}`;
+  b.innerHTML = `<b>${n}</b> ${t("kasniBubbleN")}`;
 }
 function dpOf(seg) {
   const tk = DATA.tasks.find(x => x.id === seg.task_id) || {};
@@ -580,7 +588,7 @@ function openLateModal() {
   $("#lmList").innerHTML = list.length ? list.map(s => {
     const dp = dpOf(s);
     return `<button class="lm-row" data-seg="${s.id}">
-      <span class="lm-d">⏰ +${lateDays(s)}d</span>
+      <span class="lm-d">+${lateDays(s)}d</span>
       <span class="lm-b"><b>${esc(dp.pop || "")} · ${esc(dp.naziv || "")}</b>
         <i>${esc(aktOf(s))} · ${fmt(s.datum_od).slice(0, 6)}–${fmt(s.datum_do).slice(0, 6)}</i></span>
       <span class="lm-go">${t("produzi") || "Produži"} →</span>
@@ -609,8 +617,8 @@ $("#lateModal").addEventListener("mousedown", e => {
 /* ---------- aktivni filteri (pilule + brojač) — kao dashboard ULAZNE-FAKTURE ---------- */
 function activeFilterList() {
   const out = [];
-  if (PROJ.kunde) out.push({ k: "kunde", label: "🏢 " + PROJ.kunde });
-  if (PROJ.name) out.push({ k: "name", label: "📁 " + PROJ.name });
+  if (PROJ.kunde) out.push({ k: "kunde", label: "" + PROJ.kunde });
+  if (PROJ.name) out.push({ k: "name", label: "" + PROJ.name });
   if (PROJ.code) out.push({ k: "code", label: "# " + PROJ.code });
   [...F.pop].forEach(p => out.push({ k: "pop", v: p, label: "POP " + p }));
   [...F.dp].forEach(id => {
@@ -619,7 +627,7 @@ function activeFilterList() {
   });
   [...F.st].forEach(s => out.push({ k: "st", v: s, label: stT(s) }));
   [...F.odj].forEach(o => out.push({ k: "odj", v: o, label: o }));
-  if (F.esk) out.push({ k: "esk", label: "⚠ " + t("eskChip") });
+  if (F.esk) out.push({ k: "esk", label: "" + t("eskChip") });
   return out;
 }
 function renderActiveFilters() {
@@ -679,7 +687,7 @@ function renderKpis() {
     <div class="kpi teal click${F.st.has("završeno") ? " on" : ""}" data-st="završeno"><div class="num" data-n="${c("završeno")}">0</div><div class="lbl">${stT("završeno")}</div></div>
     <div class="kpi red click${F.st.has("otvoreno") ? " on" : ""}" data-st="otvoreno"><div class="num" data-n="${c("otvoreno")}">0</div><div class="lbl">${stT("otvoreno")}</div></div>
     <div class="kpi red click${F.esk ? " on" : ""}" data-esk="1"><div class="num" data-n="${esk}">0</div><div class="lbl">${t("kEsk")}</div></div>
-    <div class="kpi red click${F.kasni ? " on" : ""}" data-late="1" title="${t("kasniTip")}"><div class="num" data-n="${segs.filter(segLate).length}">0</div><div class="lbl">⏰ ${t("kasniChip")}</div></div>
+    <div class="kpi red click${F.kasni ? " on" : ""}" data-late="1" title="${t("kasniTip")}"><div class="num" data-n="${segs.filter(segLate).length}">0</div><div class="lbl">${t("kasniChip")}</div></div>
     <div class="kpi purple"><div class="num" data-n="${hp}">0</div><div class="lbl">HP</div></div>
     <div class="kpi purple"><div class="num" data-n="${ha}">0</div><div class="lbl">HA</div></div>`;
   $$("#kpis .num").forEach(el => countUp(el, +el.dataset.n));
@@ -724,25 +732,25 @@ function renderSlicers() {
   /* AKTIVNI: red — svi aktivni filteri kao pilule sa ✕ (kao ULAZNE-FAKTURE) */
   const fchip = (lbl, attrs) => `<button class="fchip" ${attrs}>${lbl} <i>✕</i></button>`;
   const act = [];
-  if (PROJ.kunde) act.push(fchip(`🏢 ${esc(PROJ.kunde)}`, `data-xkunde="1"`));
-  if (PROJ.name) act.push(fchip(`📁 ${esc(PROJ.name)}`, `data-xproj="1"`));
+  if (PROJ.kunde) act.push(fchip(`${esc(PROJ.kunde)}`, `data-xkunde="1"`));
+  if (PROJ.name) act.push(fchip(`${esc(PROJ.name)}`, `data-xproj="1"`));
   if (PROJ.code) act.push(fchip(`# ${esc(PROJ.code)}`, `data-xcode="1"`));
-  [...F.pop].forEach(p => act.push(fchip(`🗼 ${esc(p)}`, `data-xpop="${esc(p)}"`)));
+  [...F.pop].forEach(p => act.push(fchip(`${esc(p)}`, `data-xpop="${esc(p)}"`)));
   [...F.dp].forEach(id => {
     const d = DATA.dps.find(x => x.id === id);
-    if (d) act.push(fchip(`📍 ${esc(dpLbl(d))}`, `data-xdp="${id}"`));
+    if (d) act.push(fchip(`${esc(dpLbl(d))}`, `data-xdp="${id}"`));
   });
   [...F.st].forEach(s => act.push(fchip(esc(stT(s)), `data-xst="${esc(s)}"`)));
   [...F.odj].forEach(o => act.push(fchip(esc(o), `data-xodj="${esc(o)}"`)));
-  if (F.esk) act.push(fchip(`⚠ ${t("kEsk")}`, `data-xesk="1"`));
-  if (F.kasni) act.push(fchip(`⏰ ${t("kasniChip")}`, `data-xlate="1"`));
-  if (F.dOd) act.push(fchip(`📅 ≥ ${fmt(F.dOd)}`, `data-xdod="1"`));
-  if (F.dDo) act.push(fchip(`📅 ≤ ${fmt(F.dDo)}`, `data-xddo="1"`));
+  if (F.esk) act.push(fchip(`${t("kEsk")}`, `data-xesk="1"`));
+  if (F.kasni) act.push(fchip(`${t("kasniChip")}`, `data-xlate="1"`));
+  if (F.dOd) act.push(fchip(`≥ ${fmt(F.dOd)}`, `data-xdod="1"`));
+  if (F.dDo) act.push(fchip(`≤ ${fmt(F.dDo)}`, `data-xddo="1"`));
   const ab = $("#activeBar");
   if (ab) {
     ab.innerHTML = act.length
       ? `<span class="factive-lbl">${t("aktivni")}:</span> ${act.join("")}
-         <button class="fchip clearall" data-clearall="1">🗑 ${t("ocistiSve")}</button>` : "";
+         <button class="fchip clearall" data-clearall="1">${ICON.trash} ${t("ocistiSve")}</button>` : "";
     $$("#activeBar .fchip").forEach(ch => ch.addEventListener("click", () => {
       const clearedProj = ch.dataset.clearall || ch.dataset.xkunde || ch.dataset.xproj || ch.dataset.xcode;
       if (ch.dataset.clearall) {
@@ -769,14 +777,14 @@ function renderSlicers() {
      POP/DP se filtriraju klikom na kartice/grafove, pa posebna polja nisu potrebna */
   $("#slicers").innerHTML = `
     <div class="sl-row">
-      <span class="sl-lbl"><i class="ic">🚦</i> ${t("statusLbl")}</span>
+      <span class="sl-lbl">${t("statusLbl")}</span>
       ${chip(`${stT("otvoreno")}${cnt(nSt("otvoreno"))}`, "mini st-otvoreno", F.st.has("otvoreno"), `data-st="otvoreno"`)}
       ${chip(`${stT("završeno")}${cnt(nSt("završeno"))}`, "mini st-zavrseno", F.st.has("završeno"), `data-st="završeno"`)}
-      ${chip(`⚠${cnt(nEsk)}`, "mini esk", F.esk, `data-esk="1" title="${t("eskChip")}"`)}
-      ${chip(`⏰ ${t("kasniChip")}${cnt(DATA.segments.filter(segLate).length)}`, "mini late", F.kasni, `data-late="1" title="${t("kasniTip")}"`)}
+      ${chip(`${t("eskChip")}${cnt(nEsk)}`, "mini esk", F.esk, `data-esk="1" title="${t("eskChip")}"`)}
+      ${chip(`${t("kasniChip")}${cnt(DATA.segments.filter(segLate).length)}`, "mini late", F.kasni, `data-late="1" title="${t("kasniTip")}"`)}
     </div>
     <div class="sl-row">
-      <span class="sl-lbl"><i class="ic">🏗</i> ${t("odjelLbl")}</span>
+      <span class="sl-lbl">${t("odjelLbl")}</span>
       ${odj.map(o => chip(esc(o), "mini odj", F.odj.has(o), `data-odj="${o}"`)).join("")}
     </div>`;
 
@@ -892,12 +900,14 @@ function renderTimeline(keepScroll) {
 
   let html = headerBands(totalW);
   let anyRow = false;
+  /* filteri vezani za termine (status/eskalacija/kasni/datum) — kad su aktivni,
+     POP bez ijednog termina se ne prikazuje jer ne može zadovoljiti takav filter */
+  const segFilterOn = F.st.size || F.esk || F.kasni || F.dOd || F.dDo;
 
   for (const dp of sortedDps()) {
     if (!dpFilterOk(dp)) continue;
     const tasks = sortTasks(DATA.tasks.filter(t => t.dp_id === dp.id)
       .filter(t => !F.odj.size || F.odj.has(t.odjel)));
-    const segFilterOn = F.st.size || F.esk || F.kasni || F.dOd || F.dDo;
     const rows = tasks.filter(t => {
       if (!segFilterOn) return true;
       return (segsByTask[t.id] || []).some(segMatch);
@@ -922,22 +932,22 @@ function renderTimeline(keepScroll) {
       <div class="tl-label">
         <div class="gr-info" title="${t("dpHistTip")}">
           <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(dp.pop)}</span><b>${esc(dp.naziv)}</b>
-            ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">⏱ ${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}
-            ${lateCnt ? `<span class="latecnt" title="${t("kasniTip")}">⏰ ${lateCnt}</span>` : ""}</div>
+            ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}
+            ${lateCnt ? `<span class="latecnt" title="${t("kasniTip")}">${lateCnt} ${t("kasniBubbleN")}</span>` : ""}</div>
           <span class="meta">${dp.lokacija ? esc(dp.lokacija) + " · " : ""}HP ${dp.hp} · HA ${dp.ha}${(() => {
             const o = projOwner(dp.projekt);
-            return o ? ` · <span class="ownb" title="${t("vlasnikLbl")}">🔒 ${esc(o.name || o.email)}</span>` : "";
+            return o ? ` · <span class="ownb" title="${t("vlasnikLbl")}">${ICON.lock} ${esc(o.name || o.email)}</span>` : "";
           })()}</span></div>
         <div class="gr-side"><span class="pbar"><i style="width:${pct}%"></i></span>
           <span class="pct">${pct}%</span>
-          <button class="gbtn delDp" title="Obriši DP">🗑</button></div>
+          <button class="gbtn delDp" title="Obriši DP">${ICON.trash}</button></div>
       </div>
       <div class="tl-track" style="width:${totalW}px"></div></div>`;
 
     for (const t of rows) {
       let segs = "";
       const today = todayIso();
-      /* 🔗 zavisnost: aktivnost počinje prije kraja prethodne u nizu gradnje */
+      /* zavisnost: aktivnost počinje prije kraja prethodne u nizu gradnje */
       let depFrom = "";
       const myOrd = DEP_ORDER.indexOf(t.aktivnost);
       const s0 = (segsByTask[t.id] || [])[0];
@@ -958,7 +968,7 @@ function renderTimeline(keepScroll) {
         const x = a * PX, w = Math.max(PX, (b - a + 1) * PX);
         const dim = !segMatch(s);
         const cls = s.status === "završeno" ? "st-zavrseno" : "st-otvoreno";
-        /* 👻 originalna pozicija — ostaje vidljiva kad se termin pomjeri (svi vide) */
+        /* originalna pozicija — ostaje vidljiva kad se termin pomjeri (svi vide) */
         if (s.orig_od && s.orig_do && (s.orig_od !== s.datum_od || s.orig_do !== s.datum_do)) {
           const ga = Math.max(0, dayIdx(s.orig_od)), gb = Math.min(n - 1, dayIdx(s.orig_do));
           if (gb >= 0 && ga <= n - 1)
@@ -982,11 +992,10 @@ function renderTimeline(keepScroll) {
           style="left:${x}px;width:${w}px">` +
           overlays +
           `<i class="rs l" title="povuci rub = pomjeri početak"></i><i class="rs r" title="povuci rub = pomjeri kraj"></i>` +
-          (s.eskalacija ? `<span class="warn">⚠</span>` : "") +
-          (late && w > 95 ? `<span class="latebadge" title="${txtKasni}">⏰ +${lateDays(s)}d</span>` : "") +
-          (depFrom && w > 40 ? `<span class="depwarn" title="${txtDep}: ${esc(depFrom)}">🔗</span>` : "") +
+          (late && w > 95 ? `<span class="latebadge" title="${txtKasni}">+${lateDays(s)}d</span>` : "") +
+          (depFrom && w > 40 ? `<span class="depwarn" title="${txtDep}: ${esc(depFrom)}"></span>` : "") +
           (w > 60 ? `<span>${fmt(s.datum_od).slice(0, 5)}–${fmt(s.datum_do).slice(0, 5)}</span>` : "") +
-          (s.komentar && w > 30 ? `<span class="kombadge" title="${esc(s.komentar)}">💬</span>` : "") +
+          (s.komentar && w > 30 ? `<span class="kombadge" title="${esc(s.komentar)}"></span>` : "") +
           (s.komentar && w > 150 ? `<span class="kom">${esc(s.komentar)}</span>` : "") +
           `</div>`;
       }
@@ -1001,6 +1010,29 @@ function renderTimeline(keepScroll) {
           </span>
         </div>
         <div class="tl-track" style="width:${totalW}px;${trackBg()}">${segs}</div></div>`;
+    }
+  }
+
+  /* POP bez ijednog DP-a -> "čeka DP" red: vidljiv ODMAH po kreiranju POP-a,
+     i bez ijednog filtera. Sakriva se samo kad je aktivan filter koji POP bez
+     termina ne može zadovoljiti (status/kasni/datum/odjel ili konkretan DP). */
+  if (!segFilterOn && !F.odj.size && !F.dp.size) {
+    const dpPopIds = new Set(DATA.dps.map(d => d.pop_id).filter(Boolean));
+    const ns = projNameSet();
+    for (const p of DATA.pops.filter(pp => !dpPopIds.has(pp.id))) {
+      if (ns && !(p.projekt && ns.has(p.projekt))) continue;   // opseg projekta
+      if (F.pop.size && !F.pop.has(p.naziv)) continue;          // POP filter (po nazivu)
+      anyRow = true;
+      html += `<div class="tl-row group popwait" data-popwait="${p.id}">
+        <div class="tl-label">
+          <div class="pw-info" title="${t("cekaDpTip")}">
+            <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(p.naziv)}</span>
+              <span class="waitb">${t("cekaDp")}</span></div>
+            <span class="meta">HP ${p.hp || 0} · HA ${p.ha || 0}${p.projekt ? " · " + esc(p.projekt) : ""}</span></div>
+          <div class="gr-side">
+            <button class="btn sm primary addDpHere" data-pop="${p.id}">${t("dodajDp")}</button></div>
+        </div>
+        <div class="tl-track" style="width:${totalW}px"></div></div>`;
     }
   }
 
@@ -1131,6 +1163,14 @@ function bindTimeline() {
   }));
   $$("#tlScroll .gr-info").forEach(el => el.addEventListener("click", () => {
     selectDp(+el.closest(".tl-row").dataset.dp);
+  }));
+  /* "čeka DP" red: klik na info = otvori POP panel; "+ DP" = dijalog s tim POP-om */
+  $$("#tlScroll .popwait .pw-info").forEach(el => el.addEventListener("click", () => {
+    selectPop(+el.closest(".tl-row").dataset.popwait);
+  }));
+  $$("#tlScroll .addDpHere").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    openDpDialog(+b.dataset.pop);
   }));
   $$("#tlScroll .act-name").forEach(el => el.addEventListener("dblclick", async () => {
     const id = +el.closest(".tl-row").dataset.task;
@@ -1348,10 +1388,10 @@ async function offerShiftFollowing(segId, fromOd, delta) {
 function popDurUpd() {
   const od = $("#popOd").value, do_ = $("#popDo").value;
   $("#popWhenDisp").innerHTML = od && do_ && do_ >= od
-    ? `📅 <b>${fmt(od).slice(0, 6)}</b><i class="pw-arr">→</i><b>${fmt(do_).slice(0, 6)}</b>` +
+    ? `<b>${fmt(od).slice(0, 6)}</b><i class="pw-arr">→</i><b>${fmt(do_).slice(0, 6)}</b>` +
       `<span class="pw-n">${durDays(od, do_)} ${t("dana")} · KW${isoWeekOf(od)}–KW${isoWeekOf(do_)}</span>` +
-      `<i class="pw-pen">✎</i>`
-    : `📅 —`;
+      `<i class="pw-pen"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5l4 4M4 20l4.5-1 9-9-4-4-9 9L4 20z"/></svg></i>`
+    : `—`;
 }
 function openPop(mode, segId, cx, cy, init = {}) {
   const pop = $("#pop");
@@ -1529,18 +1569,18 @@ function hcShow(el, ev) {
     <div class="hc-head"><span class="hc-dot" style="background:${aktColor(tk.aktivnost)}"></span>
       <b>${esc(tk.aktivnost || "")}</b><span class="hc-st ${stCls}">${esc(stT(s.status))}</span></div>
     <div class="hc-ctx">${esc(dp.pop || "")} <i>▸</i> <b>${esc(dp.naziv || "")}</b>${s.created_by
-      ? ` <span class="hc-by">✎ ${t("nacrtao")} ${esc(s.created_by)}</span>` : ""}</div>
+      ? ` <span class="hc-by">${t("nacrtao")} ${esc(s.created_by)}</span>` : ""}</div>
     <div class="hc-when">
       <span class="hc-d"><i>${t("od")}</i><b>${fmt(s.datum_od)}</b><em>KW${isoWeekOf(s.datum_od)}</em></span>
       <span class="hc-arrow">→</span>
       <span class="hc-d"><i>${t("do")}</i><b>${fmt(s.datum_do)}</b><em>KW${isoWeekOf(s.datum_do)}</em></span>
       <span class="hc-dur">${nd}d</span>
     </div>
-    ${late ? `<div class="hc-row red"><span>⏰ ${t("kasniChip")}</span><b>+${lateDays(s)} ${t("dana")}</b> · ${t("rokLbl")} ${fmt(s.datum_do)}</div>` : ""}
-    ${s.komentar ? `<div class="hc-row amber"><span>💬 ${t("komentar")}</span>${esc(s.komentar)}</div>` : ""}
+    ${late ? `<div class="hc-row red"><span>${t("kasniChip")}</span><b>+${lateDays(s)} ${t("dana")}</b> · ${t("rokLbl")} ${fmt(s.datum_do)}</div>` : ""}
+    ${s.komentar ? `<div class="hc-row amber"><span>${t("komentar")}</span>${esc(s.komentar)}</div>` : ""}
     ${late ? `<div class="hc-row purple"><span>${t("razlogProd")}</span>${s.kasni_razlog
       ? esc(s.kasni_razlog) : t("razlogNijeUpisan")}</div>` : ""}
-    ${s.eskalacija ? `<div class="hc-row orange"><span>⚠ ${t("hEskalacija")}${s.esk_datum
+    ${s.eskalacija ? `<div class="hc-row orange"><span>${t("hEskalacija")}${s.esk_datum
       ? " · " + fmt(s.esk_datum) : ""}</span>${esc(s.esk_razlog || "—")}</div>` : ""}
     <div class="hc-hist"><h4>${t("hist")}</h4>${hist.length
       ? hist.slice(0, 6).map(h => `<div class="hc-h"><i>${fmtTs(h.ts)}</i>
@@ -2107,7 +2147,7 @@ function renderDrawerStats() {
       const diff = Math.round((new Date(rok) - new Date(todayIso())) / 864e5);
       const lateR = diff < 0 && pct < 100;
       rokHtml = `<div class="drs-rok${lateR ? " late" : ""}">
-        <i>⏱ ${t("rokLbl")} · Aktivacije</i>
+        <i>${t("rokLbl")} · Aktivacije</i>
         <b>${fmt(rok)} · KW${isoWeekOf(rok)}</b>
         <em>${diff < 0 ? `${t("rokProsao")} ${-diff} ${t("dana")}` : `${t("rokZa")} ${diff} ${t("dana")}`}</em>
       </div>`;
@@ -2124,7 +2164,7 @@ function renderDrawerStats() {
         <text x="24" y="28" text-anchor="middle" font-size="11" font-weight="700" fill="#34d399">${pct}%</text>
       </svg>
       <div class="drs-info"><i>${t("napredak")}</i><b>${done} / ${segs.length} ${t("gotovo")}</b>
-        ${lateN ? `<em class="drs-late">⏰ ${lateN} ${t("kasniChip")}</em>` : ""}</div>
+        ${lateN ? `<em class="drs-late">${lateN} ${t("kasniChip")}</em>` : ""}</div>
     </div>${rokHtml}`;
   $("#drShift").innerHTML = segs.length ? `
     <span class="ds-lbl">${t("pomjeriSve")}:</span>
@@ -2207,7 +2247,7 @@ async function loadDrawerHist() {
       ? r.events.map(evRow).join("")
       : `<div class="dr-h empty">${t("histEmpty")}</div>`;
   } catch {
-    $("#drHist").innerHTML = `<div class="dr-h empty">⚠</div>`;
+    $("#drHist").innerHTML = `<div class="dr-h empty">—</div>`;
   }
 }
 function fmtTs(ts) {
@@ -2230,11 +2270,11 @@ function evText(e) {
     aktivnost: t("aktivnost"), odjel: t("fOdjel") };
   switch (e.action) {
     case "kreirano": return `✚ ${t("aKreirano")}${e.novo ? ` · ${esc(e.novo)}` : ""}`;
-    case "obrisano": return `🗑 ${t("aObrisano")}${e.staro ? ` · ${esc(e.staro)}` : ""}`;
+    case "obrisano": return `${ICON.trash} ${t("aObrisano")}${e.staro ? ` · ${esc(e.staro)}` : ""}`;
     case "termin obrisan":
-      return `🗑 ${t("aTerminObrisan")} · <em>${esc(e.polje)}</em> ${esc(e.staro)}`;
+      return `${ICON.trash} ${t("aTerminObrisan")} · <em>${esc(e.polje)}</em> ${esc(e.staro)}`;
     case "aktivnost dodana": return `✚ ${t("aAktDodana")} · <em>${esc(e.novo)}</em>`;
-    case "aktivnost obrisana": return `🗑 ${t("aAktObrisana")} · <em>${esc(e.staro)}</em>`;
+    case "aktivnost obrisana": return `${ICON.trash} ${t("aAktObrisana")} · <em>${esc(e.staro)}</em>`;
     default:
       return `${FL[e.polje] || esc(e.polje)}: ${esc(e.staro ?? "")} <i class="arr">→</i> ${esc(e.novo ?? "")}`;
   }

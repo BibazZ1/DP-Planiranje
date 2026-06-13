@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css?v={{ v }}">
-<!-- 📅 Flatpickr + SweetAlert2 — isti date picker i dijalozi kao ULAZNE-FAKTURE -->
+<!-- Flatpickr + SweetAlert2 — isti date picker i dijalozi kao ULAZNE-FAKTURE -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/dark.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
@@ -41,8 +41,8 @@
     <button class="userbadge" id="userBadge" data-i18n-title="userTip" title="prijavljeni korisnik">
       <span class="ub-col"><b id="userName">?</b><small id="userMail"></small></span>
     </button>
-    <a class="btn iconbtn admin" id="btnAdmin" href="/admin" title="administracija pristupa" hidden>🛡</a>
-    <a class="btn iconbtn logout" id="btnLogout" href="/logout" title="Odjava">⏻</a>
+    <a class="btn iconbtn admin" id="btnAdmin" href="/admin" title="administracija pristupa" hidden><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6l7-3z"/></svg></a>
+    <a class="btn iconbtn logout" id="btnLogout" href="/logout" title="Odjava"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v8"/><path d="M7.5 7a7 7 0 1 0 9 0"/></svg></a>
   </div>
 </header>
 
@@ -50,7 +50,6 @@
   <!-- ANALITIKA gore (kao ULAZNE-FAKTURE dashboard): KPI kartice + grafovi -->
   <section class="fold glass" id="analyticsCard">
     <button type="button" class="fold-head" data-fold="analitika">
-      <span class="fold-ic">📊</span>
       <span class="fold-t" data-i18n="foldAnalitika">Analitika</span>
       <span class="fold-chev">▾</span>
     </button>
@@ -68,7 +67,7 @@
   <!-- FILTERI — jedan panel kao ULAZNE-FAKTURE: autocomplete + datumi + čipovi -->
   <section class="fold glass" id="filterCard">
     <button type="button" class="fold-head" data-fold="filteri">
-      <span class="filt-pill">☰ <span data-i18n="foldFilteri">Filteri</span>
+      <span class="filt-pill"><span data-i18n="foldFilteri">Filteri</span>
         <span class="fold-chev">▾</span>
         <b class="fbadge hidden" id="fltBadge">0</b></span>
       <span class="fold-meta hint" id="projMeta"></span>
@@ -77,39 +76,39 @@
       <div class="factive" id="activeBar"></div>
       <div class="proj-claim" id="projClaim"></div>
       <div class="flt-grid">
-        <label class="pf"><span><i class="ic">🏢</i> <span data-i18n="kunde">Kunde</span></span>
+        <label class="pf"><span><span data-i18n="kunde">Kunde</span></span>
           <span class="combo">
             <input class="cmb" id="pfKunde" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
             <button type="button" class="cmb-x" data-for="pfKunde" hidden>✕</button>
             <div class="combo-list" hidden></div>
           </span></label>
-        <label class="pf"><span><i class="ic">📁</i> <span data-i18n="projekat">Projekat</span></span>
+        <label class="pf"><span><span data-i18n="projekat">Projekat</span></span>
           <span class="combo">
             <input class="cmb" id="pfProj" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
             <button type="button" class="cmb-x" data-for="pfProj" hidden>✕</button>
             <div class="combo-list" hidden></div>
           </span></label>
-        <label class="pf"><span><i class="ic">#</i> Projectcode</span>
+        <label class="pf"><span>Projectcode</span>
           <span class="combo">
             <input class="cmb" id="pfCode" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
             <button type="button" class="cmb-x" data-for="pfCode" hidden>✕</button>
             <div class="combo-list" hidden></div>
           </span></label>
-        <label class="pf"><span><i class="ic">🗼</i> POP</span>
+        <label class="pf"><span>POP</span>
           <span class="combo">
             <input class="cmb" id="fPop" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
             <button type="button" class="cmb-x" data-for="fPop" hidden>✕</button>
             <div class="combo-list" hidden></div>
           </span></label>
-        <label class="pf"><span><i class="ic">📍</i> DP</span>
+        <label class="pf"><span>DP</span>
           <span class="combo">
             <input class="cmb" id="fDp" data-i18n-ph="traziPh" placeholder="Pretraži…" autocomplete="off">
             <button type="button" class="cmb-x" data-for="fDp" hidden>✕</button>
             <div class="combo-list" hidden></div>
           </span></label>
-        <label class="pf"><span><i class="ic">📅</i> <span data-i18n="datumOd">Datum od</span></span>
+        <label class="pf"><span><span data-i18n="datumOd">Datum od</span></span>
           <input type="text" id="fDateOd" placeholder="dd/mm/gggg"></label>
-        <label class="pf"><span><i class="ic">📅</i> <span data-i18n="datumDo">Datum do</span></span>
+        <label class="pf"><span><span data-i18n="datumDo">Datum do</span></span>
           <input type="text" id="fDateDo" placeholder="dd/mm/gggg"></label>
         <div class="pf flt-btns"><span>&nbsp;</span>
           <span class="btnrow">
@@ -122,11 +121,11 @@
 
   <section class="tl-card glass">
     <div class="tl-toolbar">
-      <span class="tl-title">⏱ Timeline</span>
+      <span class="tl-title">Timeline</span>
       <button class="btn sm" id="btnAddPopTop" data-i18n="noviPop">+ Novi POP</button>
       <button class="btn sm primary" id="btnAddDp" data-i18n="noviDp">+ Novi DP</button>
-      <a class="btn sm" href="/export/csv">⭳ CSV</a>
-      <a class="btn sm" href="/export/xlsx">⭳ Excel</a>
+      <a class="btn sm" href="/export/csv">CSV</a>
+      <a class="btn sm" href="/export/xlsx">Excel</a>
       <button class="btn sm" id="btnUndo" disabled data-i18n-title="vrati" title="Vrati zadnju promjenu">↶</button>
       <span class="hint" data-i18n="tlHint">prevuci = novi termin (otvoreno) · dupli klik = završeno ·
         desni klik = uredi · povuci rub = produži · Ctrl+kolutić = zoom</span>
@@ -134,7 +133,7 @@
         <button class="zbtn" id="zOut" data-i18n-title="zoomOut" title="Umanji">−</button>
         <span id="zLabel">sedmice</span>
         <button class="zbtn" id="zIn" data-i18n-title="zoomIn" title="Uvećaj">+</button>
-        <button class="zbtn fit" id="zFit" data-i18n-title="zoomFit" title="Cijela godina">⛶</button>
+        <button class="zbtn fit" id="zFit" data-i18n-title="zoomFit" title="Cijela godina"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H4v4M16 3h4v4M8 21H4v-4M16 21h4v-4"/></svg></button>
       </div>
     </div>
     <div class="tl-scroll" id="tlScroll"></div>
@@ -164,10 +163,10 @@
   <label class="pop-field"><span><span data-i18n="komentar">komentar</span> <i class="opt" data-i18n="opcionalno">(opcionalno)</i></span>
     <input id="popKom" data-i18n-ph="komPh" placeholder="npr. čeka se dozvola…">
   </label>
-  <label class="pop-field pop-kasni hidden" id="popKasniWrap"><span data-i18n="kasniLbl">⏰ razlog produženja — termin probio rok (obavezno)</span>
+  <label class="pop-field pop-kasni hidden" id="popKasniWrap"><span data-i18n="kasniLbl">Razlog produženja — termin probio rok (obavezno)</span>
     <input id="popKasni" data-i18n-ph="kasniPh" placeholder="zašto još nije gotovo?">
   </label>
-  <label class="pop-esk"><input type="checkbox" id="popEsk"> <span data-i18n="esk">⚠ eskalacija</span></label>
+  <label class="pop-esk"><input type="checkbox" id="popEsk"> <span data-i18n="esk">Eskalacija</span></label>
   <label class="pop-field hidden" id="popEskDatWrap"><span data-i18n="eskOd">eskalacija od datuma</span>
     <input type="date" id="popEskDat">
   </label>
@@ -185,7 +184,6 @@
 <dialog id="dlgDp" class="dlg2">
   <form method="dialog" id="frmDp">
     <div class="dlg-h">
-      <span class="dlg-ic dp">📍</span>
       <div class="dlg-ht"><h3 data-i18n="noviDpH">Novi DP</h3>
         <p class="dlg-sub" data-i18n="dpSub">novi dionički plan — 8 aktivnosti automatski</p></div>
       <button type="button" class="dlg-x" data-close="dlgDp" title="Esc">✕</button>
@@ -194,16 +192,16 @@
     <div class="dlg-crumb hidden" id="dpUnder"></div>
     <div class="dlg-steps" id="dpSteps"></div>
     <div class="dlg-body">
-      <label class="fld" id="dpKundeRow"><span><i>🏢</i> <span data-i18n="kunde">Kunde</span></span>
+      <label class="fld" id="dpKundeRow"><span><span data-i18n="kunde">Kunde</span></span>
         <span class="pick" id="dpKunde"><input class="pick-in" autocomplete="off">
           <i class="pick-cv">▾</i><div class="pick-list" hidden></div></span></label>
-      <label class="fld" id="dpProjRow"><span><i>📁</i> <span data-i18n="projDaily">Projekat (Daily)</span></span>
+      <label class="fld" id="dpProjRow"><span><span data-i18n="projDaily">Projekat (Daily)</span></span>
         <span class="pick" id="dpProj"><input class="pick-in" autocomplete="off">
           <i class="pick-cv">▾</i><div class="pick-list" hidden></div></span></label>
-      <label class="fld" id="dpPopRow"><span><i>🗼</i> POP / FCP ID</span>
+      <label class="fld" id="dpPopRow"><span>POP / FCP ID</span>
         <span class="pick" id="dpPop"><input class="pick-in" autocomplete="off">
           <i class="pick-cv">▾</i><div class="pick-list" hidden></div></span></label>
-      <label class="fld"><span><i>📍</i> <span data-i18n="nazivDp">Naziv DP</span></span>
+      <label class="fld"><span><span data-i18n="nazivDp">Naziv DP</span></span>
         <input name="naziv" required placeholder="DP 4" autocomplete="off"></label>
       <div class="row2">
         <label class="fld"><span data-i18n="brojHp">Broj HP</span> <input name="hp" type="number" min="0" value="0"></label>
@@ -220,20 +218,19 @@
 <dialog id="dlgPop" class="dlg2">
   <form method="dialog" id="frmPop">
     <div class="dlg-h">
-      <span class="dlg-ic pop">🗼</span>
       <div class="dlg-ht"><h3 data-i18n="noviPopH">Novi POP</h3>
         <p class="dlg-sub" data-i18n="popSub">nova POP/FCP tačka pod projektom</p></div>
       <button type="button" class="dlg-x" data-close="dlgPop" title="Esc">✕</button>
     </div>
     <div class="dlg-steps" id="popSteps"></div>
     <div class="dlg-body">
-      <label class="fld" id="popKundeRow"><span><i>🏢</i> <span data-i18n="kunde">Kunde</span></span>
+      <label class="fld" id="popKundeRow"><span><span data-i18n="kunde">Kunde</span></span>
         <span class="pick" id="popKunde"><input class="pick-in" autocomplete="off">
           <i class="pick-cv">▾</i><div class="pick-list" hidden></div></span></label>
-      <label class="fld" id="popProjRow"><span><i>📁</i> <span data-i18n="projekat">Projekat</span></span>
+      <label class="fld" id="popProjRow"><span><span data-i18n="projekat">Projekat</span></span>
         <span class="pick" id="popProj"><input class="pick-in" autocomplete="off">
           <i class="pick-cv">▾</i><div class="pick-list" hidden></div></span></label>
-      <label class="fld"><span><i>🗼</i> <span data-i18n="popNaziv">Naziv POP</span></span>
+      <label class="fld"><span><span data-i18n="popNaziv">Naziv POP</span></span>
         <input name="naziv" required placeholder="POP xyz-003" autocomplete="off"></label>
       <div class="row2">
         <label class="fld"><span data-i18n="brojHp">Broj HP</span> <input name="hp" type="number" min="0" value="0"></label>
@@ -252,8 +249,8 @@
   <div class="dr-head">
     <span class="dr-type" id="drType">POP</span>
     <b class="dr-name" id="drName"></b>
-    <button class="gbtn" id="drRename" data-i18n-title="drRenameTip" title="preimenuj">✎</button>
-    <button class="gbtn" id="drDel" data-i18n-title="drDelTip" title="obriši">🗑</button>
+    <button class="gbtn" id="drRename" data-i18n-title="drRenameTip" title="preimenuj"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5l4 4M4 20l4.5-1 9-9-4-4-9 9L4 20z"/></svg></button>
+    <button class="gbtn" id="drDel" data-i18n-title="drDelTip" title="obriši"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
     <button class="gbtn" id="drClose" title="Esc">✕</button>
   </div>
   <div class="dr-meta" id="drMeta"></div>
@@ -264,15 +261,15 @@
     <label><span data-i18n="brojHa">Broj HA</span><input type="number" id="drHa" min="0"></label>
   </div>
   <div class="dr-comments" id="drCommentsWrap">
-    <h4>💬 <span data-i18n="komentariTitle">Komentari</span></h4>
+    <h4><span data-i18n="komentariTitle">Komentari</span></h4>
     <div class="dr-clist" id="drComments"></div>
     <div class="dr-cnew">
       <input id="drCIn" data-i18n-ph="komentarPh" placeholder="Dodaj komentar…" maxlength="500">
-      <button class="btn sm primary" id="drCSend">➤</button>
+      <button class="btn sm primary" id="drCSend" title="Pošalji"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-3-7-7-1z"/></svg></button>
     </div>
   </div>
   <div class="dr-hist">
-    <h4 data-i18n="histTitle">📜 Historija</h4>
+    <h4 data-i18n="histTitle">Historija</h4>
     <div class="dr-list" id="drHist"></div>
   </div>
 </aside>
@@ -282,7 +279,7 @@
         data-i18n-title="kasniBubbleTip" title="Termini kojima je rok prošao, a nisu završeni — klik za pregled"></button>
 <div class="late-modal hidden" id="lateModal">
   <div class="lm-card glass">
-    <div class="lm-head"><b>⏰ <span data-i18n="kasniTitle">Kasne aktivnosti</span></b>
+    <div class="lm-head"><b><span data-i18n="kasniTitle">Kasne aktivnosti</span></b>
       <span class="lm-hint" data-i18n="kasniModalHint">klik na red = produži rok i upiši razlog</span>
       <button class="gbtn" id="lmClose" title="Esc">✕</button></div>
     <div class="lm-list" id="lmList"></div>

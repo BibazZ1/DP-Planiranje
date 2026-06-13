@@ -33,8 +33,10 @@ SQL_PWD = os.environ.get("SQL_PWD", "")
 app = Flask(__name__)
 app.json.ensure_ascii = False
 app.config["TEMPLATES_AUTO_RELOAD"] = True
-# statika se kešira 7 dana — sigurno jer linkovi nose ?v=<git hash> (cache busting)
-app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 7 * 24 * 3600
+# statika se kešira 7 dana u produkciji (linkovi nose ?v=<git hash> -> cache busting).
+# U lokalnom dev modu (DEV_FAKE_USER) NE keširamo: ?v=<git hash> se ne mijenja dok se
+# ne commit-a, pa bi keš sakrio nesnimljene izmjene app.js/CSS pri reloadu.
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0 if os.environ.get("DEV_FAKE_USER") else 7 * 24 * 3600
 
 # gzip/brotli kompresija (kao ULAZNE-FAKTURE) — app.js/CSS/JSON višestruko manji
 try:

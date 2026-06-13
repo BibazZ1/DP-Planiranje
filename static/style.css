@@ -252,6 +252,10 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 .gbtn{border:0;background:transparent;color:var(--mut2);cursor:pointer;font-size:12px;
   padding:2px 5px;border-radius:6px;transition:.15s}
 .gbtn:hover{background:var(--teal-glow);color:var(--teal)}
+/* monohromne SVG ikone u dugmadima — centrirane, nasljeđuju boju */
+.gbtn,.btn.iconbtn,#drCSend,.zbtn.fit{display:inline-flex;align-items:center;justify-content:center}
+.gbtn svg,.btn.iconbtn svg,#drCSend svg,.zbtn.fit svg{display:block}
+.i-ic{vertical-align:-1px;flex:none}
 
 /* activity row label â€” bez skraÄ‡ivanja, pun naziv (prelama u 2 reda ako treba) */
 .act-name{flex:1;min-width:0;display:flex;align-items:center;white-space:normal;
@@ -313,7 +317,7 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 @keyframes segFlash{50%{box-shadow:0 0 0 3px #fff,0 0 28px #fff;filter:brightness(1.7)}}
 .ghost{position:absolute;top:5px;bottom:5px;border-radius:7px;pointer-events:none;
   background:rgba(255,255,255,.16);border:1.5px dashed rgba(255,255,255,.55);z-index:6}
-/* 👻 originalna pozicija termina kad ga je neko pomjerio — ostaje da svi vide */
+/* originalna pozicija termina kad ga je neko pomjerio — ostaje da svi vide */
 .movedghost{position:absolute;top:9px;bottom:9px;border-radius:6px;z-index:0;cursor:help;
   background:repeating-linear-gradient(135deg,rgba(148,163,184,.12) 0 5px,rgba(148,163,184,.22) 5px 10px);
   border:1.5px dashed rgba(148,163,184,.6)}
@@ -496,8 +500,8 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;paddin
 
 .dlg-body{padding:6px 22px 2px}
 .dlg2 .fld{display:block;margin-bottom:13px}
-.dlg2 .fld>span{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--mut);
-  text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;font-weight:700}
+.dlg2 .fld>span{display:flex;align-items:center;gap:6px;font-size:12px;color:#cbd5e1;
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700}
 .dlg2 .fld>span i{font-style:normal;font-size:13px;filter:saturate(1.2)}
 .dlg2 .fld>input{margin-top:0}
 .dlg2 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:2px}
@@ -595,6 +599,19 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;paddin
 /* timeline: klik na grupni red = historija DP-a */
 .tl-row.group .gr-info{cursor:pointer}
 .tl-row.group .gr-info:hover b{color:var(--teal)}
+
+/* "čeka DP" red — POP koji još nema nijedan DP (amber akcenat da se razlikuje) */
+.tl-row.group.popwait>.tl-label{background:linear-gradient(90deg,rgba(245,158,11,.10),rgba(30,41,59,.4))}
+.tl-row.group.popwait{border-top:1px solid rgba(245,158,11,.28)}
+.popwait .pw-info{display:flex;flex-direction:column;justify-content:center;line-height:1.25;
+  flex:1;min-width:0;gap:2px;cursor:pointer}
+.popwait .pw-info:hover .pop-badge{color:var(--teal);border-color:rgba(16,185,129,.5)}
+.waitb{display:inline-flex;align-items:center;font:700 9.5px var(--mono);letter-spacing:.4px;
+  text-transform:uppercase;color:#fbbf24;background:rgba(245,158,11,.12);
+  border:1px solid rgba(245,158,11,.4);border-radius:9999px;padding:2px 9px}
+.popwait .meta{font-weight:500;color:var(--mut);font-size:10px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.addDpHere{flex:none;white-space:nowrap}
 /* ko je upisao promjenu (hover kartica) */
 .hc-u{font:600 9.5px var(--mono);color:var(--purple);flex:none;margin-left:auto;
   padding-left:6px}
@@ -740,9 +757,9 @@ span.flatpickr-weekday{color:#64748b!important}
 /* red DP grupe: jasnije odvojen od aktivnosti */
 .tl-row.group>.tl-label{background:linear-gradient(90deg,rgba(16,185,129,.10),rgba(30,41,59,.4))}
 .tl-row.group{border-top:1px solid rgba(16,185,129,.22)}
-/* komentar na traci: uocljiva zuta oznaka + tekst */
-.seg .kombadge{font-size:11px;line-height:1;margin-right:3px;flex:none;
-  filter:drop-shadow(0 0 4px rgba(245,158,11,.8))}
+/* komentar na traci: mala žuta tačka (bez emojija) + tekst */
+.seg .kombadge{width:7px;height:7px;border-radius:50%;margin-right:4px;flex:none;
+  background:#fbbf24;box-shadow:0 0 5px rgba(245,158,11,.9)}
 .seg .kom{color:#fde68a;font-weight:600;overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap;font-size:10.5px}
 
@@ -838,8 +855,9 @@ span.flatpickr-weekday{color:#64748b!important}
 .dr-cnew input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
 
 /* ================== zavisnosti + plan-vs ================== */
-.seg .depwarn{font-size:10px;margin-right:3px;flex:none;
-  filter:drop-shadow(0 0 5px rgba(249,115,22,.9))}
+/* zavisnost na traci: mali narandžasti trokut (bez emojija) */
+.seg .depwarn{width:8px;height:8px;margin-right:4px;flex:none;background:#fb923c;
+  clip-path:polygon(50% 0,100% 100%,0 100%);box-shadow:0 0 5px rgba(249,115,22,.9)}
 .pv-wrap{margin-top:10px;background:rgba(15,23,42,.5);border:1px solid var(--line);
   border-radius:12px;padding:10px 14px}
 .pv-wrap h4{margin:0 0 8px;font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:1.4px}

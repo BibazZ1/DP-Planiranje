@@ -7,10 +7,11 @@
       "runtimeArgs": ["app.py"],
       "env": {
         "DEV_FAKE_USER": "e.uzunovic@gfcbh.ba",
-        "PORT": "5060",
-        "HOST": "0.0.0.0"
+        "POSTGRES_DATABASE": "DP-PLANIRANJE-TEST",
+        "PORT": "5070",
+        "HOST": "127.0.0.1"
       },
-      "port": 5060
+      "port": 5070
     }
   ]
 }

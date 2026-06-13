@@ -298,8 +298,15 @@ function ok(name, cond, extra = "") {
     const ss = (await (await page.request.get(BASE + "/api/data")).json()).segments;
     return ss.reduce((m, s) => (s.id > (m?.id || 0) ? s : m), null);
   };
-  const rowBox = async name =>
-    page.locator('.tl-row[data-task]', { hasText: name }).first().locator(".tl-track").boundingBox();
+  // collapse analitiku da timeline redovi ne padnu ispod viewporta (stabilno crtanje)
+  if (!(await page.locator("#analyticsCard.collapsed").count()))
+    await page.locator('[data-fold="analitika"]').click().catch(() => {});
+  const rowBox = async name => {
+    const tr = page.locator('.tl-row[data-task]', { hasText: name }).first();
+    await tr.scrollIntoViewIfNeeded().catch(() => {});   // uvijek dovuci red u vidno polje
+    await page.waitForTimeout(60);
+    return tr.locator(".tl-track").boundingBox();
+  };
 
   // (a) crtanje koje ZAVRŠAVA PRIJE DANAS -> Swal traži razlog; Otkaži = ništa se ne kreira
   let bA = await rowBox("Asfaltiranje");
@@ -500,6 +507,40 @@ function ok(name, cond, extra = "") {
   ok("moved-ghost: orig_od ostao netaknut nakon pomjeranja",
     movedNow && movedNow.orig_od === moveSeg.orig_od && movedNow.orig_od !== movedNow.datum_od);
   ok("moved-ghost: original (👻) vidljiv u tabeli", (await page.locator(".movedghost").count()) >= 1);
+
+  // ---------- 16d. POP bez DP -> "čeka DP" red + "+ DP" konverzija ----------
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(300);
+  await page.request.post(BASE + "/api/pops", { data: {
+    projekt: "[NORD CLUSTER 1] BRIESEN [IP]", naziv: "POP CEKA-DP", hp: 50, ha: 10 } });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(400);
+  const waitRow = page.locator(".tl-row.popwait", { hasText: "POP CEKA-DP" });
+  ok("čeka DP: POP bez DP-a prikazan kao red (bez filtera)", (await waitRow.count()) === 1);
+  ok("čeka DP: 'čeka DP' značka vidljiva", (await waitRow.innerText()).toLowerCase().includes("čeka dp"));
+  ok("čeka DP: '+ DP' dugme prisutno", (await waitRow.locator(".addDpHere").count()) === 1);
+  await waitRow.locator(".addDpHere").click();
+  await page.waitForTimeout(300);
+  ok("čeka DP: '+ DP' otvara DP dijalog", (await page.locator("#dlgDp[open]").count()) === 1);
+  ok("čeka DP: POP preselektovan u dijalogu", (await page.locator("#dpUnder").innerText()).includes("POP CEKA-DP"));
+  await page.fill("#frmDp [name=naziv]", "DP CEKA-1");
+  await page.click('#frmDp button[value="ok"]');
+  await page.waitForTimeout(900);
+  ok("čeka DP: nakon kreiranja DP-a nestaje 'čeka' red",
+    (await page.locator(".tl-row.popwait", { hasText: "POP CEKA-DP" }).count()) === 0);
+  ok("čeka DP: novi DP ima aktivnosti u tabeli",
+    (await page.locator(".tl-row.group:not(.popwait)", { hasText: "DP CEKA-1" }).count()) >= 1);
+
+  // ---------- 16e. UI bez emojija (čist, profesionalan izgled) ----------
+  const emojiBody = await page.evaluate(() => {
+    const re = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F1E6}-\u{1F1FF}\u{FE0F}]/u;
+    return [...new Set([...document.body.innerText].filter(c => re.test(c)))];
+  });
+  // ✕ (zatvori/očisti) i ▾ (caret) su standardni monohromni UI simboli, ne emoji
+  const stray = emojiBody.filter(c => !["✕", "▾", "−", "→"].includes(c));
+  ok("UI bez emojija (osim ✕/▾ kontrola)", stray.length === 0, JSON.stringify(stray));
 
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
