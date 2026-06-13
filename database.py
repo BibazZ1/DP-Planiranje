@@ -169,16 +169,12 @@ CREATE TABLE IF NOT EXISTS dp_comments(
     tekst TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_comments_dp ON dp_comments(dp_id, id);
-CREATE TABLE IF NOT EXISTS baseline_segs(
-    id SERIAL PRIMARY KEY,
-    snap_ts TEXT NOT NULL,
-    "user" TEXT DEFAULT '',
-    task_id INTEGER NOT NULL,
-    datum_od TEXT NOT NULL,
-    datum_do TEXT NOT NULL,
-    status TEXT DEFAULT ''
+CREATE TABLE IF NOT EXISTS project_claims(
+    projektname TEXT PRIMARY KEY,
+    owner_email TEXT NOT NULL,
+    owner_name TEXT DEFAULT '',
+    claimed_at TEXT DEFAULT ''
 );
-CREATE INDEX IF NOT EXISTS idx_base_task ON baseline_segs(snap_ts, task_id);
 CREATE TABLE IF NOT EXISTS meta(
     key TEXT PRIMARY KEY,
     value TEXT DEFAULT ''
@@ -218,6 +214,8 @@ def init_db(permanent_admin=""):
         # advisory lock: samo jedan worker kreira šemu, ostali čekaju
         cur.execute("SELECT pg_advisory_lock(727274001)")
         cur.execute(SCHEMA_SQL)
+        # migracija: ko je nacrtao termin (atribucija "ko je stavljao vremena")
+        cur.execute("ALTER TABLE segments ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT ''")
         # produkcija: NEMA demo seed podataka — POP/DP se kreiraju kroz aplikaciju
         if permanent_admin:
             cur.execute(

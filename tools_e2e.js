@@ -136,6 +136,23 @@ function ok(name, cond, extra = "") {
   ok("DP kreiran -> 8 aktivnosti u timelineu", rows === 8, `(${rows})`);
   ok("prazno stanje nestalo", !(await page.locator(".tl-empty").isVisible().catch(() => false)));
 
+  // ---------- 5b. claim sistem (vlasništvo projekta + atribucija) ----------
+  ok("claim: 'Preuzmi' kad slobodno", await page.locator("#btnClaim").isVisible());
+  await page.click("#btnClaim");
+  await page.waitForSelector(".swal2-confirm", { timeout: 5000 });
+  await page.click(".swal2-confirm");
+  await page.waitForTimeout(1200);
+  const claims = (await (await page.request.get(BASE + "/api/data")).json()).claims;
+  ok("claim: projekat preuzet (owner u /api/data)",
+    claims && Object.keys(claims).some(k => /WANDLITZ/i.test(k)));
+  ok("claim: vlasnik chip (moj)", await page.locator("#projClaim .claim-chip.mine").isVisible());
+  ok("claim: owner badge (🔒) na DP redu", (await page.locator(".meta .ownb").count()) >= 1);
+  await page.click("#btnRelease");
+  await page.waitForSelector(".swal2-confirm", { timeout: 5000 });
+  await page.click(".swal2-confirm");
+  await page.waitForTimeout(1200);
+  ok("claim: otpušteno -> opet 'Preuzmi'", await page.locator("#btnClaim").isVisible());
+
   // ---------- 6. termini kroz API (prošli rok -> kasni; Aktivacije -> rok DP-a) ----------
   const dataRes = await page.request.get(BASE + "/api/data");
   const data = await dataRes.json();
@@ -422,6 +439,7 @@ function ok(name, cond, extra = "") {
   } else { ok("server-validacija: (preskočeno)", true); }
 
   ok("/api/data bez baseline polja", !("baseline" in d2));
+  ok("segment.created_by zabilježen (atribucija)", (d2.segments || []).some(s => s.created_by));
   const stats = await (await page.request.get(BASE + "/api/stats")).json();
   ok("/api/stats by_odjel bez utoku", (stats.by_odjel || []).every(r => !("utoku" in r)));
   ok("/api/baseline uklonjen (404/405)",

@@ -15,6 +15,10 @@ const I18N = {
     chDp: "Napredak po DP — % završeno",
     tlHint: "prevuci = novi termin (otvoreno) · dupli klik = završeno · desni klik = uredi · povuci rub = produži · Ctrl+kolutić = zoom",
     kasniPitanje: "Termin završava PRIJE danas — razlog produženja (obavezno):",
+    preuzmiProj: "Preuzmi projekat", vlasnikLbl: "vlasnik", otpustiProj: "Otpusti",
+    zatraziPristup: "Zatraži pristup", zahtjevPoslan: "Zahtjev poslan vlasniku.",
+    slobodanProj: "slobodan", nacrtao: "nacrtao", preuzmiPitanje: "Preuzeti ovaj projekat (samo ti ćeš moći uređivati)?",
+    otpustiPitanje: "Otpustiti projekat (drugi će moći preuzeti)?",
     zoomOut: "Umanji", zoomIn: "Uvećaj", zoomFit: "Cijela godina",
     zDani: "dani", zSedmice: "sedmice", zMjeseci: "mjeseci",
     stOtvoreno: "otvoreno", stUToku: "u toku", stZavrseno: "završeno",
@@ -95,6 +99,10 @@ const I18N = {
     chDp: "Progress per DP — % done",
     tlHint: "drag = new slot (open) · double-click = done · right-click = edit · drag edge = extend · Ctrl+wheel = zoom",
     kasniPitanje: "Slot ends BEFORE today — reason for delay (required):",
+    preuzmiProj: "Claim project", vlasnikLbl: "owner", otpustiProj: "Release",
+    zatraziPristup: "Request access", zahtjevPoslan: "Request sent to owner.",
+    slobodanProj: "free", nacrtao: "drawn by", preuzmiPitanje: "Claim this project (only you will be able to edit)?",
+    otpustiPitanje: "Release project (others can claim it)?",
     zoomOut: "Zoom out", zoomIn: "Zoom in", zoomFit: "Whole year",
     zDani: "days", zSedmice: "weeks", zMjeseci: "months",
     stOtvoreno: "open", stUToku: "in progress", stZavrseno: "done",
@@ -175,6 +183,10 @@ const I18N = {
     chDp: "Fortschritt je DP — % fertig",
     tlHint: "Ziehen = neuer Termin (offen) · Doppelklick = fertig · Rechtsklick = bearbeiten · Rand ziehen = verlängern · Strg+Mausrad = Zoom",
     kasniPitanje: "Termin endet VOR heute — Verzögerungsgrund (Pflicht):",
+    preuzmiProj: "Projekt übernehmen", vlasnikLbl: "Eigentümer", otpustiProj: "Freigeben",
+    zatraziPristup: "Zugang anfragen", zahtjevPoslan: "Anfrage an Eigentümer gesendet.",
+    slobodanProj: "frei", nacrtao: "gezeichnet von", preuzmiPitanje: "Projekt übernehmen (nur du kannst bearbeiten)?",
+    otpustiPitanje: "Projekt freigeben (andere können übernehmen)?",
     zoomOut: "Verkleinern", zoomIn: "Vergrößern", zoomFit: "Ganzes Jahr",
     zDani: "Tage", zSedmice: "Wochen", zMjeseci: "Monate",
     stOtvoreno: "offen", stUToku: "laufend", stZavrseno: "fertig",
@@ -357,11 +369,75 @@ async function api(url, method = "GET", body = null) {
   if (!r.ok) {
     /* izvuci čitljivu poruku iz {"error": "..."} ako je JSON */
     const txt = await r.text();
-    let msg = txt;
-    try { msg = JSON.parse(txt).error || txt; } catch (e) { /* plain text */ }
-    throw new Error(msg);
+    let msg = txt, data = null;
+    try { data = JSON.parse(txt); msg = data.error || txt; } catch (e) { /* plain text */ }
+    const err = new Error(msg);
+    err.status = r.status; err.data = data;
+    throw err;
   }
   return r.status === 204 ? null : r.json();
+}
+
+/* ---------- claim / vlasništvo projekta ---------- */
+function projOwner(projekt) { return (DATA.claims && DATA.claims[projekt]) || null; }
+function myEmail() { return ((window.AUTH && window.AUTH.email) || "").toLowerCase(); }
+function canEditProjekt(projekt) {
+  if (window.AUTH && window.AUTH.is_admin) return true;
+  const o = projOwner(projekt);
+  return !o || (o.email || "").toLowerCase() === myEmail();
+}
+function taskProjekt(taskId) {
+  const tk = DATA.tasks.find(x => x.id === taskId);
+  const dp = tk && DATA.dps.find(d => d.id === tk.dp_id);
+  return dp ? dp.projekt : null;
+}
+/* greška servera: 403 zaključan -> ponudi zahtjev za pristup; ostalo -> alert */
+async function handleApiErr(e) {
+  if (e && e.status === 403 && e.data && e.data.projekt) {
+    if (await uiConfirm(`🔒 ${e.message} Zatraži pristup?`)) {
+      try { await api("/api/claims/request", "POST", { projekt: e.data.projekt });
+        uiToast(t("zahtjevPoslan")); } catch (x) { /* ignore */ }
+    }
+    return;
+  }
+  uiAlert(String((e && e.message) || e), "error");
+}
+function lockToast(projekt) {
+  const o = projOwner(projekt);
+  uiToast(`🔒 ${t("vlasnikLbl")}: ${o ? (o.name || o.email) : "?"}`, "warning");
+}
+/* claim kontrola u filter panelu — vidljiva kad je izabran tačno jedan projekat */
+function renderProjClaim() {
+  const pc = $("#projClaim");
+  if (!pc) return;
+  if (!PROJ.name) { pc.innerHTML = ""; return; }
+  const o = projOwner(PROJ.name);
+  const mine = !!o && ((o.email || "").toLowerCase() === myEmail() ||
+                       (window.AUTH && window.AUTH.is_admin));
+  if (!o) {
+    pc.innerHTML = `<span class="claim-lbl">📁 ${esc(PROJ.name)}</span>` +
+      `<span class="claim-free">🔓 ${t("slobodanProj")}</span>` +
+      `<button class="btn sm primary" id="btnClaim">${t("preuzmiProj")}</button>`;
+  } else {
+    pc.innerHTML = `<span class="claim-lbl">📁 ${esc(PROJ.name)}</span>` +
+      `<span class="claim-chip${mine ? " mine" : ""}">🔒 ${t("vlasnikLbl")}: <b>${esc(o.name || o.email)}</b></span>` +
+      (mine ? `<button class="btn sm" id="btnRelease">${t("otpustiProj")}</button>`
+            : `<button class="btn sm" id="btnReqAccess">${t("zatraziPristup")}</button>`);
+  }
+  $("#btnClaim")?.addEventListener("click", async () => {
+    if (!await uiConfirm(t("preuzmiPitanje"))) return;
+    try { await api("/api/claims", "POST", { projekt: PROJ.name }); await load(); }
+    catch (e) { handleApiErr(e); }
+  });
+  $("#btnRelease")?.addEventListener("click", async () => {
+    if (!await uiConfirm(t("otpustiPitanje"))) return;
+    try { await api("/api/claims?projekt=" + encodeURIComponent(PROJ.name), "DELETE"); await load(); }
+    catch (e) { handleApiErr(e); }
+  });
+  $("#btnReqAccess")?.addEventListener("click", async () => {
+    try { await api("/api/claims/request", "POST", { projekt: PROJ.name }); uiToast(t("zahtjevPoslan")); }
+    catch (e) { handleApiErr(e); }
+  });
 }
 
 /* ---------- lijepi dijalozi (SweetAlert2, kao ULAZNE-FAKTURE) ---------- */
@@ -785,7 +861,10 @@ function renderTimeline(keepScroll) {
           <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(dp.pop)}</span><b>${esc(dp.naziv)}</b>
             ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">⏱ ${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}
             ${lateCnt ? `<span class="latecnt" title="${t("kasniTip")}">⏰ ${lateCnt}</span>` : ""}</div>
-          <span class="meta">${dp.lokacija ? esc(dp.lokacija) + " · " : ""}HP ${dp.hp} · HA ${dp.ha}</span></div>
+          <span class="meta">${dp.lokacija ? esc(dp.lokacija) + " · " : ""}HP ${dp.hp} · HA ${dp.ha}${(() => {
+            const o = projOwner(dp.projekt);
+            return o ? ` · <span class="ownb" title="${t("vlasnikLbl")}">🔒 ${esc(o.name || o.email)}</span>` : "";
+          })()}</span></div>
         <div class="gr-side"><span class="pbar"><i style="width:${pct}%"></i></span>
           <span class="pct">${pct}%</span>
           <button class="gbtn delDp" title="Obriši DP">🗑</button></div>
@@ -893,6 +972,8 @@ function bindTimeline() {
           popCtx || $("dialog[open]")) return;
       e.preventDefault();
       const taskId = +track.closest(".tl-row").dataset.task;
+      /* zaključan projekat -> ne crtaj (samo vlasnik/admin) */
+      if (!canEditProjekt(taskProjekt(taskId))) { lockToast(taskProjekt(taskId)); return; }
       /* jedna aktivnost = JEDNA traka: ako termin postoji, zasvijetli ga umjesto crtanja */
       const existing = DATA.segments.find(s => s.task_id === taskId);
       if (existing) { flashSegs(s => s.id === existing.id); return; }
@@ -916,10 +997,12 @@ function bindTimeline() {
       e.stopPropagation();
       const s = DATA.segments.find(x => x.id === +sg.dataset.seg);
       if (!s) return;
+      if (!canEditProjekt(taskProjekt(s.task_id))) return lockToast(taskProjekt(s.task_id));
       const cur = s.status;
       const next = cur === "završeno" ? "otvoreno" : "završeno";
       s.status = next;
-      await api(`/api/segments/${s.id}`, "PATCH", { status: next });
+      try { await api(`/api/segments/${s.id}`, "PATCH", { status: next }); }
+      catch (err) { s.status = cur; return handleApiErr(err); }
       pushUndo({ label: t("statusLbl"),
         run: async () => api(`/api/segments/${s.id}`, "PATCH", { status: cur }) });
       renderAll();
@@ -954,7 +1037,7 @@ function bindTimeline() {
     /* snimi DP + sve aktivnosti i termine za undo (vraćanje cijele grane) */
     const snap = snapshotDp(dpId);
     try { await api(`/api/dps/${dpId}`, "DELETE"); }
-    catch (e) { return uiAlert(String(e.message || e), "error"); }
+    catch (e) { return handleApiErr(e); }
     pushUndo({ label: t("obrisi") + " DP", run: () => restoreDp(snap) });
     await load();
   }));
@@ -964,7 +1047,7 @@ function bindTimeline() {
     if (!await uiConfirm(tf("confDelAkt", tk.aktivnost))) return;
     const seg = DATA.segments.find(s => s.task_id === id);
     try { await api(`/api/tasks/${id}`, "DELETE"); }
-    catch (e) { return uiAlert(String(e.message || e), "error"); }
+    catch (e) { return handleApiErr(e); }
     /* undo: ponovo kreiraj aktivnost + njen termin (ako ga je imala) */
     pushUndo({ label: t("obrisi"), run: async () => {
       const r = await api("/api/tasks", "POST",
@@ -1096,7 +1179,7 @@ document.addEventListener("mouseup", async e => {
     r = await api("/api/segments", "POST",
       { task_id: taskId, datum_od: od, datum_do: do_, status: "otvoreno", kasni_razlog });
   } catch (e) {
-    return uiAlert(String(e.message || e), "error");   // 409/400/500 -> jasna poruka, čist UI
+    return handleApiErr(e);   // 409/400/500 -> jasna poruka, čist UI
   }
   if (!r || !r.id) return;
   DATA.segments.push({ id: r.id, task_id: taskId, datum_od: od, datum_do: do_,
@@ -1318,7 +1401,7 @@ $("#popSave").addEventListener("click", async () => {
     body.task_id = popCtx.taskId;
     let r;
     try { r = await api("/api/segments", "POST", body); }
-    catch (e) { return uiAlert(String(e.message || e), "error"); }  // popover ostaje, jasna greška
+    catch (e) { return handleApiErr(e); }  // popover ostaje, jasna greška
     DATA.segments.push({ id: r.id, ...body });
     pushUndo({ label: t("noviTermin"),
       run: async () => api(`/api/segments/${r.id}`, "DELETE") });
@@ -1327,7 +1410,7 @@ $("#popSave").addEventListener("click", async () => {
     const segId = popCtx.segId;
     const old = { ...DATA.segments.find(s => s.id === segId) };
     try { await api(`/api/segments/${segId}`, "PATCH", body); }
-    catch (e) { return uiAlert(String(e.message || e), "error"); }  // ne diraj lokalno stanje na grešci
+    catch (e) { return handleApiErr(e); }  // ne diraj lokalno stanje na grešci
     Object.assign(DATA.segments.find(s => s.id === segId), body);
     pushUndo({ label: t("urediTermin"), run: async () => {
       await api(`/api/segments/${segId}`, "PATCH", {
@@ -1374,7 +1457,8 @@ function hcShow(el, ev) {
     hcEl.innerHTML = `
     <div class="hc-head"><span class="hc-dot" style="background:${aktColor(tk.aktivnost)}"></span>
       <b>${esc(tk.aktivnost || "")}</b><span class="hc-st ${stCls}">${esc(stT(s.status))}</span></div>
-    <div class="hc-ctx">${esc(dp.pop || "")} <i>▸</i> <b>${esc(dp.naziv || "")}</b></div>
+    <div class="hc-ctx">${esc(dp.pop || "")} <i>▸</i> <b>${esc(dp.naziv || "")}</b>${s.created_by
+      ? ` <span class="hc-by">✎ ${t("nacrtao")} ${esc(s.created_by)}</span>` : ""}</div>
     <div class="hc-when">
       <span class="hc-d"><i>${t("od")}</i><b>${fmt(s.datum_od)}</b><em>KW${isoWeekOf(s.datum_od)}</em></span>
       <span class="hc-arrow">→</span>
@@ -1594,6 +1678,8 @@ function renderProj() {
     s.status === "u toku" ? t("syncUToku") :
     s.status === "greška" ? `${t("syncGreska")}: ${s.error || ""}` :
     s.time ? `${t("syncLbl")} ${s.time.replace("T", " ")}` : "";
+
+  renderProjClaim();
 
   const f = projFiltered();
   const sum = k => f.reduce((a, p) => a + (p[k] || 0), 0);
@@ -1980,11 +2066,15 @@ async function shiftAll(days) {
   const ids = drawerTaskIds();
   const segs = DATA.segments.filter(s => ids.has(s.task_id));
   if (!segs.length) return;
+  const dp = SEL && SEL.type === "dp" && DATA.dps.find(d => d.id === SEL.id);
+  if (dp && !canEditProjekt(dp.projekt)) return lockToast(dp.projekt);
   if (!await uiConfirm(`${t("pomjeriSve")}: ${segs.length} × ${days > 0 ? "+" : ""}${days}d?`)) return;
-  for (const s of segs) {
-    await api(`/api/segments/${s.id}`, "PATCH",
-      { datum_od: addDays(s.datum_od, days), datum_do: addDays(s.datum_do, days) });
-  }
+  try {
+    for (const s of segs) {
+      await api(`/api/segments/${s.id}`, "PATCH",
+        { datum_od: addDays(s.datum_od, days), datum_do: addDays(s.datum_do, days) });
+    }
+  } catch (e) { await load(); return handleApiErr(e); }
   const moved = segs.map(s => s.id);
   pushUndo({ label: t("pomjeriSve"), run: async () => {
     for (const id of moved) {
@@ -2018,7 +2108,8 @@ async function loadComments() {
 async function sendComment() {
   const v = $("#drCIn").value.trim();
   if (!v || !SEL || SEL.type !== "dp") return;
-  await api("/api/comments", "POST", { dp_id: SEL.id, tekst: v });
+  try { await api("/api/comments", "POST", { dp_id: SEL.id, tekst: v }); }
+  catch (e) { return handleApiErr(e); }
   $("#drCIn").value = "";
   loadComments();
   histDirty();
@@ -2100,7 +2191,8 @@ async function drNum(k) {
   if (!SEL) return;
   const v = Math.max(0, Math.round(+$(k === "hp" ? "#drHp" : "#drHa").value || 0));
   const url = SEL.type === "pop" ? `/api/pops/${SEL.id}` : `/api/dps/${SEL.id}`;
-  await api(url, "PATCH", { [k]: v });
+  try { await api(url, "PATCH", { [k]: v }); }
+  catch (e) { await load(); return handleApiErr(e); }
   const obj = SEL.type === "pop" ? DATA.pops.find(p => p.id === SEL.id)
                                  : DATA.dps.find(d => d.id === SEL.id);
   if (obj) obj[k] = v;
@@ -2120,26 +2212,32 @@ $("#drRename").addEventListener("click", async () => {
   if (SEL.type === "pop" && F.pop.has(obj.naziv)) {
     F.pop.delete(obj.naziv); F.pop.add(v.trim());
   }
-  await api(SEL.type === "pop" ? `/api/pops/${SEL.id}` : `/api/dps/${SEL.id}`,
-    "PATCH", { naziv: v.trim() });
+  try {
+    await api(SEL.type === "pop" ? `/api/pops/${SEL.id}` : `/api/dps/${SEL.id}`,
+      "PATCH", { naziv: v.trim() });
+  } catch (e) { return handleApiErr(e); }
   await load();
 });
 $("#drDel").addEventListener("click", async () => {
   if (!SEL) return;
-  if (SEL.type === "pop") {
-    const p = DATA.pops.find(x => x.id === SEL.id);
-    if (!p) return;
-    const n = DATA.dps.filter(d => d.pop_id === p.id).length;
-    if (!await uiConfirm(tf("confDelPop", p.naziv, n))) return;
-    F.pop.delete(p.naziv);
-    await api(`/api/pops/${SEL.id}`, "DELETE");
-  } else {
-    const d = DATA.dps.find(x => x.id === SEL.id);
-    if (!d) return;
-    if (!await uiConfirm(tf("confDelDp", `${d.pop} · ${d.naziv}`))) return;
-    F.dp.delete(d.id);
-    await api(`/api/dps/${SEL.id}`, "DELETE");
-  }
+  try {
+    if (SEL.type === "pop") {
+      const p = DATA.pops.find(x => x.id === SEL.id);
+      if (!p) return;
+      const n = DATA.dps.filter(d => d.pop_id === p.id).length;
+      if (!await uiConfirm(tf("confDelPop", p.naziv, n))) return;
+      F.pop.delete(p.naziv);
+      await api(`/api/pops/${SEL.id}`, "DELETE");
+    } else {
+      const d = DATA.dps.find(x => x.id === SEL.id);
+      if (!d) return;
+      if (!await uiConfirm(tf("confDelDp", `${d.pop} · ${d.naziv}`))) return;
+      const snap = snapshotDp(d.id);
+      await api(`/api/dps/${SEL.id}`, "DELETE");
+      F.dp.delete(d.id);
+      pushUndo({ label: t("obrisi") + " DP", run: () => restoreDp(snap) });
+    }
+  } catch (e) { return handleApiErr(e); }
   SEL = null; closeDrawer();
   await load();
 });

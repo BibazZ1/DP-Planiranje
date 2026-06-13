@@ -121,6 +121,47 @@ def _late_reason_missing(status, datum_do, kasni_razlog):
             and not (kasni_razlog or "").strip())
 
 
+# ==================================================================================
+# 🔒 CLAIM: vlasništvo projekta — ko preuzme projekat, samo on (+admin) uređuje
+# ==================================================================================
+def _claim(projekt):
+    if not projekt:
+        return None
+    return db().execute(
+        "SELECT owner_email, owner_name FROM project_claims WHERE projektname=%s",
+        (projekt,)).fetchone()
+
+
+def _require_project_edit(projekt):
+    """None ako smije uređivati, inače Flask (response, 403). Admin uvijek smije;
+    neclaimovan projekat smije svako; claimovan samo vlasnik."""
+    if getattr(g, "is_admin", False):
+        return None
+    c = _claim(projekt)
+    if c is None or (c["owner_email"] or "").lower() == (g.user_email or "").lower():
+        return None
+    who = c["owner_name"] or c["owner_email"]
+    return jsonify({"error": f"Projekt je preuzeo {who} — zatraži pristup.",
+                    "locked_by": who, "projekt": projekt}), 403
+
+
+def _dp_projekt(dp_id):
+    r = db().execute("SELECT projekt FROM dps WHERE id=%s", (dp_id,)).fetchone()
+    return r["projekt"] if r else None
+
+
+def _task_projekt(task_id):
+    r = db().execute("SELECT d.projekt FROM tasks t JOIN dps d ON d.id=t.dp_id "
+                     "WHERE t.id=%s", (task_id,)).fetchone()
+    return r["projekt"] if r else None
+
+
+def _seg_projekt(seg_id):
+    r = db().execute("SELECT d.projekt FROM segments s JOIN tasks t ON t.id=s.task_id "
+                     "JOIN dps d ON d.id=t.dp_id WHERE s.id=%s", (seg_id,)).fetchone()
+    return r["projekt"] if r else None
+
+
 # --- Sync iz Azure SQL (SREDJENI_Daily) u Postgres, agregirano po projektu ---
 _sync_state = {"status": "nikad", "time": None, "error": None, "count": 0}
 _sync_lock = threading.Lock()
@@ -416,8 +457,11 @@ def api_data():
     history = [dict(r) for r in db().execute(
         'SELECT seg_id, ts, "user", polje, vrijednost FROM seg_history '
         "ORDER BY ts DESC, id DESC LIMIT 500")]
+    claims = {r["projektname"]: {"email": r["owner_email"], "name": r["owner_name"]}
+              for r in db().execute(
+                  "SELECT projektname, owner_email, owner_name FROM project_claims")}
     return jsonify({"dps": dps, "pops": pops, "tasks": tasks, "segments": segments,
-                    "history": history})
+                    "history": history, "claims": claims})
 
 
 @app.route("/api/pops", methods=["POST"])
@@ -428,6 +472,9 @@ def add_pop():
     projekt = (j.get("projekt") or "").strip()
     if not naziv:
         return jsonify({"error": "naziv je obavezan"}), 400
+    blk = _require_project_edit(projekt)
+    if blk:
+        return blk
     ex = db().execute("SELECT id FROM pops WHERE naziv=%s AND projekt=%s",
                       (naziv, projekt)).fetchone()
     if ex:
@@ -449,6 +496,9 @@ def edit_pop(pop_id):
     old = db().execute("SELECT * FROM pops WHERE id=%s", (pop_id,)).fetchone()
     if old is None:
         return jsonify({"error": "ne postoji"}), 404
+    blk = _require_project_edit(old["projekt"])
+    if blk:
+        return blk
     if request.method == "DELETE":
         for d_ in db().execute("SELECT id, naziv FROM dps WHERE pop_id=%s",
                                (pop_id,)).fetchall():
@@ -508,6 +558,9 @@ def add_dp():
     if prow is not None:
         pop_id, pop_name = prow["id"], prow["naziv"]
         projekt = prow["projekt"] or projekt
+    blk = _require_project_edit(projekt)
+    if blk:
+        return blk
     naziv = j.get("naziv", "")
     hp, ha = _int(j.get("hp")), _int(j.get("ha"))
     cur = d.execute(
@@ -528,6 +581,10 @@ def add_dp():
 @api_login_required
 def edit_dp(dp_id):
     old = db().execute("SELECT * FROM dps WHERE id=%s", (dp_id,)).fetchone()
+    if old is not None:
+        blk = _require_project_edit(old["projekt"])
+        if blk:
+            return blk
     if request.method == "DELETE":
         db().execute("DELETE FROM dps WHERE id=%s", (dp_id,))
         if old is not None:
@@ -553,6 +610,9 @@ def edit_dp(dp_id):
 @api_login_required
 def add_task():
     j = request.get_json(force=True)
+    blk = _require_project_edit(_dp_projekt(j["dp_id"]))
+    if blk:
+        return blk
     akt = j.get("aktivnost", "Nova aktivnost")
     cur = db().execute(
         "INSERT INTO tasks(dp_id,aktivnost,odjel) VALUES(%s,%s,%s) RETURNING id",
@@ -569,8 +629,12 @@ def add_task():
 @api_login_required
 def edit_task(task_id):
     old = db().execute(
-        "SELECT t.*, d.naziv AS dp_naziv FROM tasks t JOIN dps d ON d.id=t.dp_id "
-        "WHERE t.id=%s", (task_id,)).fetchone()
+        "SELECT t.*, d.naziv AS dp_naziv, d.projekt AS projekt FROM tasks t "
+        "JOIN dps d ON d.id=t.dp_id WHERE t.id=%s", (task_id,)).fetchone()
+    if old is not None:
+        blk = _require_project_edit(old["projekt"])
+        if blk:
+            return blk
     if request.method == "DELETE":
         db().execute("DELETE FROM tasks WHERE id=%s", (task_id,))
         if old is not None:
@@ -596,6 +660,9 @@ def edit_task(task_id):
 @api_login_required
 def add_segment():
     j = request.get_json(force=True)
+    blk = _require_project_edit(_task_projekt(j["task_id"]))
+    if blk:
+        return blk
     # jedna aktivnost = JEDNA traka: drugi termin na istom redu nije dozvoljen
     ex = db().execute("SELECT id FROM segments WHERE task_id=%s",
                       (j["task_id"],)).fetchone()
@@ -607,10 +674,11 @@ def add_segment():
         return jsonify({"error": "razlog produženja je obavezan — termin završava prije danas"}), 400
     cur = db().execute(
         "INSERT INTO segments(task_id,datum_od,datum_do,status,komentar,eskalacija,"
-        "esk_razlog,esk_datum,kasni_razlog) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+        "esk_razlog,esk_datum,kasni_razlog,created_by) "
+        "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (j["task_id"], j["datum_od"], j["datum_do"], j.get("status", "otvoreno"),
          j.get("komentar", ""), 1 if j.get("eskalacija") else 0, j.get("esk_razlog", ""),
-         j.get("esk_datum", ""), j.get("kasni_razlog", "")))
+         j.get("esk_datum", ""), j.get("kasni_razlog", ""), req_user()))
     seg_id = cur.fetchone()["id"]
     log_hist(seg_id, "kreirano",
              f"{j['datum_od']} – {j['datum_do']} · {j.get('status', 'otvoreno')}")
@@ -626,6 +694,9 @@ def add_segment():
 @app.route("/api/segments/<int:seg_id>", methods=["PATCH", "DELETE"])
 @api_login_required
 def edit_segment(seg_id):
+    blk = _require_project_edit(_seg_projekt(seg_id))
+    if blk:
+        return blk
     if request.method == "DELETE":
         # zapamti u trajni dnevnik prije brisanja (seg_history nestaje s terminom)
         info = db().execute(
@@ -680,6 +751,63 @@ def get_comments():
     return jsonify({"comments": rows})
 
 
+# ==================================================================================
+# 🔒 CLAIM endpoints: preuzmi / otpusti projekat, zatraži pristup
+# ==================================================================================
+@app.route("/api/claims", methods=["POST"])
+@api_login_required
+def claim_project():
+    j = request.get_json(force=True)
+    projekt = (j.get("projekt") or "").strip()
+    if not projekt:
+        return jsonify({"error": "projekt je obavezan"}), 400
+    c = _claim(projekt)
+    if c and (c["owner_email"] or "").lower() != g.user_email and not g.is_admin:
+        return jsonify({"error": f"Već preuzeo {c['owner_name'] or c['owner_email']}",
+                        "locked_by": c["owner_name"] or c["owner_email"]}), 403
+    db().execute(
+        "INSERT INTO project_claims(projektname,owner_email,owner_name,claimed_at) "
+        "VALUES(%s,%s,%s,%s) ON CONFLICT(projektname) DO UPDATE SET "
+        "owner_email=EXCLUDED.owner_email, owner_name=EXCLUDED.owner_name, claimed_at=EXCLUDED.claimed_at",
+        (projekt, g.user_email, g.user_name, now_iso()))
+    audit("projekt", 0, "preuzet", novo=g.user_name, label=projekt)
+    db().commit()
+    return jsonify({"owner_email": g.user_email, "owner_name": g.user_name}), 201
+
+
+@app.route("/api/claims", methods=["DELETE"])
+@api_login_required
+def release_project():
+    projekt = (request.args.get("projekt") or "").strip()
+    c = _claim(projekt)
+    if not c:
+        return jsonify({"ok": True})
+    if (c["owner_email"] or "").lower() != g.user_email and not g.is_admin:
+        return jsonify({"error": "Samo vlasnik ili admin može otpustiti projekat"}), 403
+    db().execute("DELETE FROM project_claims WHERE projektname=%s", (projekt,))
+    audit("projekt", 0, "otpušten", staro=c["owner_name"] or c["owner_email"], label=projekt)
+    db().commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/claims/request", methods=["POST"])
+@api_login_required
+def request_project_access():
+    j = request.get_json(force=True)
+    projekt = (j.get("projekt") or "").strip()
+    c = _claim(projekt)
+    if not c:
+        return jsonify({"error": "Projekat nije preuzet"}), 400
+    dom = os.environ.get("APP_DOMAIN", "")
+    send_mail([c["owner_email"]],
+              f"Zahtjev za pristup projektu: {projekt}",
+              f"<p style='font-family:sans-serif'><b>{g.user_name}</b> ({g.user_email}) "
+              f"traži pristup uređivanju projekta <b>{projekt}</b>.<br>"
+              f"Ako želiš, otpusti projekat u aplikaciji da preuzme uređivanje.</p>"
+              f"<p><a href='{dom}'>Otvori DP Planiranje →</a></p>")
+    return jsonify({"ok": True, "owner": c["owner_name"] or c["owner_email"]})
+
+
 @app.route("/api/comments", methods=["POST"])
 @api_login_required
 def add_comment():
@@ -688,6 +816,9 @@ def add_comment():
     dp_id = j.get("dp_id")
     if not tekst or not dp_id:
         return jsonify({"error": "prazan komentar"}), 400
+    blk = _require_project_edit(_dp_projekt(dp_id))
+    if blk:
+        return blk
     cur = db().execute(
         'INSERT INTO dp_comments(dp_id,ts,"user",tekst) '
         "VALUES(%s,%s,%s,%s) RETURNING id",
