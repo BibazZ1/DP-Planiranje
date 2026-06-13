@@ -71,9 +71,6 @@ const I18N = {
     shiftPitanje: "Pomjeriti i sve sljedeće aktivnosti ovog DP-a?",
     komentariTitle: "Komentari", komentarPh: "Dodaj komentar…",
     nemaKom: "još nema komentara", vrati: "Vrati zadnju promjenu",
-    snimiPlan: "Plan", snapTip: "Snimi trenutni plan kao baseline (👻 ghost trake)",
-    ghostTip: "Prikaži/sakrij snimljeni plan", snapPitanje: "Snimiti trenutni plan kao baseline?",
-    planSnimljen: "Plan snimljen — termina", planTip: "snimljeni plan",
     depTip: "počinje prije kraja", rokProsao: "prošao prije", rokZa: "za",
     planVs: "Plan (DP) vs izvedeno (Daily)",
     planVsHint: "plan = Σ HP/HA unesenih na DP-ovima · izvedeno = Azure Daily",
@@ -154,9 +151,6 @@ const I18N = {
     shiftPitanje: "Also shift all later activities of this DP?",
     komentariTitle: "Comments", komentarPh: "Add a comment…",
     nemaKom: "no comments yet", vrati: "Undo last change",
-    snimiPlan: "Plan", snapTip: "Snapshot current plan as baseline (👻 ghost bars)",
-    ghostTip: "Show/hide snapshotted plan", snapPitanje: "Snapshot the current plan as baseline?",
-    planSnimljen: "Plan snapshotted — segments", planTip: "snapshotted plan",
     depTip: "starts before the end of", rokProsao: "overdue by", rokZa: "in",
     planVs: "Plan (DP) vs actual (Daily)",
     planVsHint: "plan = Σ HP/HA entered on DPs · actual = Azure Daily",
@@ -237,9 +231,6 @@ const I18N = {
     shiftPitanje: "Auch alle späteren Aktivitäten dieses DP verschieben?",
     komentariTitle: "Kommentare", komentarPh: "Kommentar hinzufügen…",
     nemaKom: "noch keine Kommentare", vrati: "Letzte Änderung rückgängig",
-    snimiPlan: "Plan", snapTip: "Aktuellen Plan als Baseline speichern (👻)",
-    ghostTip: "Gespeicherten Plan ein-/ausblenden", snapPitanje: "Aktuellen Plan als Baseline speichern?",
-    planSnimljen: "Plan gespeichert — Termine", planTip: "gespeicherter Plan",
     depTip: "beginnt vor dem Ende von", rokProsao: "überfällig seit", rokZa: "in",
     planVs: "Plan (DP) vs Ist (Daily)",
     planVsHint: "Plan = Σ HP/HA der DPs · Ist = Azure Daily",
@@ -363,7 +354,13 @@ async function api(url, method = "GET", body = null) {
   });
   /* sesija istekla -> nazad na Microsoft prijavu */
   if (r.status === 401) { location.href = "/login"; return null; }
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    /* izvuci čitljivu poruku iz {"error": "..."} ako je JSON */
+    const txt = await r.text();
+    let msg = txt;
+    try { msg = JSON.parse(txt).error || txt; } catch (e) { /* plain text */ }
+    throw new Error(msg);
+  }
   return r.status === 204 ? null : r.json();
 }
 
@@ -954,14 +951,29 @@ function bindTimeline() {
     const dpId = +b.closest(".tl-row").dataset.dp;
     const dp = DATA.dps.find(d => d.id === dpId);
     if (!await uiConfirm(tf("confDelDp", `${dp.pop} · ${dp.naziv}`))) return;
-    await api(`/api/dps/${dpId}`, "DELETE");
+    /* snimi DP + sve aktivnosti i termine za undo (vraćanje cijele grane) */
+    const snap = snapshotDp(dpId);
+    try { await api(`/api/dps/${dpId}`, "DELETE"); }
+    catch (e) { return uiAlert(String(e.message || e), "error"); }
+    pushUndo({ label: t("obrisi") + " DP", run: () => restoreDp(snap) });
     await load();
   }));
   $$("#tlScroll .rowdel").forEach(b => b.addEventListener("click", async () => {
     const id = +b.closest(".tl-row").dataset.task;
     const tk = DATA.tasks.find(x => x.id === id);
     if (!await uiConfirm(tf("confDelAkt", tk.aktivnost))) return;
-    await api(`/api/tasks/${id}`, "DELETE");
+    const seg = DATA.segments.find(s => s.task_id === id);
+    try { await api(`/api/tasks/${id}`, "DELETE"); }
+    catch (e) { return uiAlert(String(e.message || e), "error"); }
+    /* undo: ponovo kreiraj aktivnost + njen termin (ako ga je imala) */
+    pushUndo({ label: t("obrisi"), run: async () => {
+      const r = await api("/api/tasks", "POST",
+        { dp_id: tk.dp_id, aktivnost: tk.aktivnost, odjel: tk.odjel });
+      if (r && r.id && seg) await api("/api/segments", "POST", {
+        task_id: r.id, datum_od: seg.datum_od, datum_do: seg.datum_do, status: seg.status,
+        komentar: seg.komentar, eskalacija: seg.eskalacija, esk_razlog: seg.esk_razlog,
+        esk_datum: seg.esk_datum, kasni_razlog: seg.kasni_razlog });
+    } });
     await load();
   }));
   $$("#tlScroll .gr-info").forEach(el => el.addEventListener("click", () => {
@@ -1079,8 +1091,13 @@ document.addEventListener("mouseup", async e => {
     kasni_razlog = (await uiPrompt(t("kasniPitanje"), "") || "").trim();
     if (!kasni_razlog) return;              // bez razloga nema kreiranja
   }
-  const r = await api("/api/segments", "POST",
-    { task_id: taskId, datum_od: od, datum_do: do_, status: "otvoreno", kasni_razlog });
+  let r;
+  try {
+    r = await api("/api/segments", "POST",
+      { task_id: taskId, datum_od: od, datum_do: do_, status: "otvoreno", kasni_razlog });
+  } catch (e) {
+    return uiAlert(String(e.message || e), "error");   // 409/400/500 -> jasna poruka, čist UI
+  }
   if (!r || !r.id) return;
   DATA.segments.push({ id: r.id, task_id: taskId, datum_od: od, datum_do: do_,
     status: "otvoreno", komentar: "", eskalacija: 0, esk_razlog: "", esk_datum: "",
@@ -1102,6 +1119,33 @@ document.addEventListener("keydown", e => {
 /* ---------- undo: vrati zadnju promjenu (stack u memoriji sesije) ---------- */
 const UNDO = [];
 function addDays(s, n) { const d = new Date(s); d.setDate(d.getDate() + n); return iso(d); }
+/* snimak DP-a (sa svim terminima) za undo brisanja */
+function snapshotDp(dpId) {
+  const dp = DATA.dps.find(d => d.id === dpId);
+  const tasks = DATA.tasks.filter(x => x.dp_id === dpId);
+  const tIds = new Set(tasks.map(x => x.id));
+  const byId = {}; tasks.forEach(x => (byId[x.id] = x));
+  return {
+    dp: dp ? { ...dp } : null,
+    segs: DATA.segments.filter(s => tIds.has(s.task_id))
+      .map(s => ({ ...s, aktivnost: (byId[s.task_id] || {}).aktivnost })),
+  };
+}
+async function restoreDp(snap) {
+  if (!snap || !snap.dp) return;
+  const d = snap.dp;
+  const r = await api("/api/dps", "POST", { pop: d.pop, projekt: d.projekt,
+    naziv: d.naziv, lokacija: d.lokacija, voditelj: d.voditelj, hp: d.hp, ha: d.ha });
+  if (!r || !r.id) return;
+  const fresh = await api("/api/data");                 // nove (standardne) aktivnosti
+  const newTasks = (fresh.tasks || []).filter(x => x.dp_id === r.id);
+  for (const s of snap.segs) {
+    const tk = newTasks.find(x => x.aktivnost === s.aktivnost);
+    if (tk) await api("/api/segments", "POST", { task_id: tk.id, datum_od: s.datum_od,
+      datum_do: s.datum_do, status: s.status, komentar: s.komentar, eskalacija: s.eskalacija,
+      esk_razlog: s.esk_razlog, esk_datum: s.esk_datum, kasni_razlog: s.kasni_razlog });
+  }
+}
 function pushUndo(op) {
   UNDO.push(op);
   if (UNDO.length > 30) UNDO.shift();
@@ -1272,7 +1316,9 @@ $("#popSave").addEventListener("click", async () => {
   }
   if (popCtx.mode === "new") {
     body.task_id = popCtx.taskId;
-    const r = await api("/api/segments", "POST", body);
+    let r;
+    try { r = await api("/api/segments", "POST", body); }
+    catch (e) { return uiAlert(String(e.message || e), "error"); }  // popover ostaje, jasna greška
     DATA.segments.push({ id: r.id, ...body });
     pushUndo({ label: t("noviTermin"),
       run: async () => api(`/api/segments/${r.id}`, "DELETE") });
@@ -1280,7 +1326,8 @@ $("#popSave").addEventListener("click", async () => {
   } else {
     const segId = popCtx.segId;
     const old = { ...DATA.segments.find(s => s.id === segId) };
-    await api(`/api/segments/${segId}`, "PATCH", body);
+    try { await api(`/api/segments/${segId}`, "PATCH", body); }
+    catch (e) { return uiAlert(String(e.message || e), "error"); }  // ne diraj lokalno stanje na grešci
     Object.assign(DATA.segments.find(s => s.id === segId), body);
     pushUndo({ label: t("urediTermin"), run: async () => {
       await api(`/api/segments/${segId}`, "PATCH", {

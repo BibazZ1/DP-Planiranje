@@ -143,10 +143,13 @@ function ok(name, cond, extra = "") {
   const tasks = data.tasks.filter(t => t.dp_id === dpT1.id);
   const tIskop = tasks.find(t => t.aktivnost.includes("Iskopni"));
   const tAkt = tasks.find(t => /aktivacij/i.test(t.aktivnost));
+  // prošli rok + otvoreno -> server zahtijeva kasni_razlog (poslovno pravilo)
   await page.request.post(BASE + "/api/segments", { data: {
-    task_id: tIskop.id, datum_od: "2026-03-02", datum_do: "2026-03-15", status: "otvoreno" } });
+    task_id: tIskop.id, datum_od: "2026-03-02", datum_do: "2026-03-15", status: "otvoreno",
+    kasni_razlog: "test kasni" } });
   await page.request.post(BASE + "/api/segments", { data: {
-    task_id: tAkt.id, datum_od: "2026-05-04", datum_do: "2026-05-17", status: "otvoreno" } });
+    task_id: tAkt.id, datum_od: "2026-05-04", datum_do: "2026-05-17", status: "otvoreno",
+    kasni_razlog: "test kasni" } });
   await page.request.post(BASE + "/api/segments", { data: {
     task_id: tasks.find(t => t.aktivnost === "Dozvole").id,
     datum_od: "2026-07-06", datum_do: "2026-07-19", status: "završeno" } });
@@ -404,6 +407,39 @@ function ok(name, cond, extra = "") {
   await page.locator("#tbody .btn.danger").last().click();
   await page.waitForTimeout(800);
   ok("admin: korisnik uklonjen", !(await page.locator("#tbody").textContent()).includes("test.e2e@gfcbh.ba"));
+
+  // ---------- 16. Batch 1: server-side validacija + čišćenje + delete undo ----------
+  const d2 = await (await page.request.get(BASE + "/api/data")).json();
+  const freeTask = d2.tasks.find(tk => !d2.segments.some(s => s.task_id === tk.id));
+  if (freeTask) {
+    const bad = await page.request.post(BASE + "/api/segments", { data: {
+      task_id: freeTask.id, datum_od: "2026-01-05", datum_do: "2026-01-19", status: "otvoreno" } });
+    ok("server: 400 na termin u prošlosti bez razloga", bad.status() === 400);
+    const good = await page.request.post(BASE + "/api/segments", { data: {
+      task_id: freeTask.id, datum_od: "2026-01-05", datum_do: "2026-01-19", status: "otvoreno",
+      kasni_razlog: "kasnio teren" } });
+    ok("server: 201 kad razlog postoji", good.status() === 201);
+  } else { ok("server-validacija: (preskočeno)", true); }
+
+  ok("/api/data bez baseline polja", !("baseline" in d2));
+  const stats = await (await page.request.get(BASE + "/api/stats")).json();
+  ok("/api/stats by_odjel bez utoku", (stats.by_odjel || []).every(r => !("utoku" in r)));
+  ok("/api/baseline uklonjen (404/405)",
+    [404, 405].includes((await page.request.post(BASE + "/api/baseline", { data: {} })).status()));
+
+  // delete-undo je DOM test -> vrati se na timeline (admin sekcija je ostavila /admin)
+  await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".tl-row.group .delDp", { timeout: 10000 });
+  const dCount = async () => (await (await page.request.get(BASE + "/api/data")).json()).dps.length;
+  const beforeDel = await dCount();
+  await page.locator(".tl-row.group .delDp").first().click();
+  await page.waitForSelector(".swal2-confirm", { timeout: 5000 });
+  await page.click(".swal2-confirm");
+  await page.waitForTimeout(900);
+  ok("DP obrisan", (await dCount()) === beforeDel - 1);
+  await page.click("#btnUndo");
+  await page.waitForTimeout(1800);
+  ok("undo vraća obrisani DP", (await dCount()) === beforeDel);
 
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));

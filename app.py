@@ -113,6 +113,14 @@ def log_hist(seg_id, polje, vrijednost):
         (seg_id, now_iso(), req_user(), polje, str(vrijednost)))
 
 
+def _late_reason_missing(status, datum_do, kasni_razlog):
+    """Poslovno pravilo (i na serveru, ne samo UI): termin koji završava PRIJE
+    danas a nije 'završeno' MORA imati razlog produženja."""
+    today = datetime.date.today().isoformat()
+    return (status != "završeno" and datum_do and datum_do < today
+            and not (kasni_razlog or "").strip())
+
+
 # --- Sync iz Azure SQL (SREDJENI_Daily) u Postgres, agregirano po projektu ---
 _sync_state = {"status": "nikad", "time": None, "error": None, "count": 0}
 _sync_lock = threading.Lock()
@@ -408,14 +416,8 @@ def api_data():
     history = [dict(r) for r in db().execute(
         'SELECT seg_id, ts, "user", polje, vrijednost FROM seg_history '
         "ORDER BY ts DESC, id DESC LIMIT 500")]
-    # baseline (👻 ghost trake) = zadnji snimak plana
-    base = db().execute("SELECT MAX(snap_ts) AS ts FROM baseline_segs").fetchone()
-    baseline = [dict(r) for r in db().execute(
-        "SELECT task_id, datum_od, datum_do FROM baseline_segs WHERE snap_ts=%s",
-        (base["ts"],))] if base and base["ts"] else []
     return jsonify({"dps": dps, "pops": pops, "tasks": tasks, "segments": segments,
-                    "history": history, "baseline": baseline,
-                    "baseline_ts": base["ts"] if base else None})
+                    "history": history})
 
 
 @app.route("/api/pops", methods=["POST"])
@@ -600,6 +602,9 @@ def add_segment():
     if ex:
         return jsonify({"error": "termin već postoji za ovu aktivnost",
                         "id": ex["id"]}), 409
+    if _late_reason_missing(j.get("status", "otvoreno"),
+                            j.get("datum_do", ""), j.get("kasni_razlog", "")):
+        return jsonify({"error": "razlog produženja je obavezan — termin završava prije danas"}), 400
     cur = db().execute(
         "INSERT INTO segments(task_id,datum_od,datum_do,status,komentar,eskalacija,"
         "esk_razlog,esk_datum,kasni_razlog) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
@@ -640,6 +645,11 @@ def edit_segment(seg_id):
     sets = {k: j[k] for k in SEG_FIELDS if k in j}
     if sets:
         old = db().execute("SELECT * FROM segments WHERE id=%s", (seg_id,)).fetchone()
+        if old is not None and _late_reason_missing(
+                sets.get("status", old["status"]),
+                sets.get("datum_do", old["datum_do"]),
+                sets.get("kasni_razlog", old["kasni_razlog"])):
+            return jsonify({"error": "razlog produženja je obavezan — termin završava prije danas"}), 400
         q = ", ".join(f"{k}=%s" for k in sets)
         db().execute(f"UPDATE segments SET {q} WHERE id=%s", (*sets.values(), seg_id))
         if old is not None:
@@ -686,22 +696,6 @@ def add_comment():
     audit("dp", dp_id, "komentar", novo=tekst[:120])
     db().commit()
     return jsonify({"id": cid}), 201
-
-
-@app.route("/api/baseline", methods=["POST"])
-@api_login_required
-def snap_baseline():
-    """📸 Snimi trenutni plan kao baseline — ghost trake pokazuju kasnija pomjeranja."""
-    snap = now_iso()
-    db().execute(
-        'INSERT INTO baseline_segs(snap_ts,"user",task_id,datum_od,datum_do,status) '
-        "SELECT %s, %s, task_id, datum_od, datum_do, status FROM segments",
-        (snap, req_user()))
-    n = db().execute("SELECT COUNT(*) AS n FROM baseline_segs WHERE snap_ts=%s",
-                     (snap,)).fetchone()["n"]
-    audit("baseline", 0, "plan snimljen", novo=f"{n} termina", label=snap)
-    db().commit()
-    return jsonify({"snap_ts": snap, "count": n}), 201
 
 
 @app.route("/api/projects")
@@ -766,7 +760,6 @@ def api_stats():
     by_odjel = [dict(r) for r in d.execute(
         "SELECT t.odjel, "
         " SUM(CASE WHEN s.status='završeno' THEN 1 ELSE 0 END) zavrseno, "
-        " SUM(CASE WHEN s.status='u toku' THEN 1 ELSE 0 END) utoku, "
         " SUM(CASE WHEN s.status='otvoreno' THEN 1 ELSE 0 END) otvoreno "
         "FROM segments s JOIN tasks t ON t.id=s.task_id GROUP BY t.odjel ORDER BY t.odjel")]
     per_dp = [dict(r) for r in d.execute(
@@ -864,12 +857,19 @@ def _digest_loop():
                 if cur.fetchone()[0]:
                     cur.execute("SELECT value FROM meta WHERE key='digest_sent'")
                     r = cur.fetchone()
-                    if (not r or r[0] != today) and send_mail(
-                            _emails(), "DP Planiranje — sedmični pregled", _digest_html()):
+                    if not r or r[0] != today:
+                        recipients = _emails()
+                        if not recipients:
+                            print("[MAIL] digest: nema primalaca (allowed_users prazna) — preskačem.")
+                        # zabilježi POKUŠAJ prije SMTP-a -> nema ponovnog slanja istog dana
+                        # ni kad SMTP tiho zakaže (inače loop spamuje svakih 30 min)
                         cur.execute(
                             "INSERT INTO meta(key,value) VALUES('digest_sent',%s) "
                             "ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value", (today,))
                         con.commit()
+                        if recipients and not send_mail(
+                                recipients, "DP Planiranje — sedmični pregled", _digest_html()):
+                            print("[MAIL] digest: slanje nije uspjelo (vidi gore).")
                     cur.execute("SELECT pg_advisory_unlock(727274002)")
                 con.close()
         except Exception as e:
