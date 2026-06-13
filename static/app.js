@@ -436,7 +436,7 @@ function renderProjClaim() {
                        (window.AUTH && window.AUTH.is_admin));
   if (!o) {
     pc.innerHTML = `<span class="claim-lbl">${esc(PROJ.name)}</span>` +
-      `<span class="claim-free">🔓 ${t("slobodanProj")}</span>` +
+      `<span class="claim-free">${t("slobodanProj")}</span>` +
       `<button class="btn sm primary" id="btnClaim">${t("preuzmiProj")}</button>`;
   } else {
     pc.innerHTML = `<span class="claim-lbl">${esc(PROJ.name)}</span>` +
@@ -1802,7 +1802,7 @@ function renderProj() {
 
   const card = (cls, val, lbl) =>
     `<div class="kpi ${cls}"><div class="num">${val}</div><div class="lbl">${lbl}</div></div>`;
-  /* 📈 plan (Σ HP/HA s DP-ova) vs izvedeno (Azure Daily) — kad je izabran projekat */
+  /* plan (Σ HP/HA s DP-ova) vs izvedeno (Azure Daily) — kad je izabran projekat */
   let pv = "";
   if (PROJ.name && f[0]) {
     const dpsOf = DATA.dps.filter(d => d.projekt === PROJ.name);
@@ -1814,13 +1814,13 @@ function renderProj() {
         <span class="pv-bar"><i style="width:${plan ? p : 0}%"></i></span>
         <span class="pv-num">${fmtNum(act)} / ${fmtNum(plan)} <b>${plan ? p + "%" : "—"}</b></span></div>`;
     };
-    pv = `<div class="pv-wrap"><h4>📈 ${t("planVs")}</h4>
+    pv = `<div class="pv-wrap"><h4>${t("planVs")}</h4>
       ${pvBar("HP", f[0].hp || 0, planHP)}
       ${pvBar("HA", f[0].ha_stck || 0, planHA)}
       <span class="hint">${t("planVsHint")}</span></div>`;
   }
   /* --- KPI kartice projekta -> idu u sekciju Analitika --- */
-  $("#projKpis").innerHTML = `<div class="proj-title">${PROJ.name ? "📌 " : ""}${title}
+  $("#projKpis").innerHTML = `<div class="proj-title">${title}
       ${PROJ.name && f[0] ? `<span class="proj-sub">${esc(f[0].kunde)} · code ${esc(f[0].projectcode)}</span>` : ""}
     </div>
     <div class="kpis proj-kpis">
@@ -2269,11 +2269,11 @@ function evText(e) {
     hp: "HP", ha: "HA", pop: "POP", projekt: t("projekat"),
     aktivnost: t("aktivnost"), odjel: t("fOdjel") };
   switch (e.action) {
-    case "kreirano": return `✚ ${t("aKreirano")}${e.novo ? ` · ${esc(e.novo)}` : ""}`;
+    case "kreirano": return `${t("aKreirano")}${e.novo ? ` · ${esc(e.novo)}` : ""}`;
     case "obrisano": return `${ICON.trash} ${t("aObrisano")}${e.staro ? ` · ${esc(e.staro)}` : ""}`;
     case "termin obrisan":
       return `${ICON.trash} ${t("aTerminObrisan")} · <em>${esc(e.polje)}</em> ${esc(e.staro)}`;
-    case "aktivnost dodana": return `✚ ${t("aAktDodana")} · <em>${esc(e.novo)}</em>`;
+    case "aktivnost dodana": return `${t("aAktDodana")} · <em>${esc(e.novo)}</em>`;
     case "aktivnost obrisana": return `${ICON.trash} ${t("aAktObrisana")} · <em>${esc(e.staro)}</em>`;
     default:
       return `${FL[e.polje] || esc(e.polje)}: ${esc(e.staro ?? "")} <i class="arr">→</i> ${esc(e.novo ?? "")}`;
