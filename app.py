@@ -674,11 +674,12 @@ def add_segment():
         return jsonify({"error": "razlog produženja je obavezan — termin završava prije danas"}), 400
     cur = db().execute(
         "INSERT INTO segments(task_id,datum_od,datum_do,status,komentar,eskalacija,"
-        "esk_razlog,esk_datum,kasni_razlog,created_by) "
-        "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+        "esk_razlog,esk_datum,kasni_razlog,created_by,orig_od,orig_do) "
+        "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (j["task_id"], j["datum_od"], j["datum_do"], j.get("status", "otvoreno"),
          j.get("komentar", ""), 1 if j.get("eskalacija") else 0, j.get("esk_razlog", ""),
-         j.get("esk_datum", ""), j.get("kasni_razlog", ""), req_user()))
+         j.get("esk_datum", ""), j.get("kasni_razlog", ""), req_user(),
+         j["datum_od"], j["datum_do"]))
     seg_id = cur.fetchone()["id"]
     log_hist(seg_id, "kreirano",
              f"{j['datum_od']} – {j['datum_do']} · {j.get('status', 'otvoreno')}")

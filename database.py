@@ -216,6 +216,12 @@ def init_db(permanent_admin=""):
         cur.execute(SCHEMA_SQL)
         # migracija: ko je nacrtao termin (atribucija "ko je stavljao vremena")
         cur.execute("ALTER TABLE segments ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT ''")
+        # migracija: originalna pozicija termina -> "ghost" kad se pomjeri (svi vide)
+        cur.execute("ALTER TABLE segments ADD COLUMN IF NOT EXISTS orig_od TEXT DEFAULT ''")
+        cur.execute("ALTER TABLE segments ADD COLUMN IF NOT EXISTS orig_do TEXT DEFAULT ''")
+        # postojeći termini: original = trenutna pozicija (bez ghosta dok se ne pomjere)
+        cur.execute("UPDATE segments SET orig_od=datum_od, orig_do=datum_do "
+                    "WHERE COALESCE(orig_od,'')='' ")
         # produkcija: NEMA demo seed podataka — POP/DP se kreiraju kroz aplikaciju
         if permanent_admin:
             cur.execute(

@@ -459,6 +459,48 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(1800);
   ok("undo vraća obrisani DP", (await dCount()) === beforeDel);
 
+  // ---------- 16c. zakašnjeli bubble (donji lijevi) + moved-ghost (originalna pozicija) ----------
+  await page.click("#pfClear").catch(() => {});   // bez filtera -> svi termini
+  await page.waitForTimeout(500);
+  const dLate = await (await page.request.get(BASE + "/api/data")).json();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const lateList = dLate.segments.filter(s => s.status !== "završeno" && s.datum_do < todayStr);
+  ok("bubble: ima kasnih termina (preduslov)", lateList.length > 0, `(${lateList.length})`);
+  const bub = page.locator("#lateBubble");
+  ok("bubble: vidljiv kad ima kasnih", await bub.isVisible());
+  ok("bubble: prikazuje tačan broj", (await bub.locator("b").textContent()).trim() === String(lateList.length));
+  await bub.click();
+  await page.waitForTimeout(300);
+  ok("bubble: klik otvara modal", await page.locator("#lateModal:not(.hidden)").isVisible());
+  ok("modal: redova = broj kasnih", (await page.locator("#lmList .lm-row").count()) === lateList.length);
+  await page.locator("#lmList .lm-row").first().click();
+  await page.waitForTimeout(400);
+  ok("modal: red otvara editor termina", await page.locator("#pop:not(.hidden)").isVisible());
+  ok("modal: datum-polja otkrivena (produženje)", (await page.locator("#popWhenEdit.hidden").count()) === 0);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  await bub.click();
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  ok("modal: Esc zatvara", (await page.locator("#lateModal.hidden").count()) === 1);
+
+  // moved-ghost: pomjeri termin -> originalna pozicija ostaje vidljiva svima
+  const moveSeg = lateList[0];
+  const mv = await page.request.patch(BASE + "/api/segments/" + moveSeg.id, { data: {
+    datum_od: addDaysStr(moveSeg.datum_od, 14), datum_do: addDaysStr(moveSeg.datum_do, 14),
+    kasni_razlog: moveSeg.kasni_razlog || "pomjereno za test" } });
+  ok("moved-ghost: pomjeranje termina (PATCH ok)", mv.ok());
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(500);
+  const dMoved = await (await page.request.get(BASE + "/api/data")).json();
+  const movedNow = dMoved.segments.find(s => s.id === moveSeg.id);
+  ok("moved-ghost: orig_od ostao netaknut nakon pomjeranja",
+    movedNow && movedNow.orig_od === moveSeg.orig_od && movedNow.orig_od !== movedNow.datum_od);
+  ok("moved-ghost: original (👻) vidljiv u tabeli", (await page.locator(".movedghost").count()) >= 1);
+
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
   ok("nema JS grešaka u konzoli", realErrors.length === 0, JSON.stringify(realErrors.slice(0, 3)));

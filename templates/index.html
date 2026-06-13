@@ -277,6 +277,18 @@
   </div>
 </aside>
 
+<!-- plutajući brojač zakašnjelih (otvoreno + rok prošao) -->
+<button class="late-bubble hidden" id="lateBubble"
+        data-i18n-title="kasniBubbleTip" title="Termini kojima je rok prošao, a nisu završeni — klik za pregled"></button>
+<div class="late-modal hidden" id="lateModal">
+  <div class="lm-card glass">
+    <div class="lm-head"><b>⏰ <span data-i18n="kasniTitle">Kasne aktivnosti</span></b>
+      <span class="lm-hint" data-i18n="kasniModalHint">klik na red = produži rok i upiši razlog</span>
+      <button class="gbtn" id="lmClose" title="Esc">✕</button></div>
+    <div class="lm-list" id="lmList"></div>
+  </div>
+</div>
+
 <script>window.AUTH = {{ auth | tojson }};</script>
 <script src="/static/app.js?v={{ v }}"></script>
 </body>

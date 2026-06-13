@@ -19,6 +19,10 @@ const I18N = {
     zatraziPristup: "Zatraži pristup", zahtjevPoslan: "Zahtjev poslan vlasniku.",
     slobodanProj: "slobodan", nacrtao: "nacrtao", preuzmiPitanje: "Preuzeti ovaj projekat (samo ti ćeš moći uređivati)?",
     otpustiPitanje: "Otpustiti projekat (drugi će moći preuzeti)?",
+    kasniTitle: "Kasne aktivnosti", kasniModalHint: "klik na red = produži rok i upiši razlog",
+    kasniBubbleTip: "Termini kojima je rok prošao, a nisu završeni — klik za pregled",
+    kasniBubbleN: "kasni", nemaKasnih: "Nema zakašnjelih termina ✨",
+    origLbl: "originalno", pomjereno: "pomjereno", produzi: "Produži",
     zoomOut: "Umanji", zoomIn: "Uvećaj", zoomFit: "Cijela godina",
     zDani: "dani", zSedmice: "sedmice", zMjeseci: "mjeseci",
     stOtvoreno: "otvoreno", stUToku: "u toku", stZavrseno: "završeno",
@@ -103,6 +107,10 @@ const I18N = {
     zatraziPristup: "Request access", zahtjevPoslan: "Request sent to owner.",
     slobodanProj: "free", nacrtao: "drawn by", preuzmiPitanje: "Claim this project (only you will be able to edit)?",
     otpustiPitanje: "Release project (others can claim it)?",
+    kasniTitle: "Late activities", kasniModalHint: "click a row = extend the deadline and add a reason",
+    kasniBubbleTip: "Slots past their deadline and not finished — click to review",
+    kasniBubbleN: "late", nemaKasnih: "No overdue slots ✨",
+    origLbl: "original", pomjereno: "moved", produzi: "Extend",
     zoomOut: "Zoom out", zoomIn: "Zoom in", zoomFit: "Whole year",
     zDani: "days", zSedmice: "weeks", zMjeseci: "months",
     stOtvoreno: "open", stUToku: "in progress", stZavrseno: "done",
@@ -187,6 +195,10 @@ const I18N = {
     zatraziPristup: "Zugang anfragen", zahtjevPoslan: "Anfrage an Eigentümer gesendet.",
     slobodanProj: "frei", nacrtao: "gezeichnet von", preuzmiPitanje: "Projekt übernehmen (nur du kannst bearbeiten)?",
     otpustiPitanje: "Projekt freigeben (andere können übernehmen)?",
+    kasniTitle: "Verspätete Aktivitäten", kasniModalHint: "Zeile klicken = Frist verlängern und Grund eingeben",
+    kasniBubbleTip: "Termine über der Frist, nicht abgeschlossen — zum Ansehen klicken",
+    kasniBubbleN: "verspätet", nemaKasnih: "Keine überfälligen Termine ✨",
+    origLbl: "ursprünglich", pomjereno: "verschoben", produzi: "Verlängern",
     zoomOut: "Verkleinern", zoomIn: "Vergrößern", zoomFit: "Ganzes Jahr",
     zDani: "Tage", zSedmice: "Wochen", zMjeseci: "Monate",
     stOtvoreno: "offen", stUToku: "laufend", stZavrseno: "fertig",
@@ -541,7 +553,58 @@ function renderAll() {
   renderTimeline(true);
   renderStats();
   renderProj();   // DP čipovi u projekt-panelu prate iste filtere
+  renderLateBubble();
 }
+
+/* ---------- plutajući brojač zakašnjelih termina (otvoreno + rok prošao) ---------- */
+function lateSegs() {
+  return DATA.segments.filter(segLate).sort((a, b) =>
+    (a.datum_do < b.datum_do ? -1 : 1));   // najstariji rok prvi
+}
+function renderLateBubble() {
+  const b = $("#lateBubble");
+  if (!b) return;
+  const n = lateSegs().length;
+  b.classList.toggle("hidden", n === 0);
+  b.innerHTML = `⏰ <b>${n}</b> ${t("kasniBubbleN")}`;
+}
+function dpOf(seg) {
+  const tk = DATA.tasks.find(x => x.id === seg.task_id) || {};
+  return DATA.dps.find(d => d.id === tk.dp_id) || {};
+}
+function aktOf(seg) {
+  return (DATA.tasks.find(x => x.id === seg.task_id) || {}).aktivnost || "";
+}
+function openLateModal() {
+  const list = lateSegs();
+  $("#lmList").innerHTML = list.length ? list.map(s => {
+    const dp = dpOf(s);
+    return `<button class="lm-row" data-seg="${s.id}">
+      <span class="lm-d">⏰ +${lateDays(s)}d</span>
+      <span class="lm-b"><b>${esc(dp.pop || "")} · ${esc(dp.naziv || "")}</b>
+        <i>${esc(aktOf(s))} · ${fmt(s.datum_od).slice(0, 6)}–${fmt(s.datum_do).slice(0, 6)}</i></span>
+      <span class="lm-go">${t("produzi") || "Produži"} →</span>
+    </button>`;
+  }).join("") : `<div class="dr-h empty">${t("nemaKasnih")}</div>`;
+  $$("#lmList .lm-row").forEach(row => row.addEventListener("click", () => {
+    const segId = +row.dataset.seg;
+    const s = DATA.segments.find(x => x.id === segId);
+    closeLateModal();
+    if (!s) return;
+    ensureDpSelected(s.task_id);
+    /* otvori editor termina, odmah otkrij datume da se rok produži + traži razlog */
+    openPop("edit", segId, innerWidth / 2 - 150, 120);
+    $("#popWhenEdit").classList.remove("hidden");
+    $("#popDo").focus();
+  }));
+  $("#lateModal").classList.remove("hidden");
+}
+function closeLateModal() { $("#lateModal").classList.add("hidden"); }
+$("#lateBubble").addEventListener("click", openLateModal);
+$("#lmClose").addEventListener("click", closeLateModal);
+$("#lateModal").addEventListener("mousedown", e => {
+  if (e.target.id === "lateModal") closeLateModal();   // klik na pozadinu zatvara
+});
 
 /* ---------- aktivni filteri (pilule + brojač) — kao dashboard ULAZNE-FAKTURE ---------- */
 function activeFilterList() {
@@ -825,7 +888,7 @@ function renderTimeline(keepScroll) {
   const segsByTask = {};
   for (const s of DATA.segments) (segsByTask[s.task_id] ||= []).push(s);
   /* prevodi unaprijed: unutar petlje "for (const t of rows)" t je TASK, ne i18n! */
-  const txtKasni = t("kasniTip"), txtDep = t("depTip");
+  const txtKasni = t("kasniTip"), txtDep = t("depTip"), txtOrig = t("origLbl");
 
   let html = headerBands(totalW);
   let anyRow = false;
@@ -895,6 +958,13 @@ function renderTimeline(keepScroll) {
         const x = a * PX, w = Math.max(PX, (b - a + 1) * PX);
         const dim = !segMatch(s);
         const cls = s.status === "završeno" ? "st-zavrseno" : "st-otvoreno";
+        /* 👻 originalna pozicija — ostaje vidljiva kad se termin pomjeri (svi vide) */
+        if (s.orig_od && s.orig_do && (s.orig_od !== s.datum_od || s.orig_do !== s.datum_do)) {
+          const ga = Math.max(0, dayIdx(s.orig_od)), gb = Math.min(n - 1, dayIdx(s.orig_do));
+          if (gb >= 0 && ga <= n - 1)
+            segs += `<i class="movedghost" title="${txtOrig}: ${fmt(s.orig_od)} – ${fmt(s.orig_do)}" ` +
+              `style="left:${ga * PX}px;width:${Math.max(PX, (gb - ga + 1) * PX)}px"></i>`;
+        }
         /* zakašnjeli (auto-produženi) dio: od planiranog kraja do danas
            - s razlogom: ljubičasta šrafura · bez razloga: crveno-bijela, traži unos */
         let overlays = "";
@@ -1193,6 +1263,7 @@ document.addEventListener("mouseup", async e => {
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
+    if (!$("#lateModal").classList.contains("hidden")) { closeLateModal(); return; }
     if (drag) { drag = null; dragTipHide(); $$(".ghost").forEach(g => g.remove()); }
     if (popCtx) closePop();
     else if (SEL && !$("dialog[open]")) deselect();   // skini DP, zadrži projekat
