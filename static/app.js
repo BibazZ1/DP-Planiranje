@@ -874,23 +874,19 @@ function headerBands(totalW) {
     const w = (b - a) * PX;
     months += `<div class="hb" style="left:${a * PX}px;width:${w}px">${w > 46 ? MJESECI[m] : MJESECI[m].slice(0, 3)}</div>`;
   }
-  /* sedmice (KW): ćelija nosi SAMO broj; "KW" se imenuje jednom (legenda lijevo).
-     prva ćelija u mjesecu dobija jaču liniju (poklapa se s mjesečnim separatorom) */
+  /* sedmice (KW): ćelija nosi SAMO broj sedmice (bez "KW" prefiksa — to bi se zbijalo
+     i clipalo). "KW" je imenovan u legendi lijevo, koja je uvijek vidljiva. */
   let weeks = "";
   const wpx = 7 * PX;
-  const skip = wpx >= 22 ? 1 : wpx >= 12 ? 2 : 4;
+  const skip = wpx >= 14 ? 1 : wpx >= 8 ? 2 : 4;
   let d = new Date(yearStart());
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));   // ponedjeljak na/prije 1.1.
   const todayI = dayIdx(todayIso());
-  let lastM = -1;   // "KW" se ispiše samo na prvoj sedmici mjeseca (ne na svakoj)
   while (d < new Date(YEAR + 1, 0, 1)) {
     const a = Math.round((d - yearStart()) / 864e5);
     const kw = isoWeekOf(d);
     const isNow = todayI >= a && todayI < a + 7;
-    const show = skip === 1 || kw % skip === 0;
-    let lbl = "";
-    if (show) { const m = d.getMonth(); lbl = (m !== lastM ? "KW " : "") + kw; lastM = m; }
-    weeks += `<div class="hb${isNow ? " todayw" : ""}" style="left:${Math.max(0, a * PX)}px;width:${wpx - Math.max(0, -a * PX)}px">${lbl}</div>`;
+    weeks += `<div class="hb${isNow ? " todayw" : ""}" style="left:${Math.max(0, a * PX)}px;width:${wpx - Math.max(0, -a * PX)}px">${skip === 1 || kw % skip === 0 ? kw : ""}</div>`;
     d.setDate(d.getDate() + 7);
   }
   /* dani: SAMO datum (bez dana u sedmici) — čisto i stane; 1. u mjesecu = jača linija */

@@ -236,12 +236,14 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 .tl-head-band.days .hb.m1{border-left:1px solid rgba(255,255,255,.22)}
 .tl-head-band.days .hb.we{background:rgba(255,255,255,.04);color:#65758d}
 .tl-head-band.days .hb.today{color:var(--teal);font-weight:700}
-/* legenda traka (lijevo u zaglavlju): koja traka je MJESEC / KW / DAN */
+/* legenda traka (lijevo u zaglavlju): koja traka je MJESEC / KW / DAN — uvijek jasno vidljiva */
 .band-legend{position:absolute;right:0;top:0;bottom:0;display:flex;flex-direction:column;
-  align-items:flex-end;z-index:6;pointer-events:none;padding-right:7px;
-  background:linear-gradient(90deg,transparent,rgba(24,35,53,.97) 55%)}
+  align-items:flex-end;z-index:6;pointer-events:none;padding-right:8px;
+  background:linear-gradient(90deg,transparent,rgba(24,35,53,.99) 45%)}
 .band-legend span{display:flex;align-items:center;justify-content:flex-end;
-  font:700 8px var(--mono);letter-spacing:.6px;color:#6b7b93;text-transform:uppercase}
+  font:700 9px var(--mono);letter-spacing:.8px;color:#aab9d0;text-transform:uppercase}
+/* KW red u legendi istaknut (teal) — "KW" uvijek jasno vidljiv */
+.band-legend span:nth-child(2){color:var(--teal)}
 
 /* group row */
 .tl-row.group .tl-label{background:linear-gradient(90deg,rgba(16,28,46,.97),rgba(11,18,30,.95));
