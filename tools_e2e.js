@@ -474,18 +474,31 @@ function ok(name, cond, extra = "") {
   const lateList = dLate.segments.filter(s => s.status !== "završeno" && s.datum_do < todayStr);
   ok("kasni: ima zakašnjelih (preduslov)", lateList.length > 0, `(${lateList.length})`);
   ok("kasni: NEMA plutajućeg balona (uklonjen)", (await page.locator("#lateBubble").count()) === 0);
-  ok("kasni: 'N kasni' čip u redu DP-a", (await page.locator(".gr-strip .gs-late").count()) >= 1);
-  await page.locator(".gr-strip .gs-late").first().click();
+  // ukupni "kasni" čip u filteru svijetli (glow) dok ima zakašnjelih
+  ok("kasni: ukupni čip u filteru svijetli (glow)",
+    (await page.locator(".slicers .chip.late.glow").count()) === 1);
+  // kasni po DP-u -> modal SAMO za taj DP (scoped)
+  const lateByDp = {};
+  for (const s of lateList) {
+    const tk = dLate.tasks.find(t => t.id === s.task_id);
+    if (tk) lateByDp[tk.dp_id] = (lateByDp[tk.dp_id] || 0) + 1;
+  }
+  const lateDpId = Object.keys(lateByDp)[0];
+  ok("kasni: 'N kasni' čip u redu DP-a", (await page.locator(`.tl-row.group[data-dp="${lateDpId}"] .gs-late`).count()) >= 1);
+  await page.locator(`.tl-row.group[data-dp="${lateDpId}"] .gs-late`).click();
   await page.waitForTimeout(300);
   ok("kasni: klik na čip otvara modal", await page.locator("#lateModal:not(.hidden)").isVisible());
-  ok("modal: redova = broj kasnih", (await page.locator("#lmList .lm-row").count()) === lateList.length);
+  ok("modal (per-DP): redova = kasni SAMO tog DP-a",
+    (await page.locator("#lmList .lm-row").count()) === lateByDp[lateDpId], `(${lateByDp[lateDpId]})`);
+  ok("modal (per-DP): zaglavlje pokazuje opseg (DP)",
+    ((await page.locator("#lmScope").innerText()) || "").trim().length > 0);
   await page.locator("#lmList .lm-row").first().click();
   await page.waitForTimeout(400);
   ok("modal: red otvara editor termina", await page.locator("#pop:not(.hidden)").isVisible());
   ok("modal: datum-polja otkrivena (produženje)", (await page.locator("#popWhenEdit.hidden").count()) === 0);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
-  await page.locator(".gr-strip .gs-late").first().click();
+  await page.locator(`.tl-row.group[data-dp="${lateDpId}"] .gs-late`).click();
   await page.waitForTimeout(200);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);

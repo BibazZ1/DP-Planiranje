@@ -630,8 +630,15 @@ function dpOf(seg) {
 function aktOf(seg) {
   return (DATA.tasks.find(x => x.id === seg.task_id) || {}).aktivnost || "";
 }
-function openLateModal() {
-  const list = lateSegs();
+function openLateModal(dpId) {
+  let list = lateSegs();
+  if (dpId) list = list.filter(s => (DATA.tasks.find(t => t.id === s.task_id) || {}).dp_id === dpId);
+  /* opseg u zaglavlju: konkretan DP (samo njegovi kasni) ili svi */
+  const scope = $("#lmScope");
+  if (scope) {
+    const dp = dpId ? (DATA.dps.find(d => d.id === dpId) || {}) : null;
+    scope.textContent = dp ? `${dp.pop || ""} · ${dp.naziv || ""}` : "";
+  }
   $("#lmList").innerHTML = list.length ? list.map(s => {
     const dp = dpOf(s);
     return `<button class="lm-row" data-seg="${s.id}">
@@ -827,7 +834,7 @@ function renderSlicers() {
       ${chip(`${stT("otvoreno")}${cnt(nSt("otvoreno"))}`, "mini st-otvoreno", F.st.has("otvoreno"), `data-st="otvoreno"`)}
       ${chip(`${stT("završeno")}${cnt(nSt("završeno"))}`, "mini st-zavrseno", F.st.has("završeno"), `data-st="završeno"`)}
       ${chip(`${t("eskChip")}${cnt(nEsk)}`, "mini esk", F.esk, `data-esk="1" title="${t("eskChip")}"`)}
-      ${chip(`${t("kasniChip")}${cnt(DATA.segments.filter(segLate).length)}`, "mini late", F.kasni, `data-late="1" title="${t("kasniTip")}"`)}
+      ${chip(`${t("kasniChip")}${cnt(DATA.segments.filter(segLate).length)}`, "mini late" + (DATA.segments.filter(segLate).length ? " glow" : ""), F.kasni, `data-late="1" title="${t("kasniTip")}"`)}
     </div>
     <div class="sl-row">
       <span class="sl-lbl">${t("odjelLbl")}</span>
@@ -1239,9 +1246,10 @@ function bindTimeline() {
     e.stopPropagation();
     openDpDialog(+b.dataset.pop);
   }));
-  /* inline traka grupnog reda: "N kasni" -> modal za produženje; "Preuzmi" -> claim */
+  /* inline traka grupnog reda: "N kasni" -> modal SAMO za taj DP; "Preuzmi" -> claim */
   $$("#tlScroll .gs-late").forEach(b => b.addEventListener("click", e => {
-    e.stopPropagation(); openLateModal();
+    e.stopPropagation();
+    openLateModal(+b.closest(".tl-row").dataset.dp);
   }));
   $$("#tlScroll .gs-claim").forEach(b => b.addEventListener("click", e => {
     e.stopPropagation(); doClaim(b.dataset.claim);
