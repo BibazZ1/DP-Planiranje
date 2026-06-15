@@ -915,64 +915,222 @@ def api_stats():
     return jsonify({"by_status": by_status, "by_odjel": by_odjel, "per_dp": per_dp})
 
 
-def _seg_rows():
-    return db().execute(
-        'SELECT d.pop AS "POP/FCP ID", d.naziv AS "DP", d.lokacija AS "Lokacija", '
-        ' d.voditelj AS "Voditelj", d.hp AS "HP", d.ha AS "HA", '
-        ' t.aktivnost AS "Aktivnost", t.odjel AS "Odjel", s.status AS "Status", '
-        ' s.datum_od AS "Od", s.datum_do AS "Do", '
-        " CASE s.eskalacija WHEN 1 THEN 'da' ELSE 'ne' END AS \"Eskalacija\", "
-        " CASE WHEN s.status <> 'završeno' AND s.datum_do < to_char(CURRENT_DATE,'YYYY-MM-DD') "
-        "      THEN (CURRENT_DATE - s.datum_do::date)::text ELSE '' END AS \"Kasni (dana)\", "
-        ' s.esk_datum AS "Datum eskalacije", s.esk_razlog AS "Razlog eskalacije", '
-        ' s.kasni_razlog AS "Razlog kašnjenja", s.komentar AS "Komentar" '
+def _to_date(s):
+    """'YYYY-MM-DD' ili ISO timestamp -> datetime.date (za prave datume u Excelu)."""
+    if not s:
+        return None
+    try:
+        return datetime.date.fromisoformat(str(s)[:10])
+    except (ValueError, TypeError):
+        return None
+
+
+# Definicije kolona: (Zaglavlje, ključ, tip)  tip: t=tekst, i=cijeli broj, f=decimalni, d=datum
+TERMINI_COLS = [
+    ("Projekt", "projekt", "t"), ("Kunde", "kunde", "t"), ("Projectcode", "projectcode", "t"),
+    ("POP/FCP ID", "pop", "t"), ("DP", "dp", "t"), ("Lokacija", "lokacija", "t"),
+    ("Voditelj", "voditelj", "t"), ("HP", "dp_hp", "i"), ("HA", "dp_ha", "i"),
+    ("Aktivnost", "aktivnost", "t"), ("Odjel", "odjel", "t"), ("Status", "status", "t"),
+    ("Od", "datum_od", "d"), ("Do", "datum_do", "d"), ("Trajanje (dana)", "trajanje", "i"),
+    ("Kasni (dana)", "kasni", "i"), ("Eskalacija", "eskalacija_txt", "t"),
+    ("Datum eskalacije", "esk_datum", "d"), ("Razlog eskalacije", "esk_razlog", "t"),
+    ("Razlog kašnjenja", "kasni_razlog", "t"), ("Komentar", "komentar", "t"),
+    ("Kreirao", "created_by", "t"), ("Originalno od", "orig_od", "d"),
+    ("Originalno do", "orig_do", "d"), ("Pomjereno", "pomjereno", "t"),
+]
+DP_COLS = [
+    ("Projekt", "projekt", "t"), ("Kunde", "kunde", "t"), ("POP/FCP ID", "pop", "t"),
+    ("DP", "dp", "t"), ("Lokacija", "lokacija", "t"), ("Voditelj", "voditelj", "t"),
+    ("HP", "hp", "i"), ("HA", "ha", "i"), ("Vlasnik", "vlasnik", "t"),
+    ("Termina", "termina", "i"), ("Završeno", "zavrseno", "i"), ("% završeno", "pct", "i"),
+    ("Eskalacije", "esk", "i"), ("Kasni termina", "kasni", "i"), ("Rok (Aktivacije)", "rok", "d"),
+]
+POP_COLS = [
+    ("Projekt", "projekt", "t"), ("Kunde", "kunde", "t"), ("POP/FCP ID", "naziv", "t"),
+    ("HP", "hp", "i"), ("HA", "ha", "i"), ("Broj DP-ova", "dp_count", "i"),
+    ("Kreirao", "created_by", "t"), ("Kreirano", "created_at", "d"),
+]
+PROJ_COLS = [
+    ("Projekt", "projektname", "t"), ("Kunde", "kunde", "t"), ("Projectcode", "projectcode", "t"),
+    ("Vlasnik", "vlasnik", "t"), ("HP", "hp", "f"), ("Trasa (m)", "trasa_m", "f"),
+    ("HA (m)", "ha_m", "f"), ("HA kom", "ha_stck", "f"), ("Montaža", "montaza", "f"),
+    ("Datum od", "datum_od", "d"), ("Datum do", "datum_do", "d"), ("Zadnji sync", "synced_at", "d"),
+]
+KOM_COLS = [
+    ("Datum", "ts", "d"), ("Korisnik", "korisnik", "t"), ("Projekt", "projekt", "t"),
+    ("POP/FCP ID", "pop", "t"), ("DP", "dp", "t"), ("Komentar", "tekst", "t"),
+]
+
+
+def _termini_rows():
+    """Svi termini s punim kontekstom (projekt/kunde/DP) + izvedene kolone."""
+    rows = [dict(r) for r in db().execute(
+        "SELECT COALESCE(NULLIF(p.projekt,''), d.projekt) AS projekt, "
+        "       pr.kunde AS kunde, pr.projectcode AS projectcode, "
+        "       d.id AS dp_id, d.pop AS pop, d.naziv AS dp, d.lokacija AS lokacija, "
+        "       d.voditelj AS voditelj, d.hp AS dp_hp, d.ha AS dp_ha, "
+        "       t.aktivnost AS aktivnost, t.odjel AS odjel, s.status AS status, "
+        "       s.datum_od, s.datum_do, s.orig_od, s.orig_do, s.eskalacija, "
+        "       s.esk_datum, s.esk_razlog, s.kasni_razlog, s.komentar, s.created_by "
         "FROM segments s JOIN tasks t ON t.id=s.task_id JOIN dps d ON d.id=t.dp_id "
-        "ORDER BY d.pop, d.naziv, t.id, s.datum_od"
-    ).fetchall()
+        "LEFT JOIN pops p ON p.id=d.pop_id "
+        "LEFT JOIN projects pr ON pr.projektname=COALESCE(NULLIF(p.projekt,''), d.projekt) "
+        "ORDER BY projekt, d.pop, d.naziv, t.id, s.datum_od")]
+    today = datetime.date.today()
+    for r in rows:
+        od, do = _to_date(r["datum_od"]), _to_date(r["datum_do"])
+        r["trajanje"] = ((do - od).days + 1) if (od and do and do >= od) else None
+        r["kasni"] = (today - do).days if (do and r["status"] != "završeno" and do < today) else None
+        r["eskalacija_txt"] = "da" if r["eskalacija"] else "ne"
+        r["pomjereno"] = ("da" if (r.get("orig_od") and
+                          (r["orig_od"] != r["datum_od"] or r["orig_do"] != r["datum_do"])) else "ne")
+    return rows
+
+
+def _xlsx_sheet(wb, title, table_name, columns, rows):
+    """Jedan list: stilizovano zaglavlje, pravi tipovi (datumi/brojevi), Excel tabela
+    (filter + naizmjenične trake), zamrznut prvi red, automatska širina kolona."""
+    from openpyxl.styles import Font, Alignment
+    from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.table import Table, TableStyleInfo
+    ws = wb.create_sheet(title)
+    ws.append([c[0] for c in columns])
+    for ri, row in enumerate(rows, start=2):
+        for ci, (_, key, kind) in enumerate(columns, start=1):
+            v = row.get(key)
+            cell = ws.cell(row=ri, column=ci)
+            if kind == "d":
+                dv = _to_date(v)
+                if dv is not None:
+                    cell.value = dv
+                    cell.number_format = "DD.MM.YYYY"
+            elif kind == "i":
+                if v not in (None, "", "None"):
+                    try: cell.value = int(float(v))
+                    except (ValueError, TypeError): cell.value = v
+            elif kind == "f":
+                if v not in (None, ""):
+                    try: cell.value = round(float(v), 2)
+                    except (ValueError, TypeError): cell.value = v
+                    cell.number_format = "#,##0.##"
+            else:
+                cell.value = "" if v is None else str(v)
+    for j in range(1, len(columns) + 1):
+        c = ws.cell(row=1, column=j)
+        c.font = Font(bold=True, color="FFFFFF")
+        c.alignment = Alignment(horizontal="center", vertical="center")
+    # automatska širina iz zaglavlja + uzorka vrijednosti
+    for j, (head, key, _) in enumerate(columns, start=1):
+        mx = len(str(head))
+        for row in rows[:300]:
+            v = row.get(key)
+            mx = max(mx, len(str(v)) if v not in (None, "") else 0)
+        ws.column_dimensions[get_column_letter(j)].width = min(max(mx + 2, 9), 46)
+    last = get_column_letter(len(columns))
+    ref = "A1:%s%d" % (last, len(rows) + 1)
+    tab = Table(displayName=table_name, ref=ref)
+    tab.tableStyleInfo = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
+    ws.add_table(tab)
+    ws.freeze_panes = "A2"
+    return ws
 
 
 @app.route("/export/csv")
 @login_required
 def export_csv():
-    rows = _seg_rows()
+    """Glavna tabela (termini) sa svim kolonama; datumi u ISO formatu (Excel ih prepozna)."""
+    rows = _termini_rows()
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
-    if rows:
-        w.writerow(rows[0].keys())
-        for r in rows:
-            w.writerow(list(r.values()))
+    w.writerow([c[0] for c in TERMINI_COLS])
+    for r in rows:
+        w.writerow(["" if r.get(k) is None else r.get(k) for (_, k, _) in TERMINI_COLS])
     data = io.BytesIO(("﻿" + buf.getvalue()).encode("utf-8"))
-    return send_file(data, as_attachment=True, download_name="dp_planiranje.csv",
-                     mimetype="text/csv")
+    return send_file(data, as_attachment=True, mimetype="text/csv",
+                     download_name="dp_planiranje_" + datetime.date.today().isoformat() + ".csv")
 
 
 @app.route("/export/xlsx")
 @login_required
 def export_xlsx():
+    """Robustan Excel izvještaj: više listova (Termini, DP-ovi, POP-ovi, Projekti,
+    Komentari) — pravi datumi/brojevi, filteri i zamrznuta zaglavlja na svakom."""
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment
-    rows = _seg_rows()
+    d = db()
+    termini = _termini_rows()
+    claims = {r["projektname"]: r for r in d.execute(
+        "SELECT projektname, owner_name, owner_email FROM project_claims")}
+
+    # DP-ovi (svi, uklj. bez termina) + agregati iz termina
+    dps = [dict(r) for r in d.execute(
+        "SELECT d.id, COALESCE(NULLIF(p.projekt,''), d.projekt) AS projekt, pr.kunde AS kunde, "
+        "       d.pop AS pop, d.naziv AS dp, d.lokacija AS lokacija, d.voditelj AS voditelj, "
+        "       d.hp AS hp, d.ha AS ha "
+        "FROM dps d LEFT JOIN pops p ON p.id=d.pop_id "
+        "LEFT JOIN projects pr ON pr.projektname=COALESCE(NULLIF(p.projekt,''), d.projekt) "
+        "ORDER BY projekt, d.pop, d.naziv")]
+    agg = {}
+    for r in termini:
+        a = agg.setdefault(r["dp_id"], {"termina": 0, "zavrseno": 0, "esk": 0, "kasni": 0, "rok": None})
+        a["termina"] += 1
+        if r["status"] == "završeno":
+            a["zavrseno"] += 1
+        if r["eskalacija"]:
+            a["esk"] += 1
+        if r["kasni"]:
+            a["kasni"] += 1
+        if "aktivacij" in (r["aktivnost"] or "").lower() and r["datum_do"]:
+            if not a["rok"] or r["datum_do"] > a["rok"]:
+                a["rok"] = r["datum_do"]
+    for dp in dps:
+        a = agg.get(dp["id"], {})
+        dp["termina"] = a.get("termina", 0)
+        dp["zavrseno"] = a.get("zavrseno", 0)
+        dp["esk"] = a.get("esk", 0)
+        dp["kasni"] = a.get("kasni", 0)
+        dp["rok"] = a.get("rok")
+        dp["pct"] = round(a["zavrseno"] / a["termina"] * 100) if a.get("termina") else 0
+        c = claims.get(dp["projekt"])
+        dp["vlasnik"] = (c["owner_name"] or c["owner_email"]) if c else ""
+
+    # POP-ovi (uklj. one bez DP-a)
+    pops = [dict(r) for r in d.execute(
+        "SELECT p.id, p.projekt AS projekt, pr.kunde AS kunde, p.naziv AS naziv, "
+        "       p.hp AS hp, p.ha AS ha, p.created_by AS created_by, p.created_at AS created_at, "
+        "       COUNT(dd.id) AS dp_count "
+        "FROM pops p LEFT JOIN dps dd ON dd.pop_id=p.id "
+        "LEFT JOIN projects pr ON pr.projektname=p.projekt "
+        "GROUP BY p.id, pr.kunde ORDER BY p.projekt, p.naziv")]
+
+    # Projekti (Azure sync) + vlasnik
+    projects = [dict(r) for r in d.execute(
+        "SELECT projektname, kunde, projectcode, hp, trasa_m, ha_m, ha_stck, montaza, "
+        "       datum_od, datum_do, synced_at FROM projects ORDER BY kunde, projektname")]
+    for pr in projects:
+        c = claims.get(pr["projektname"])
+        pr["vlasnik"] = (c["owner_name"] or c["owner_email"]) if c else ""
+
+    # Komentari
+    comments = [dict(r) for r in d.execute(
+        'SELECT c.ts AS ts, c."user" AS korisnik, c.tekst AS tekst, '
+        "       d.pop AS pop, d.naziv AS dp, "
+        "       COALESCE(NULLIF(p.projekt,''), d.projekt) AS projekt "
+        "FROM dp_comments c JOIN dps d ON d.id=c.dp_id LEFT JOIN pops p ON p.id=d.pop_id "
+        "ORDER BY c.ts DESC")]
+
     wb = Workbook()
-    ws = wb.active
-    ws.title = "Plan"
-    if rows:
-        heads = list(rows[0].keys())
-        ws.append(heads)
-        for j in range(1, len(heads) + 1):
-            c = ws.cell(row=1, column=j)
-            c.font = Font(name="Arial", bold=True, color="FFFFFF")
-            c.fill = PatternFill("solid", fgColor="1F4E78")
-            c.alignment = Alignment(horizontal="center")
-        for r in rows:
-            ws.append(list(r.values()))
-        for col, w_ in zip("ABCDEFGHIJKLMNOPQ", (13, 7, 18, 16, 6, 6, 20, 15, 11, 12, 12, 11, 11, 13, 30, 30, 30)):
-            ws.column_dimensions[col].width = w_
-        ws.freeze_panes = "A2"
-        ws.auto_filter.ref = ws.dimensions
+    wb.remove(wb.active)   # ukloni prazni default list
+    _xlsx_sheet(wb, "Termini", "Termini", TERMINI_COLS, termini)
+    _xlsx_sheet(wb, "DP-ovi", "DPovi", DP_COLS, dps)
+    _xlsx_sheet(wb, "POP-ovi", "POPovi", POP_COLS, pops)
+    _xlsx_sheet(wb, "Projekti", "Projekti", PROJ_COLS, projects)
+    _xlsx_sheet(wb, "Komentari", "Komentari", KOM_COLS, comments)
+
     out = io.BytesIO()
     wb.save(out)
     out.seek(0)
-    return send_file(out, as_attachment=True, download_name="dp_planiranje.xlsx",
+    return send_file(out, as_attachment=True,
+                     download_name="dp_planiranje_" + datetime.date.today().isoformat() + ".xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
