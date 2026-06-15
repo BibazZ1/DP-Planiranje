@@ -476,10 +476,15 @@ function lockToast(projekt) {
   uiToast(`${t("vlasnikLbl")}: ${o ? (o.name || o.email) : "?"}`, "warning");
 }
 /* claim kontrola u filter panelu — vidljiva kad je izabran tačno jedan projekat */
-/* preuzmi projekat (iz panela ILI iz reda DP-a) */
+/* preuzmi / otpusti projekat (iz panela ILI iz reda DP-a) */
 async function doClaim(projekt) {
   if (!projekt || !await uiConfirm(t("preuzmiPitanje"))) return;
   try { await api("/api/claims", "POST", { projekt }); await load(); }
+  catch (e) { handleApiErr(e); }
+}
+async function doRelease(projekt) {
+  if (!projekt || !await uiConfirm(t("otpustiPitanje"))) return;
+  try { await api("/api/claims?projekt=" + encodeURIComponent(projekt), "DELETE"); await load(); }
   catch (e) { handleApiErr(e); }
 }
 function renderProjClaim() {
@@ -500,11 +505,7 @@ function renderProjClaim() {
             : `<button class="btn sm" id="btnReqAccess">${t("zatraziPristup")}</button>`);
   }
   $("#btnClaim")?.addEventListener("click", () => doClaim(PROJ.name));
-  $("#btnRelease")?.addEventListener("click", async () => {
-    if (!await uiConfirm(t("otpustiPitanje"))) return;
-    try { await api("/api/claims?projekt=" + encodeURIComponent(PROJ.name), "DELETE"); await load(); }
-    catch (e) { handleApiErr(e); }
-  });
+  $("#btnRelease")?.addEventListener("click", () => doRelease(PROJ.name));
   $("#btnReqAccess")?.addEventListener("click", async () => {
     try { await api("/api/claims/request", "POST", { projekt: PROJ.name }); uiToast(t("zahtjevPoslan")); }
     catch (e) { handleApiErr(e); }
@@ -976,9 +977,14 @@ function renderTimeline(keepScroll) {
     const lc = (DATA.last_comments || {})[dp.id];
     let strip = `<div class="gr-strip">`;
     if (lateCnt) strip += `<button class="gs-late" title="${t("kasniTip")}">${lateCnt} ${t("kasniBubbleN")}</button>`;
-    strip += owner
-      ? `<span class="gs-owner${ownerMine ? " mine" : ""}" title="${t("vlasnikLbl")}">${ICON.lock} ${esc(owner.name || owner.email)}</span>`
-      : `<button class="gs-claim" data-claim="${esc(dp.projekt)}" title="${t("preuzmiPitanje")}">${ICON.lock} ${t("preuzmiProj")}</button>`;
+    if (owner) {
+      strip += `<span class="gs-owner${ownerMine ? " mine" : ""}" title="${t("vlasnikLbl")}">${ICON.lock} ${esc(owner.name || owner.email)}</span>`;
+      /* vlasnik (ili admin) može otpustiti projekat direktno iz reda */
+      if (ownerMine || (window.AUTH && window.AUTH.is_admin))
+        strip += `<button class="gs-release" data-release="${esc(dp.projekt)}" title="${t("otpustiPitanje")}">${t("otpustiProj")}</button>`;
+    } else {
+      strip += `<button class="gs-claim" data-claim="${esc(dp.projekt)}" title="${t("preuzmiPitanje")}">${ICON.lock} ${t("preuzmiProj")}</button>`;
+    }
     if (lc) {
       const when = lc.ts ? fmt(String(lc.ts).slice(0, 10)) : "";
       const txt = String(lc.tekst || "");
@@ -1232,6 +1238,9 @@ function bindTimeline() {
   }));
   $$("#tlScroll .gs-claim").forEach(b => b.addEventListener("click", e => {
     e.stopPropagation(); doClaim(b.dataset.claim);
+  }));
+  $$("#tlScroll .gs-release").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation(); doRelease(b.dataset.release);
   }));
   $$("#tlScroll .act-name").forEach(el => el.addEventListener("dblclick", async () => {
     const id = +el.closest(".tl-row").dataset.task;

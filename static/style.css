@@ -959,6 +959,11 @@ span.flatpickr-weekday{color:#64748b!important}
   color:#fbbf24;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);
   border-radius:9999px;padding:3px 11px;white-space:nowrap}
 .gs-owner.mine{color:#34d399;background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.45)}
+/* "Otpusti" — sekundarno dugme uz vlasnika (otpuštanje direktno iz reda) */
+.gs-release{font:600 11px 'Inter',sans-serif;color:var(--mut);cursor:pointer;
+  background:rgba(255,255,255,.05);border:1px solid var(--line2);border-radius:9999px;
+  padding:4px 11px;transition:.15s}
+.gs-release:hover{color:#fca5a5;background:rgba(239,68,68,.14);border-color:rgba(239,68,68,.4)}
 /* "Preuzmi" — istaknuto, primarno dugme (preuzimanje direktno iz reda) */
 .gs-claim{display:inline-flex;align-items:center;gap:5px;font:700 11px 'Inter',sans-serif;
   color:#04110b;background:linear-gradient(135deg,#34d399,#10b981);border:0;

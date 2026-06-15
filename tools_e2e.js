@@ -596,6 +596,15 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(900);
   ok("traka: nakon preuzimanja prikazan vlasnik (.gs-owner)",
     (await page.locator(`.tl-row.group[data-dp="${freeDp.id}"] .gs-owner`).count()) === 1);
+  // otpuštanje direktno iz reda: "Otpusti" -> potvrda -> opet "Preuzmi"
+  const relBtn = page.locator(`.tl-row.group[data-dp="${freeDp.id}"] .gs-release`);
+  ok("traka: 'Otpusti' dugme za vlastiti projekat", (await relBtn.count()) === 1);
+  await relBtn.click();
+  await page.waitForSelector(".swal2-confirm", { timeout: 5000 });
+  await page.click(".swal2-confirm");
+  await page.waitForTimeout(900);
+  ok("traka: nakon otpuštanja projekat opet slobodan ('Preuzmi')",
+    (await page.locator(`.tl-row.group[data-dp="${freeDp.id}"] .gs-claim`).count()) === 1);
 
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
