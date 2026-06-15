@@ -26,6 +26,7 @@ def login(email, name):
     with c.session_transaction() as s:
         s["user_email"] = email
         s["user_name"] = name
+        s.pop("impersonate", None)   # svaka prijava kreće od čistog (bez impersonacije)
         s.permanent = True
 
 
@@ -66,6 +67,37 @@ login(USER, "User Dva")
 r = c.post("/api/segments", json={"task_id": tk["id"], "datum_od": "2026-09-01",
                                   "datum_do": "2026-09-07", "status": "otvoreno"})
 ok("poslije otpuštanja: non-admin smije uređivati (201)", r.status_code == 201)
+
+# ---------- impersonacija ("gledaj kao") — sigurnost + atribucija ----------
+login(ADMIN, "Admin")
+r = c.post("/api/admin/impersonate", json={"email": USER})
+ok("admin pokrene impersonaciju (200)", r.status_code == 200)
+
+# tokom impersonacije non-admina admin GUBI admin prava (vidi tačno kao taj korisnik)
+r = c.get("/api/admin/users")
+ok("impersonacija: admin API 403 (efektivno non-admin)", r.status_code == 403)
+
+# atribucija novih podataka ide na impersoniranog korisnika
+c.post("/api/pops", json={"naziv": "POP IMP", "projekt": "IMPPROJ", "hp": 1, "ha": 1})
+imp_pop = [p for p in c.get("/api/data").get_json()["pops"] if p["naziv"] == "POP IMP"]
+ok("impersonacija: atribucija = impersonirani korisnik",
+   bool(imp_pop) and (imp_pop[0].get("created_by") or "").lower().startswith("user"))
+
+# prekid -> admin opet ima prava
+r = c.delete("/api/admin/impersonate")
+ok("prekid impersonacije (200)", r.status_code == 200)
+ok("poslije prekida: admin opet ima prava", c.get("/api/admin/users").status_code == 200)
+
+# non-admin NE MOŽE pokrenuti impersonaciju
+login(USER, "User Dva")
+r = c.post("/api/admin/impersonate", json={"email": ADMIN})
+ok("non-admin: 403 na pokretanje impersonacije", r.status_code == 403)
+
+# non-admin + KRIVOTVOREN session['impersonate']=admin NE eskalira prava
+with c.session_transaction() as s:
+    s["user_email"] = USER; s["user_name"] = "User Dva"; s["impersonate"] = ADMIN
+ok("non-admin + krivotvoren impersonate NE eskalira (admin API 403)",
+   c.get("/api/admin/users").status_code == 403)
 
 print(f"\n===== PERM: {passed} PASS / {failed} FAIL =====")
 raise SystemExit(1 if failed else 0)

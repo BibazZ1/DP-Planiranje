@@ -93,8 +93,9 @@ def close_db(exc):
 
 
 def req_user():
-    """Ime prijavljenog korisnika (iz Azure sesije — ide u historiju izmjena)."""
-    u = session.get("user_name") or session.get("user_email") or ""
+    """Ime efektivnog korisnika (ide u historiju/atribuciju). Uz impersonaciju
+    g.user_name je ime korisnika kojeg admin 'gleda', pa atribucija odgovara njemu."""
+    u = getattr(g, "user_name", None) or session.get("user_name") or session.get("user_email") or ""
     return u.strip()[:60]
 
 
@@ -124,7 +125,7 @@ def _late_reason_missing(status, datum_do, kasni_razlog):
 
 
 # ==================================================================================
-# 🔒 CLAIM: vlasništvo projekta — ko preuzme projekat, samo on (+admin) uređuje
+# CLAIM: vlasništvo projekta — ko preuzme projekat, samo on (+admin) uređuje
 # ==================================================================================
 def _claim(projekt):
     if not projekt:
@@ -227,7 +228,7 @@ def sync_projects_from_azure():
 
 
 # ==================================================================================
-# 📧 E-MAIL (SMTP kao ULAZNE-FAKTURE) — šalje SAMO u produkciji (Docker),
+# E-MAIL (SMTP kao ULAZNE-FAKTURE) — šalje SAMO u produkciji (Docker),
 # u razvoju/testovima samo loguje da ne zatrpava inbox
 # ==================================================================================
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "")
@@ -315,9 +316,9 @@ def _digest_html():
             f"<h3 style='font-family:sans-serif;color:#dc2626'>⏰ Kasni ({len(late)})</h3>"
             + _MAIL_TBL.format(_mail_rows(
                 [(p, d, a, dd, f"+{n} dana") for p, d, a, dd, n in late]))
-            + f"<h3 style='font-family:sans-serif'>📅 Počinje ove sedmice ({len(starting)})</h3>"
+            + f"<h3 style='font-family:sans-serif'>Počinje ove sedmice ({len(starting)})</h3>"
             + _MAIL_TBL.format(_mail_rows(starting))
-            + f"<h3 style='font-family:sans-serif;color:#d97706'>⚠ Aktivne eskalacije ({len(esk)})</h3>"
+            + f"<h3 style='font-family:sans-serif;color:#d97706'>Aktivne eskalacije ({len(esk)})</h3>"
             + _MAIL_TBL.format(_mail_rows(esk))
             + f"<p style='font-family:sans-serif'><a href='{dom}'>Otvori DP Planiranje →</a></p>")
 
@@ -338,8 +339,8 @@ def _notify_eskalacija(seg_id):
                 return
             dom = os.environ.get("APP_DOMAIN", "")
             send_mail(_emails(only_admins=True),
-                      f"⚠ Eskalacija: {r[1]} — {r[2]}",
-                      f"<p style='font-family:sans-serif'>⚠ <b>{r[0]} · {r[1]}</b> — {r[2]} "
+                      f"Eskalacija: {r[1]} — {r[2]}",
+                      f"<p style='font-family:sans-serif'><b>{r[0]} · {r[1]}</b> — {r[2]} "
                       f"({r[3]} – {r[4]})<br>Razlog: {r[5] or '—'}</p>"
                       f"<p><a href='{dom}'>Otvori DP Planiranje →</a></p>")
         except Exception as e:
@@ -436,7 +437,11 @@ def deploy_status():
 @login_required
 def index():
     return render_template("index.html", auth={
-        "email": g.user_email, "name": g.user_name, "is_admin": g.is_admin},
+        "email": g.user_email, "name": g.user_name, "is_admin": g.is_admin,
+        "impersonating": getattr(g, "impersonating", False),
+        "real_email": getattr(g, "real_email", g.user_email),
+        "real_name": getattr(g, "real_name", g.user_name),
+        "real_is_admin": getattr(g, "real_is_admin", g.is_admin)},
         v=APP_GIT_VERSION)
 
 
@@ -755,7 +760,7 @@ def get_comments():
 
 
 # ==================================================================================
-# 🔒 CLAIM endpoints: preuzmi / otpusti projekat, zatraži pristup
+# CLAIM endpoints: preuzmi / otpusti projekat, zatraži pristup
 # ==================================================================================
 @app.route("/api/claims", methods=["POST"])
 @api_login_required

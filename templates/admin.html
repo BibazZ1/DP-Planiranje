@@ -48,6 +48,8 @@
   .btn.danger { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.25); color: var(--danger); }
   .btn.danger:hover { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
   .btn.sm { padding: 6px 12px; font-size: 12px; }
+  .btn.viewas { background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.4); color: #fbbf24; }
+  .btn.viewas:hover { background: rgba(245,158,11,.22); color: #fcd34d; }
   form.addrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
   form.addrow input[type=email] {
     flex: 1; min-width: 240px; padding: 10px 14px; border-radius: 8px;
@@ -83,7 +85,7 @@
 <body>
 <div class="admin-wrap">
   <div class="topnav">
-    <h1>⚙ Administracija pristupa</h1>
+    <h1>Administracija pristupa</h1>
     <span class="who">prijavljen: <b>{{ auth.name }}</b></span>
     <a class="btn" href="/">← Nazad na plan</a>
     <a class="btn" href="/logout">Odjava</a>
@@ -93,7 +95,9 @@
     <h2>Dozvoljeni korisnici</h2>
     <span class="hint">Samo e-mail adrese sa ove liste mogu ući u aplikaciju
       (nakon Microsoft prijave). Upiši e-mail <b>onako kako ga Microsoft prijavljuje</b>
-      (npr. @gfcbh.ba). Stalni admin: <b>{{ auth.permanent_admin }}</b></span>
+      (npr. @gfcbh.ba). Stalni admin: <b>{{ auth.permanent_admin }}</b><br>
+      <b>Gledaj kao</b> otvara aplikaciju iz ugla tog korisnika (za testiranje/bug-fix) —
+      gore se pojavi traka i dugme za povratak na svoj nalog.</span>
 
     <form class="addrow" id="frmAdd">
       <input type="email" id="addEmail" placeholder="ime.prezime@gfcbh.ba" required>
@@ -114,6 +118,7 @@
 
 <script>
 const $ = s => document.querySelector(s);
+const ME = ({{ auth.email|tojson }} || "").toLowerCase();
 const msg = (txt, cls) => { const m = $("#msg"); m.textContent = txt; m.className = "msg " + cls;
   if (cls === "ok") setTimeout(() => { m.className = "msg"; }, 2500); };
 
@@ -135,15 +140,18 @@ async function load() {
   $("#tbody").innerHTML = data.users.map(u => `
     <tr>
       <td>${esc(u.email)}</td>
-      <td>${u.permanent ? '<span class="tag perm">★ stalni admin</span>'
+      <td>${u.permanent ? '<span class="tag perm">stalni admin</span>'
             : `<span class="tag ${u.role}">${u.role === "admin" ? "admin" : "korisnik"}</span>`}</td>
       <td>${esc(u.added_by)}</td>
       <td>${esc((u.added_at || "").replace("T", " "))}</td>
       <td style="text-align:right;white-space:nowrap">
+        ${(u.email || "").toLowerCase() === ME ? '<span class="tag user">vi</span>' : `
+          <button class="btn sm viewas" onclick="viewAs('${esc(u.email)}')"
+                  title="otvori aplikaciju iz ugla ovog korisnika">Gledaj kao</button>`}
         ${u.permanent ? "" : `
           <button class="btn sm" onclick="setRole(${u.id}, '${u.role === "admin" ? "user" : "admin"}')"
                   title="promijeni ulogu">${u.role === "admin" ? "↓ korisnik" : "↑ admin"}</button>
-          <button class="btn sm danger" onclick="del(${u.id}, '${esc(u.email)}')">🗑</button>`}
+          <button class="btn sm danger" onclick="del(${u.id}, '${esc(u.email)}')">Ukloni</button>`}
       </td>
     </tr>`).join("");
 }
@@ -167,6 +175,12 @@ async function setRole(id, role) {
 async function del(id, email) {
   if (!confirm(`Ukloniti pristup za ${email}?`)) return;
   try { await api(`/api/admin/users/${id}`, "DELETE"); msg("Pristup uklonjen.", "ok"); load(); }
+  catch (err) { msg(err.message, "err"); }
+}
+
+/* impersonacija: otvori aplikaciju "kao" izabrani korisnik (za testiranje/bug-fix) */
+async function viewAs(email) {
+  try { await api("/api/admin/impersonate", "POST", { email }); location.href = "/"; }
   catch (err) { msg(err.message, "err"); }
 }
 

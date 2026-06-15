@@ -24,6 +24,9 @@ const I18N = {
     kasniBubbleN: "kasni", nemaKasnih: "Nema zakašnjelih termina",
     origLbl: "originalno", pomjereno: "pomjereno", produzi: "Produži",
     cekaDp: "čeka DP", cekaDpTip: "POP još nema nijedan DP — klik za detalje, ＋ DP za dodavanje", dodajDp: "＋ DP",
+    impViewingAs: "Gledate kao", impYou: "vi", impStop: "Vrati se na svoj nalog",
+    impTip: "Gledaj kao korisnik", impPickTitle: "Gledaj kao korisnik",
+    impPickPh: "izaberi korisnika", impStart: "Gledaj", impNoUsers: "Nema drugih korisnika za pregled",
     zoomOut: "Umanji", zoomIn: "Uvećaj", zoomFit: "Cijela godina",
     zDani: "dani", zSedmice: "sedmice", zMjeseci: "mjeseci",
     stOtvoreno: "otvoreno", stUToku: "u toku", stZavrseno: "završeno",
@@ -113,6 +116,9 @@ const I18N = {
     kasniBubbleN: "late", nemaKasnih: "No overdue slots",
     origLbl: "original", pomjereno: "moved", produzi: "Extend",
     cekaDp: "awaiting DP", cekaDpTip: "POP has no DP yet — click for details, ＋ DP to add one", dodajDp: "＋ DP",
+    impViewingAs: "Viewing as", impYou: "you", impStop: "Back to my account",
+    impTip: "View as user", impPickTitle: "View as user",
+    impPickPh: "choose a user", impStart: "View", impNoUsers: "No other users to view as",
     zoomOut: "Zoom out", zoomIn: "Zoom in", zoomFit: "Whole year",
     zDani: "days", zSedmice: "weeks", zMjeseci: "months",
     stOtvoreno: "open", stUToku: "in progress", stZavrseno: "done",
@@ -202,6 +208,9 @@ const I18N = {
     kasniBubbleN: "verspätet", nemaKasnih: "Keine überfälligen Termine",
     origLbl: "ursprünglich", pomjereno: "verschoben", produzi: "Verlängern",
     cekaDp: "wartet auf DP", cekaDpTip: "POP hat noch keinen DP — Klick für Details, ＋ DP zum Hinzufügen", dodajDp: "＋ DP",
+    impViewingAs: "Ansicht als", impYou: "Sie", impStop: "Zurück zu meinem Konto",
+    impTip: "Als Benutzer ansehen", impPickTitle: "Als Benutzer ansehen",
+    impPickPh: "Benutzer wählen", impStart: "Ansehen", impNoUsers: "Keine anderen Benutzer",
     zoomOut: "Verkleinern", zoomIn: "Vergrößern", zoomFit: "Ganzes Jahr",
     zDani: "Tage", zSedmice: "Wochen", zMjeseci: "Monate",
     stOtvoreno: "offen", stUToku: "laufend", stZavrseno: "fertig",
@@ -354,6 +363,47 @@ function askUser() {
     uiAlert(`${USER} (${window.AUTH.email})`, "info");
   }
 }
+
+/* ---------- impersonacija: admin "gleda kao" drugi korisnik (testiranje/bug-fix) ---------- */
+function renderImpersonation() {
+  const A = window.AUTH || {};
+  const banner = $("#impBanner"), btn = $("#btnImpersonate");
+  if (banner) {
+    banner.classList.toggle("hidden", !A.impersonating);
+    document.body.classList.toggle("impersonating", !!A.impersonating);
+    if (A.impersonating) {
+      $("#impTxt").innerHTML = `${t("impViewingAs")} <b>${esc(A.name || A.email)}</b>` +
+        `<span class="imp-mail">${esc(A.email)}</span>` +
+        `<span class="imp-you">${t("impYou")}: ${esc(A.real_name || A.real_email)}</span>`;
+    }
+  }
+  /* dugme "Gledaj kao" vidi STVARNI admin koji trenutno NE impersonira */
+  if (btn) btn.hidden = !(A.real_is_admin && !A.impersonating);
+}
+async function openImpersonatePicker() {
+  let users = [];
+  try { users = (await api("/api/admin/users")).users || []; }
+  catch (e) { return handleApiErr(e); }
+  const me = ((window.AUTH && window.AUTH.real_email) || "").toLowerCase();
+  const opts = users.filter(u => (u.email || "").toLowerCase() !== me);
+  if (!opts.length) return uiAlert(t("impNoUsers"), "info");
+  const r = await swalBase({
+    title: t("impPickTitle"), input: "select",
+    inputOptions: Object.fromEntries(opts.map(u =>
+      [u.email, `${u.email}${u.role === "admin" ? " · admin" : ""}`])),
+    inputPlaceholder: t("impPickPh"), showCancelButton: true,
+    confirmButtonText: t("impStart"), cancelButtonText: t("otkazi"),
+  });
+  if (!r.isConfirmed || !r.value) return;
+  try { await api("/api/admin/impersonate", "POST", { email: r.value }); location.href = "/"; }
+  catch (e) { handleApiErr(e); }
+}
+async function stopImpersonation() {
+  try { await api("/api/admin/impersonate", "DELETE"); location.href = "/"; }
+  catch (e) { handleApiErr(e); }
+}
+$("#btnImpersonate")?.addEventListener("click", openImpersonatePicker);
+$("#impStop")?.addEventListener("click", stopImpersonation);
 
 if (new URLSearchParams(location.search).has("static"))
   document.documentElement.classList.add("noanim");
@@ -2617,6 +2667,7 @@ $("#btnAddPopTop").addEventListener("click", () => openPopDialog());
 undoBtn();
 $("#userBadge").addEventListener("click", askUser);
 renderUser();
+renderImpersonation();
 
 async function load() {
   DATA = await api("/api/data");

@@ -58,26 +58,58 @@ def get_allowed(email):
     return {"email": email, "role": row["role"], "permanent": False}
 
 
+def _name_from_email(email):
+    """Pristojno ime iz e-maila (impersonirani korisnik nema Azure ime u bazi)."""
+    local = (email or "").split("@")[0].replace(".", " ").replace("_", " ").replace("-", " ")
+    return local.strip().title() or (email or "")
+
+
 def _dev_autologin():
     if DEV_FAKE_USER and "user_email" not in session:
         session["user_email"] = DEV_FAKE_USER
-        session["user_name"] = DEV_FAKE_USER.split("@")[0].replace(".", " ").title()
+        session["user_name"] = _name_from_email(DEV_FAKE_USER)
         session.permanent = True
 
 
 def _load_user_or_none():
-    """Zajednička provjera za oba dekoratora. Vrati None ako je sve uredu."""
+    """Zajednička provjera za oba dekoratora. Vrati None ako je sve uredu.
+
+    Podržava IMPERSONACIJU ("gledaj kao"): ako je STVARNI prijavljeni korisnik admin
+    i ima session['impersonate'], efektivni identitet (g.user_*) postaje taj korisnik —
+    tako claim-zaključavanja, admin dugme i atribucija rade tačno kako bi ih taj
+    korisnik vidio. Stvarni identitet se čuva u g.real_* (za traku i povratak).
+    Sigurnost: impersonacija se poštuje SAMO ako je stvarni korisnik admin, pa
+    ne-admin ne može ničim (ni krivotvorenim cookie-jem) eskalirati prava.
+    """
     _dev_autologin()
     if "user_email" not in session:
         return "login"
-    allowed = get_allowed(session["user_email"])
-    if allowed is None:
+    real_email = session["user_email"].strip().lower()
+    real_allowed = get_allowed(real_email)
+    if real_allowed is None:
         return "denied"
-    g.user_email = session["user_email"].strip().lower()
-    g.user_name = session.get("user_name") or g.user_email
-    g.role = allowed["role"]
-    g.is_admin = allowed["role"] == "admin"
-    g.is_permanent_admin = allowed.get("permanent", False)
+    real_name = session.get("user_name") or real_email
+    real_is_admin = real_allowed["role"] == "admin"
+
+    eff, eff_email, eff_name = real_allowed, real_email, real_name
+    impersonating = False
+    imp = (session.get("impersonate") or "").strip().lower()
+    if imp and real_is_admin and imp != real_email:
+        imp_allowed = get_allowed(imp)
+        if imp_allowed is not None:                 # meta i dalje na listi -> impersoniraj
+            eff, eff_email = imp_allowed, imp
+            eff_name = _name_from_email(imp)
+            impersonating = True
+        else:
+            session.pop("impersonate", None)        # korisnik uklonjen -> vrati se sebi
+
+    g.real_email, g.real_name, g.real_is_admin = real_email, real_name, real_is_admin
+    g.impersonating = impersonating
+    g.user_email = eff_email
+    g.user_name = eff_name
+    g.role = eff["role"]
+    g.is_admin = eff["role"] == "admin"
+    g.is_permanent_admin = eff.get("permanent", False)
     return None
 
 
@@ -235,7 +267,7 @@ def authorized():
         session.clear()
         return "Prijava nije uspjela — nedostaje e-mail identitet.", 400
 
-    # 🛡️ KAPIJA: Microsoft prijava NIJE dovoljna — e-mail mora biti na listi
+    # KAPIJA: Microsoft prijava NIJE dovoljna — e-mail mora biti na listi
     allowed = get_allowed(user_email)
     if allowed is None:
         session.clear()
@@ -328,3 +360,38 @@ def admin_edit_user(uid):
               staro=row["role"], novo=role, label=row["email"])
         db().commit()
     return jsonify({"ok": True})
+
+
+# ==================================================================================
+# Impersonacija ("gledaj kao korisnik") — admin alat za testiranje/bug-fix
+# ==================================================================================
+@auth_bp.route("/api/admin/impersonate", methods=["POST"])
+@api_login_required
+def impersonate_start():
+    # Smije SAMO stvarni admin (ne efektivni) — sprječava eskalaciju.
+    if not getattr(g, "real_is_admin", False):
+        return jsonify({"error": "Samo administrator"}), 403
+    j = request.get_json(force=True)
+    email = (j.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"error": "E-mail je obavezan"}), 400
+    if email == g.real_email:
+        return jsonify({"error": "To je već vaš nalog"}), 400
+    if get_allowed(email) is None:
+        return jsonify({"error": "Taj korisnik nije na listi pristupa — prvo ga dodaj u /admin."}), 400
+    session["impersonate"] = email
+    session.permanent = True
+    audit(g.real_name, "korisnik", 0, "impersonacija počela", novo=email, label=email)
+    db().commit()
+    return jsonify({"ok": True, "email": email, "name": _name_from_email(email)})
+
+
+@auth_bp.route("/api/admin/impersonate", methods=["DELETE"])
+@api_login_required
+def impersonate_stop():
+    # Bilo ko sa aktivnom impersonacijom je može prekinuti i vratiti se sebi.
+    was = session.pop("impersonate", None)
+    if was and getattr(g, "real_is_admin", False):
+        audit(g.real_name, "korisnik", 0, "impersonacija završena", staro=was, label=was)
+        db().commit()
+    return jsonify({"ok": True, "was": was})

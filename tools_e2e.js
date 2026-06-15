@@ -542,6 +542,35 @@ function ok(name, cond, extra = "") {
   const stray = emojiBody.filter(c => !["✕", "▾", "−", "→"].includes(c));
   ok("UI bez emojija (osim ✕/▾ kontrola)", stray.length === 0, JSON.stringify(stray));
 
+  // ---------- 16f. impersonacija ("gledaj kao") — admin alat za testiranje ----------
+  await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#userBadge", { timeout: 10000 });
+  ok("impersonacija: 'Gledaj kao' dugme vidljivo adminu",
+    (await page.locator("#btnImpersonate:not([hidden])").count()) === 1);
+  await page.request.post(BASE + "/api/admin/users", { data: {
+    email: "thomas.busch@mih-fiber.com", role: "user" } });
+  const impStart = await page.request.post(BASE + "/api/admin/impersonate", { data: {
+    email: "thomas.busch@mih-fiber.com" } });
+  ok("impersonacija: start 200", impStart.ok());
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#impBanner:not(.hidden)", { timeout: 8000 });
+  const aImp = await page.evaluate(() => window.AUTH);
+  ok("impersonacija: efektivni identitet = ciljani korisnik",
+    aImp.email === "thomas.busch@mih-fiber.com" && aImp.impersonating === true && aImp.is_admin === false);
+  ok("impersonacija: admin dugme sakriveno (efektivno non-admin)",
+    (await page.locator("#btnAdmin[hidden]").count()) === 1);
+  ok("impersonacija: 'Gledaj kao' sakriveno dok je aktivna",
+    (await page.locator("#btnImpersonate[hidden]").count()) === 1);
+  ok("impersonacija: admin API 403 u tom kontekstu",
+    (await page.request.get(BASE + "/api/admin/users")).status() === 403);
+  await page.click("#impStop");
+  await page.waitForFunction(() => window.AUTH && window.AUTH.impersonating === false, { timeout: 8000 });
+  const aBack = await page.evaluate(() => window.AUTH);
+  ok("impersonacija: traka skrivena nakon povratka",
+    (await page.locator("#impBanner.hidden").count()) === 1);
+  ok("impersonacija: 'Vrati se' vraća na admina",
+    aBack.email === "e.uzunovic@gfcbh.ba" && aBack.impersonating === false && aBack.is_admin === true);
+
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
   ok("nema JS grešaka u konzoli", realErrors.length === 0, JSON.stringify(realErrors.slice(0, 3)));
