@@ -943,19 +943,36 @@ span.flatpickr-weekday{color:#64748b!important}
 .meta .ownb{font:600 9.5px var(--mono);color:#fbbf24;white-space:nowrap}
 .hc-by{font:600 9.5px var(--mono);color:#fbbf24}
 
-/* ============ plutajući brojač zakašnjelih termina (donji lijevi ugao) ============ */
-.late-bubble{position:fixed;left:20px;bottom:20px;z-index:90;cursor:pointer;
-  display:flex;align-items:center;gap:7px;border:none;
-  font:700 13px 'Inter',sans-serif;color:#2b040c;
-  background:linear-gradient(135deg,#ff647e,#d6243f);
-  border-radius:9999px;padding:11px 17px;
-  box-shadow:0 10px 30px rgba(214,36,63,.5),0 0 0 0 rgba(214,36,63,.55);
-  animation:lateThrob 1.8s ease-in-out infinite;transition:transform .15s}
-.late-bubble b{font-size:15px}
-.late-bubble:hover{transform:translateY(-2px) scale(1.03)}
-@keyframes lateThrob{0%,100%{box-shadow:0 10px 30px rgba(214,36,63,.5),0 0 0 0 rgba(214,36,63,.5)}
-  50%{box-shadow:0 10px 30px rgba(214,36,63,.5),0 0 0 12px rgba(214,36,63,0)}}
-.late-bubble.hidden{display:none}
+/* ===== inline traka u grupnom redu DP-a (kasni · vlasnik/preuzmi · zadnji komentar) ===== */
+/* prati horizontalni scroll i ostaje odmah desno od 400px label kolone */
+.gr-strip{position:sticky;left:408px;display:inline-flex;align-items:center;gap:8px;
+  height:38px;padding-right:14px;max-width:calc(100vw - 440px);z-index:3;pointer-events:auto}
+.gr-strip>*{flex:none}
+/* "N kasni" — crveni čip, blago pulsira da privuče pažnju; klik = modal za produženje */
+.gs-late{border:1px solid rgba(239,68,68,.5);background:rgba(239,68,68,.16);color:#fca5a5;
+  font:700 11px var(--mono);border-radius:9999px;padding:4px 11px;cursor:pointer;
+  animation:gsLate 2s ease-in-out infinite;transition:.15s}
+.gs-late:hover{background:rgba(239,68,68,.28);color:#fff}
+@keyframes gsLate{50%{box-shadow:0 0 0 4px rgba(239,68,68,.12)}}
+/* ko je preuzeo projekat */
+.gs-owner{display:inline-flex;align-items:center;gap:5px;font:600 11px var(--mono);
+  color:#fbbf24;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);
+  border-radius:9999px;padding:3px 11px;white-space:nowrap}
+.gs-owner.mine{color:#34d399;background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.45)}
+/* "Preuzmi" — istaknuto, primarno dugme (preuzimanje direktno iz reda) */
+.gs-claim{display:inline-flex;align-items:center;gap:5px;font:700 11px 'Inter',sans-serif;
+  color:#04110b;background:linear-gradient(135deg,#34d399,#10b981);border:0;
+  border-radius:9999px;padding:5px 13px;cursor:pointer;transition:.15s;
+  box-shadow:0 2px 8px rgba(16,185,129,.35)}
+.gs-claim:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 4px 14px rgba(16,185,129,.5)}
+/* zadnji komentar — uočljiv čip, hover (title) pokazuje puni tekst */
+.gs-comment{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:46ch;
+  font:600 11.5px 'Inter',sans-serif;color:#bfe9ff;
+  background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);
+  border-radius:10px;padding:4px 11px;cursor:help}
+.gs-comment .i-ic{color:#7dd3fc}
+.gs-comment{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.gs-comment:hover{background:rgba(59,130,246,.24);color:#eaf6ff}
 
 /* ---------- modal sa listom zakašnjelih (klik -> produži + razlog) ---------- */
 .late-modal{position:fixed;inset:0;z-index:120;display:flex;align-items:center;

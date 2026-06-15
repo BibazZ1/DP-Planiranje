@@ -146,7 +146,7 @@ function ok(name, cond, extra = "") {
   ok("claim: projekat preuzet (owner u /api/data)",
     claims && Object.keys(claims).some(k => /WANDLITZ/i.test(k)));
   ok("claim: vlasnik chip (moj)", await page.locator("#projClaim .claim-chip.mine").isVisible());
-  ok("claim: owner badge (🔒) na DP redu", (await page.locator(".meta .ownb").count()) >= 1);
+  ok("claim: vlasnik čip u traci DP reda", (await page.locator(".gr-strip .gs-owner").count()) >= 1);
   await page.click("#btnRelease");
   await page.waitForSelector(".swal2-confirm", { timeout: 5000 });
   await page.click(".swal2-confirm");
@@ -182,7 +182,7 @@ function ok(name, cond, extra = "") {
   ok("kasni: crvena značka +Nd na traci", (await page.locator(".seg .latebadge").count()) >= 1);
   ok("rok DP-a (Aktivacije) prikazan", await page.locator(".rokb").first().isVisible());
   ok("rok DP-a CRVEN (prošao)", await page.locator(".rokb.late").first().isVisible());
-  ok("brojač kasnih u redu DP-a", await page.locator(".latecnt").first().isVisible());
+  ok("brojač kasnih (čip) u traci DP reda", await page.locator(".gr-strip .gs-late").first().isVisible());
 
   // ---------- 7. status čipovi ----------
   const segVisible = async () => page.locator(".seg").evaluateAll(els =>
@@ -466,19 +466,18 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(1800);
   ok("undo vraća obrisani DP", (await dCount()) === beforeDel);
 
-  // ---------- 16c. zakašnjeli bubble (donji lijevi) + moved-ghost (originalna pozicija) ----------
+  // ---------- 16c. "N kasni" čip u redu DP-a (umjesto plutajućeg balona) + modal + moved-ghost ----------
   await page.click("#pfClear").catch(() => {});   // bez filtera -> svi termini
   await page.waitForTimeout(500);
   const dLate = await (await page.request.get(BASE + "/api/data")).json();
   const todayStr = new Date().toISOString().slice(0, 10);
   const lateList = dLate.segments.filter(s => s.status !== "završeno" && s.datum_do < todayStr);
-  ok("bubble: ima kasnih termina (preduslov)", lateList.length > 0, `(${lateList.length})`);
-  const bub = page.locator("#lateBubble");
-  ok("bubble: vidljiv kad ima kasnih", await bub.isVisible());
-  ok("bubble: prikazuje tačan broj", (await bub.locator("b").textContent()).trim() === String(lateList.length));
-  await bub.click();
+  ok("kasni: ima zakašnjelih (preduslov)", lateList.length > 0, `(${lateList.length})`);
+  ok("kasni: NEMA plutajućeg balona (uklonjen)", (await page.locator("#lateBubble").count()) === 0);
+  ok("kasni: 'N kasni' čip u redu DP-a", (await page.locator(".gr-strip .gs-late").count()) >= 1);
+  await page.locator(".gr-strip .gs-late").first().click();
   await page.waitForTimeout(300);
-  ok("bubble: klik otvara modal", await page.locator("#lateModal:not(.hidden)").isVisible());
+  ok("kasni: klik na čip otvara modal", await page.locator("#lateModal:not(.hidden)").isVisible());
   ok("modal: redova = broj kasnih", (await page.locator("#lmList .lm-row").count()) === lateList.length);
   await page.locator("#lmList .lm-row").first().click();
   await page.waitForTimeout(400);
@@ -486,7 +485,7 @@ function ok(name, cond, extra = "") {
   ok("modal: datum-polja otkrivena (produženje)", (await page.locator("#popWhenEdit.hidden").count()) === 0);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
-  await bub.click();
+  await page.locator(".gr-strip .gs-late").first().click();
   await page.waitForTimeout(200);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
@@ -571,6 +570,32 @@ function ok(name, cond, extra = "") {
     (await page.locator("#impBanner.hidden").count()) === 1);
   ok("impersonacija: 'Vrati se' vraća na admina",
     aBack.email === "e.uzunovic@gfcbh.ba" && aBack.impersonating === false && aBack.is_admin === true);
+
+  // ---------- 16g. inline traka grupnog reda: zadnji komentar · Preuzmi · vlasnik ----------
+  await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".tl-row.group", { timeout: 10000 });
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(400);
+  const dStrip = await (await page.request.get(BASE + "/api/data")).json();
+  const freeDp = dStrip.dps.find(d => !dStrip.claims[d.projekt]) || dStrip.dps[0];
+  await page.request.post(BASE + "/api/comments", { data: {
+    dp_id: freeDp.id, tekst: "Test komentar za traku" } });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".tl-row.group", { timeout: 10000 });
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(400);
+  const cRow = page.locator(`.tl-row.group[data-dp="${freeDp.id}"]`);
+  ok("traka: zadnji komentar prikazan kao čip", (await cRow.locator(".gs-comment").count()) === 1);
+  ok("traka: hover (title) nosi puni komentar",
+    ((await cRow.locator(".gs-comment").getAttribute("title")) || "").includes("Test komentar za traku"));
+  const claimBtn = cRow.locator(".gs-claim");
+  ok("traka: 'Preuzmi' dugme za neclaimovan projekat", (await claimBtn.count()) === 1);
+  await claimBtn.click();
+  await page.waitForSelector(".swal2-confirm", { timeout: 5000 });
+  await page.click(".swal2-confirm");
+  await page.waitForTimeout(900);
+  ok("traka: nakon preuzimanja prikazan vlasnik (.gs-owner)",
+    (await page.locator(`.tl-row.group[data-dp="${freeDp.id}"] .gs-owner`).count()) === 1);
 
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));

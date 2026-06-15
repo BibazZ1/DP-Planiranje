@@ -336,6 +336,7 @@ let SEL = null;                   // {type:'pop'|'dp', id} — otvorena historij
 const ICON = {
   lock: '<svg class="i-ic" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
   trash: '<svg class="i-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+  comment: '<svg class="i-ic" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L3 21l2.3-6.5A8 8 0 1 1 21 11.5z"/></svg>',
 };
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -475,6 +476,12 @@ function lockToast(projekt) {
   uiToast(`${t("vlasnikLbl")}: ${o ? (o.name || o.email) : "?"}`, "warning");
 }
 /* claim kontrola u filter panelu — vidljiva kad je izabran tačno jedan projekat */
+/* preuzmi projekat (iz panela ILI iz reda DP-a) */
+async function doClaim(projekt) {
+  if (!projekt || !await uiConfirm(t("preuzmiPitanje"))) return;
+  try { await api("/api/claims", "POST", { projekt }); await load(); }
+  catch (e) { handleApiErr(e); }
+}
 function renderProjClaim() {
   const pc = $("#projClaim");
   if (!pc) return;
@@ -492,11 +499,7 @@ function renderProjClaim() {
       (mine ? `<button class="btn sm" id="btnRelease">${t("otpustiProj")}</button>`
             : `<button class="btn sm" id="btnReqAccess">${t("zatraziPristup")}</button>`);
   }
-  $("#btnClaim")?.addEventListener("click", async () => {
-    if (!await uiConfirm(t("preuzmiPitanje"))) return;
-    try { await api("/api/claims", "POST", { projekt: PROJ.name }); await load(); }
-    catch (e) { handleApiErr(e); }
-  });
+  $("#btnClaim")?.addEventListener("click", () => doClaim(PROJ.name));
   $("#btnRelease")?.addEventListener("click", async () => {
     if (!await uiConfirm(t("otpustiPitanje"))) return;
     try { await api("/api/claims?projekt=" + encodeURIComponent(PROJ.name), "DELETE"); await load(); }
@@ -609,20 +612,12 @@ function renderAll() {
   renderTimeline(true);
   renderStats();
   renderProj();   // DP čipovi u projekt-panelu prate iste filtere
-  renderLateBubble();
 }
 
-/* ---------- plutajući brojač zakašnjelih termina (otvoreno + rok prošao) ---------- */
+/* ---------- zakašnjeli termini: lista + modal (okida se iz "N kasni" čipa u redu DP-a) ---------- */
 function lateSegs() {
   return DATA.segments.filter(segLate).sort((a, b) =>
     (a.datum_do < b.datum_do ? -1 : 1));   // najstariji rok prvi
-}
-function renderLateBubble() {
-  const b = $("#lateBubble");
-  if (!b) return;
-  const n = lateSegs().length;
-  b.classList.toggle("hidden", n === 0);
-  b.innerHTML = `<b>${n}</b> ${t("kasniBubbleN")}`;
 }
 function dpOf(seg) {
   const tk = DATA.tasks.find(x => x.id === seg.task_id) || {};
@@ -656,7 +651,6 @@ function openLateModal() {
   $("#lateModal").classList.remove("hidden");
 }
 function closeLateModal() { $("#lateModal").classList.add("hidden"); }
-$("#lateBubble").addEventListener("click", openLateModal);
 $("#lmClose").addEventListener("click", closeLateModal);
 $("#lateModal").addEventListener("mousedown", e => {
   if (e.target.id === "lateModal") closeLateModal();   // klik na pozadinu zatvara
@@ -976,21 +970,33 @@ function renderTimeline(keepScroll) {
 
     anyRow = true;
     let ri = 0;
+    /* inline traka u praznom prostoru grupnog reda: ko kasni · ko je preuzeo · zadnji komentar */
+    const owner = projOwner(dp.projekt);
+    const ownerMine = owner && (owner.email || "").toLowerCase() === myEmail();
+    const lc = (DATA.last_comments || {})[dp.id];
+    let strip = `<div class="gr-strip">`;
+    if (lateCnt) strip += `<button class="gs-late" title="${t("kasniTip")}">${lateCnt} ${t("kasniBubbleN")}</button>`;
+    strip += owner
+      ? `<span class="gs-owner${ownerMine ? " mine" : ""}" title="${t("vlasnikLbl")}">${ICON.lock} ${esc(owner.name || owner.email)}</span>`
+      : `<button class="gs-claim" data-claim="${esc(dp.projekt)}" title="${t("preuzmiPitanje")}">${ICON.lock} ${t("preuzmiProj")}</button>`;
+    if (lc) {
+      const when = lc.ts ? fmt(String(lc.ts).slice(0, 10)) : "";
+      const txt = String(lc.tekst || "");
+      strip += `<span class="gs-comment" title="${esc(lc.user || "")}${when ? " · " + when : ""} — ${esc(txt)}">` +
+        `${ICON.comment} ${esc(txt.slice(0, 90))}${txt.length > 90 ? "…" : ""}</span>`;
+    }
+    strip += `</div>`;
     html += `<div class="tl-row group" data-dp="${dp.id}">
       <div class="tl-label">
         <div class="gr-info" title="${t("dpHistTip")}">
           <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(dp.pop)}</span><b>${esc(dp.naziv)}</b>
-            ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}
-            ${lateCnt ? `<span class="latecnt" title="${t("kasniTip")}">${lateCnt} ${t("kasniBubbleN")}</span>` : ""}</div>
-          <span class="meta">${dp.lokacija ? esc(dp.lokacija) + " · " : ""}HP ${dp.hp} · HA ${dp.ha}${(() => {
-            const o = projOwner(dp.projekt);
-            return o ? ` · <span class="ownb" title="${t("vlasnikLbl")}">${ICON.lock} ${esc(o.name || o.email)}</span>` : "";
-          })()}</span></div>
+            ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}</div>
+          <span class="meta">${dp.lokacija ? esc(dp.lokacija) + " · " : ""}HP ${dp.hp} · HA ${dp.ha}</span></div>
         <div class="gr-side"><span class="pbar"><i style="width:${pct}%"></i></span>
           <span class="pct">${pct}%</span>
           <button class="gbtn delDp" title="Obriši DP">${ICON.trash}</button></div>
       </div>
-      <div class="tl-track" style="width:${totalW}px"></div></div>`;
+      <div class="tl-track" style="width:${totalW}px">${strip}</div></div>`;
 
     for (const t of rows) {
       let segs = "";
@@ -1219,6 +1225,13 @@ function bindTimeline() {
   $$("#tlScroll .addDpHere").forEach(b => b.addEventListener("click", e => {
     e.stopPropagation();
     openDpDialog(+b.dataset.pop);
+  }));
+  /* inline traka grupnog reda: "N kasni" -> modal za produženje; "Preuzmi" -> claim */
+  $$("#tlScroll .gs-late").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation(); openLateModal();
+  }));
+  $$("#tlScroll .gs-claim").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation(); doClaim(b.dataset.claim);
   }));
   $$("#tlScroll .act-name").forEach(el => el.addEventListener("dblclick", async () => {
     const id = +el.closest(".tl-row").dataset.task;

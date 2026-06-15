@@ -467,8 +467,13 @@ def api_data():
     claims = {r["projektname"]: {"email": r["owner_email"], "name": r["owner_name"]}
               for r in db().execute(
                   "SELECT projektname, owner_email, owner_name FROM project_claims")}
+    # zadnji komentar po DP-u (za inline prikaz u grupnom redu — hover = puni tekst)
+    last_comments = {r["dp_id"]: {"tekst": r["tekst"], "user": r["user"], "ts": r["ts"]}
+                     for r in db().execute(
+                         'SELECT DISTINCT ON (dp_id) dp_id, tekst, "user", ts '
+                         "FROM dp_comments ORDER BY dp_id, id DESC")}
     return jsonify({"dps": dps, "pops": pops, "tasks": tasks, "segments": segments,
-                    "history": history, "claims": claims})
+                    "history": history, "claims": claims, "last_comments": last_comments})
 
 
 @app.route("/api/pops", methods=["POST"])
