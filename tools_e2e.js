@@ -606,6 +606,18 @@ function ok(name, cond, extra = "") {
   ok("traka: nakon otpuštanja projekat opet slobodan ('Preuzmi')",
     (await page.locator(`.tl-row.group[data-dp="${freeDp.id}"] .gs-claim`).count()) === 1);
 
+  // ---------- 16h. zaglavlje ose: legenda MJESEC/KW/DAN, "KW" ne na svakoj, čiste linije ----------
+  const legend = (await page.locator(".head .band-legend span").allInnerTexts()).map(s => s.trim().toLowerCase());
+  ok("zaglavlje: legenda ima KW", legend.includes("kw"));
+  ok("zaglavlje: legenda ima MJESEC", legend.includes("mjesec"));
+  ok("zaglavlje: nema 'bar' linija preko redova (month-line uklonjen)",
+    (await page.locator(".month-line").count()) === 0);
+  const kwTexts = (await page.locator(".tl-head-band.kw .hb").allInnerTexts()).map(s => s.trim()).filter(Boolean);
+  ok("zaglavlje: KW prefiks NIJE na svakoj ćeliji",
+    kwTexts.length > 3 && kwTexts.filter(s => /KW/.test(s)).length < kwTexts.length);
+  ok("zaglavlje: dnevna traka bez naziva dana (samo broj)",
+    (await page.locator(".tl-head-band.days .hb").allInnerTexts()).every(s => !/[A-Za-zČčŠšĐđŽž]/.test(s)));
+
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
   ok("nema JS grešaka u konzoli", realErrors.length === 0, JSON.stringify(realErrors.slice(0, 3)));

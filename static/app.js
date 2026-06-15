@@ -27,6 +27,7 @@ const I18N = {
     impViewingAs: "Gledate kao", impYou: "vi", impStop: "Vrati se na svoj nalog",
     impTip: "Gledaj kao korisnik", impPickTitle: "Gledaj kao korisnik",
     impPickPh: "izaberi korisnika", impStart: "Gledaj", impNoUsers: "Nema drugih korisnika za pregled",
+    legMonth: "Mjesec", legDay: "Dan", legTip: "Zaglavlje: mjesec · KW (sedmica) · dan",
     zoomOut: "Umanji", zoomIn: "Uvećaj", zoomFit: "Cijela godina",
     zDani: "dani", zSedmice: "sedmice", zMjeseci: "mjeseci",
     stOtvoreno: "otvoreno", stUToku: "u toku", stZavrseno: "završeno",
@@ -119,6 +120,7 @@ const I18N = {
     impViewingAs: "Viewing as", impYou: "you", impStop: "Back to my account",
     impTip: "View as user", impPickTitle: "View as user",
     impPickPh: "choose a user", impStart: "View", impNoUsers: "No other users to view as",
+    legMonth: "Month", legDay: "Day", legTip: "Header: month · KW (week) · day",
     zoomOut: "Zoom out", zoomIn: "Zoom in", zoomFit: "Whole year",
     zDani: "days", zSedmice: "weeks", zMjeseci: "months",
     stOtvoreno: "open", stUToku: "in progress", stZavrseno: "done",
@@ -211,6 +213,7 @@ const I18N = {
     impViewingAs: "Ansicht als", impYou: "Sie", impStop: "Zurück zu meinem Konto",
     impTip: "Als Benutzer ansehen", impPickTitle: "Als Benutzer ansehen",
     impPickPh: "Benutzer wählen", impStart: "Ansehen", impNoUsers: "Keine anderen Benutzer",
+    legMonth: "Monat", legDay: "Tag", legTip: "Kopf: Monat · KW (Woche) · Tag",
     zoomOut: "Verkleinern", zoomIn: "Vergrößern", zoomFit: "Ganzes Jahr",
     zDani: "Tage", zSedmice: "Wochen", zMjeseci: "Monate",
     stOtvoreno: "offen", stUToku: "laufend", stZavrseno: "fertig",
@@ -915,6 +918,11 @@ function headerBands(totalW) {
       <span class="th c-pop" data-k="pop" title="${t("sortPop")}">POP ${sortArrow("pop")}</span>
       <span class="th c-dp" data-k="dp" title="${t("sortDp")}">DP ${sortArrow("dp")}</span>
       <span class="th c-act" data-k="akt" title="${t("sortAkt")}">${t("aktivnost")} ${sortArrow("akt")}</span>
+      <div class="band-legend" title="${t("legTip")}">
+        <span style="height:24px">${t("legMonth")}</span>
+        <span style="height:22px">KW</span>
+        ${days ? `<span style="height:22px">${t("legDay")}</span>` : ""}
+      </div>
     </div>
     <div class="tl-track" style="width:${totalW}px">
       <div class="tl-head-band months" style="width:${totalW}px">${months}</div>
@@ -924,11 +932,11 @@ function headerBands(totalW) {
 }
 
 function trackBg() {
-  /* sedmične linije jasnije; dnevne suptilne (da kolone budu čitljive ali ne bučne) */
-  const imgs = [`linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px)`];
+  /* suptilne sedmične linije iza aktivnosti (vodilice, ne "trake"); dnevne još tiše */
+  const imgs = [`linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px)`];
   const sizes = [`${7 * PX}px 100%`];
   if (dayMode()) {
-    imgs.push(`linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px)`);
+    imgs.push(`linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px)`);
     sizes.push(`${PX}px 100%`);
   }
   return `background-image:${imgs.join(",")};background-size:${sizes.join(",")}`;
@@ -1102,13 +1110,7 @@ function renderTimeline(keepScroll) {
   /* prazno stanje: objasni ZAŠTO nema redova i šta dalje */
   if (!anyRow) html += `<div class="tl-empty">${t("tlEmpty")}</div>`;
 
-  /* jasni mjesečni separatori preko cijele visine (čitljivije kolone) */
-  let monthLines = "";
-  for (let m = 1; m < 12; m++) {
-    const idx = Math.round((new Date(YEAR, m, 1) - yearStart()) / 864e5);
-    if (idx > 0 && idx < n) monthLines += `<i class="month-line" style="left:${LABELW + idx * PX}px"></i>`;
-  }
-  html = `<div class="tl-inner" style="position:relative;min-width:max-content">${html}${monthLines}
+  html = `<div class="tl-inner" style="position:relative;min-width:max-content">${html}
     ${todayI >= 0 && todayI < n ? `<i class="today-line" data-lbl="${t("danas")}" style="left:${LABELW + todayI * PX + PX / 2}px"></i>` : ""}</div>`;
   sc.innerHTML = html;
   sc.scrollLeft = sl; sc.scrollTop = st;
