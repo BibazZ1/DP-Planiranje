@@ -354,8 +354,7 @@ function renderUser() {
     const m = $("#userMail");
     if (m) m.textContent = window.AUTH.email || "";
   }
-  const adm = $("#btnAdmin");
-  if (adm && window.AUTH && window.AUTH.is_admin) adm.hidden = false;
+  /* admin/„Gledaj kao" dugmad se renderuju samo adminu (server-side, Jinja) — ovdje nema potrebe */
 }
 function askUser() {
   /* ime je vezano za Microsoft nalog — ne mijenja se ručno */
@@ -367,7 +366,7 @@ function askUser() {
 /* ---------- impersonacija: admin "gleda kao" drugi korisnik (testiranje/bug-fix) ---------- */
 function renderImpersonation() {
   const A = window.AUTH || {};
-  const banner = $("#impBanner"), btn = $("#btnImpersonate");
+  const banner = $("#impBanner");
   if (banner) {
     banner.classList.toggle("hidden", !A.impersonating);
     document.body.classList.toggle("impersonating", !!A.impersonating);
@@ -377,8 +376,7 @@ function renderImpersonation() {
         `<span class="imp-you">${t("impYou")}: ${esc(A.real_name || A.real_email)}</span>`;
     }
   }
-  /* dugme "Gledaj kao" vidi STVARNI admin koji trenutno NE impersonira */
-  if (btn) btn.hidden = !(A.real_is_admin && !A.impersonating);
+  /* "Gledaj kao" dugme (#btnImpersonate) renderuje se samo realnom adminu (Jinja) */
 }
 async function openImpersonatePicker() {
   let users = [];

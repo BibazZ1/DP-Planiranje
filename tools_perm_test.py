@@ -110,8 +110,11 @@ import re as _re, json as _json
 _html = c.get("/").get_data(as_text=True)
 _m = _re.search(r"window\.AUTH\s*=\s*(\{.*?\})\s*;", _html)
 _auth = _json.loads(_m.group(1)) if _m else {}
-ok("korisnik: AUTH.is_admin=false (admin dugme skriveno)", _auth.get("is_admin") is False)
-ok("korisnik: AUTH.real_is_admin=false ('Gledaj kao' skriveno)", _auth.get("real_is_admin") is False)
+ok("korisnik: AUTH.is_admin=false", _auth.get("is_admin") is False)
+ok("korisnik: AUTH.real_is_admin=false", _auth.get("real_is_admin") is False)
+# dugmad se uopšte NE renderuju u HTML-u za korisnika (potpuno skrivena, ne samo CSS)
+ok("korisnik: 'Gledaj kao' dugme NIJE u HTML-u", 'id="btnImpersonate"' not in _html)
+ok("korisnik: admin dugme NIJE u HTML-u", 'id="btnAdmin"' not in _html)
 
 print(f"\n===== PERM: {passed} PASS / {failed} FAIL =====")
 raise SystemExit(1 if failed else 0)

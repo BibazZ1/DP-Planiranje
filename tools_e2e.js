@@ -545,8 +545,9 @@ function ok(name, cond, extra = "") {
   // ---------- 16f. impersonacija ("gledaj kao") — admin alat za testiranje ----------
   await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
   await page.waitForSelector("#userBadge", { timeout: 10000 });
-  ok("impersonacija: 'Gledaj kao' dugme vidljivo adminu",
-    (await page.locator("#btnImpersonate:not([hidden])").count()) === 1);
+  ok("impersonacija: 'Gledaj kao' dugme prisutno adminu",
+    (await page.locator("#btnImpersonate").count()) === 1);
+  ok("admin: admin dugme prisutno", (await page.locator("#btnAdmin").count()) === 1);
   await page.request.post(BASE + "/api/admin/users", { data: {
     email: "thomas.busch@mih-fiber.com", role: "user" } });
   const impStart = await page.request.post(BASE + "/api/admin/impersonate", { data: {
@@ -557,10 +558,10 @@ function ok(name, cond, extra = "") {
   const aImp = await page.evaluate(() => window.AUTH);
   ok("impersonacija: efektivni identitet = ciljani korisnik",
     aImp.email === "thomas.busch@mih-fiber.com" && aImp.impersonating === true && aImp.is_admin === false);
-  ok("impersonacija: admin dugme sakriveno (efektivno non-admin)",
-    (await page.locator("#btnAdmin[hidden]").count()) === 1);
-  ok("impersonacija: 'Gledaj kao' sakriveno dok je aktivna",
-    (await page.locator("#btnImpersonate[hidden]").count()) === 1);
+  ok("impersonacija: admin dugme NIJE u DOM-u (efektivno non-admin)",
+    (await page.locator("#btnAdmin").count()) === 0);
+  ok("impersonacija: 'Gledaj kao' NIJE u DOM-u dok je aktivna",
+    (await page.locator("#btnImpersonate").count()) === 0);
   ok("impersonacija: admin API 403 u tom kontekstu",
     (await page.request.get(BASE + "/api/admin/users")).status() === 403);
   await page.click("#impStop");

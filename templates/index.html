@@ -48,8 +48,12 @@
     <button class="userbadge" id="userBadge" data-i18n-title="userTip" title="prijavljeni korisnik">
       <span class="ub-col"><b id="userName">?</b><small id="userMail"></small></span>
     </button>
-    <button class="btn iconbtn viewas" id="btnImpersonate" data-i18n-title="impTip" title="Gledaj kao korisnik" hidden><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
-    <a class="btn iconbtn admin" id="btnAdmin" href="/admin" title="administracija pristupa" hidden><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6l7-3z"/></svg></a>
+    {% if auth.real_is_admin and not auth.impersonating %}
+    <button class="btn iconbtn viewas" id="btnImpersonate" data-i18n-title="impTip" title="Gledaj kao korisnik"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    {% endif %}
+    {% if auth.is_admin %}
+    <a class="btn iconbtn admin" id="btnAdmin" href="/admin" title="administracija pristupa"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6l7-3z"/></svg></a>
+    {% endif %}
     <a class="btn iconbtn logout" id="btnLogout" href="/logout" title="Odjava"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v8"/><path d="M7.5 7a7 7 0 1 0 9 0"/></svg></a>
   </div>
 </header>
