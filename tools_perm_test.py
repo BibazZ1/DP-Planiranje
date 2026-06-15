@@ -99,5 +99,19 @@ with c.session_transaction() as s:
 ok("non-admin + krivotvoren impersonate NE eskalira (admin API 403)",
    c.get("/api/admin/users").status_code == 403)
 
+# ---------- korisnik (non-admin) NE smije/ne vidi superuser funkcije ----------
+login(USER, "User Dva")
+ok("korisnik: 403 na listanje korisnika", c.get("/api/admin/users").status_code == 403)
+ok("korisnik: 403 na DODAVANJE e-maila u app",
+   c.post("/api/admin/users", json={"email": "novi@x.com", "role": "user"}).status_code == 403)
+ok("korisnik: 403 na /admin stranicu", c.get("/admin").status_code == 403)
+# index AUTH za korisnika -> is_admin/real_is_admin false => dugmad 'Gledaj kao' i admin ostaju skrivena
+import re as _re, json as _json
+_html = c.get("/").get_data(as_text=True)
+_m = _re.search(r"window\.AUTH\s*=\s*(\{.*?\})\s*;", _html)
+_auth = _json.loads(_m.group(1)) if _m else {}
+ok("korisnik: AUTH.is_admin=false (admin dugme skriveno)", _auth.get("is_admin") is False)
+ok("korisnik: AUTH.real_is_admin=false ('Gledaj kao' skriveno)", _auth.get("real_is_admin") is False)
+
 print(f"\n===== PERM: {passed} PASS / {failed} FAIL =====")
 raise SystemExit(1 if failed else 0)
