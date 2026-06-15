@@ -222,14 +222,23 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 .tl-head-band{position:relative;height:22px;font-size:10px;color:var(--mut)}
 .tl-head-band.months{height:24px}
 .tl-head-band .hb{position:absolute;top:0;bottom:0;display:flex;align-items:center;
-  justify-content:center;border-left:1px solid rgba(255,255,255,.06);overflow:hidden;
-  white-space:nowrap}
+  justify-content:center;overflow:hidden;white-space:nowrap}
+/* mjeseci: jak separator + uppercase ime */
 .tl-head-band.months .hb{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;
-  color:#9fb0c8;font-weight:700}
-.tl-head-band.kw .hb{font:600 10px var(--mono);color:#76859b}
-.tl-head-band.days .hb{font:500 9.5px var(--mono);color:var(--mut2)}
-.tl-head-band.days .hb.we{background:rgba(255,255,255,.035);color:#65758d}
-.tl-head-band.days .hb.today,.tl-head-band.kw .hb.todayw{color:var(--teal);font-weight:700}
+  color:#aab9d0;font-weight:700;border-left:1px solid rgba(255,255,255,.2)}
+/* KW: tanak separator, samo broj */
+.tl-head-band.kw .hb{font:600 10.5px var(--mono);color:#8a99b0;
+  border-left:1px solid rgba(255,255,255,.08)}
+.tl-head-band.kw .hb.todayw{color:var(--teal);font-weight:700}
+/* dani: bez linije na svaki dan; ponedjeljak = sedmična linija, 1. = jača mjesečna */
+.tl-head-band.days .hb{font:500 10px var(--mono);color:var(--mut2)}
+.tl-head-band.days .hb.mon{border-left:1px solid rgba(255,255,255,.1)}
+.tl-head-band.days .hb.m1{border-left:1px solid rgba(255,255,255,.22)}
+.tl-head-band.days .hb.we{background:rgba(255,255,255,.04);color:#65758d}
+.tl-head-band.days .hb.today{color:var(--teal);font-weight:700}
+/* puni mjesečni separator preko cijele visine tabele (čitljive kolone) */
+.month-line{position:absolute;top:0;bottom:0;width:1px;z-index:3;pointer-events:none;
+  background:rgba(255,255,255,.12)}
 
 /* group row */
 .tl-row.group .tl-label{background:linear-gradient(90deg,rgba(16,28,46,.97),rgba(11,18,30,.95));

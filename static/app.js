@@ -871,39 +871,41 @@ function headerBands(totalW) {
     const w = (b - a) * PX;
     months += `<div class="hb" style="left:${a * PX}px;width:${w}px">${w > 46 ? MJESECI[m] : MJESECI[m].slice(0, 3)}</div>`;
   }
-  /* weeks */
+  /* sedmice (KW): ćelija nosi SAMO broj; "KW" se imenuje jednom (legenda lijevo).
+     prva ćelija u mjesecu dobija jaču liniju (poklapa se s mjesečnim separatorom) */
   let weeks = "";
   const wpx = 7 * PX;
-  const skip = wpx >= 26 ? 1 : wpx >= 13 ? 2 : 4;
+  const skip = wpx >= 22 ? 1 : wpx >= 12 ? 2 : 4;
   let d = new Date(yearStart());
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));   // monday on/before Jan 1
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));   // ponedjeljak na/prije 1.1.
   const todayI = dayIdx(todayIso());
+  let lastM = -1;   // "KW" se ispiše samo na prvoj sedmici mjeseca (ne na svakoj)
   while (d < new Date(YEAR + 1, 0, 1)) {
     const a = Math.round((d - yearStart()) / 864e5);
     const kw = isoWeekOf(d);
     const isNow = todayI >= a && todayI < a + 7;
-    weeks += `<div class="hb${isNow ? " todayw" : ""}" style="left:${Math.max(0, a * PX)}px;width:${wpx - Math.max(0, -a * PX)}px">` +
-      `${kw % skip === 0 || skip === 1 ? "KW" + kw : ""}</div>`;
+    const show = skip === 1 || kw % skip === 0;
+    let lbl = "";
+    if (show) { const m = d.getMonth(); lbl = (m !== lastM ? "KW " : "") + kw; lastM = m; }
+    weeks += `<div class="hb${isNow ? " todayw" : ""}" style="left:${Math.max(0, a * PX)}px;width:${wpx - Math.max(0, -a * PX)}px">${lbl}</div>`;
     d.setDate(d.getDate() + 7);
   }
-  /* days / monday dates — rjeđe oznake da ne budu zbijene */
+  /* dani: SAMO datum (bez dana u sedmici) — čisto i stane; 1. u mjesecu = jača linija */
   let days = "";
   if (dayMode()) {
+    const everyDay = PX >= 11;   // dovoljno široko za dvocifren datum
     for (let i = 0; i < n; i++) {
       const dt = dateOfIdx(i);
       const we = dt.getDay() === 0 || dt.getDay() === 6;
-      /* PX>=15: dan+datum svaki dan · PX>=11: samo broj · ispod: broj samo ponedjeljkom */
-      const lbl = PX >= 15 ? `${DANI[(dt.getDay() + 6) % 7]} ${dt.getDate()}`
-        : PX >= 11 ? `${dt.getDate()}`
-        : dt.getDay() === 1 ? `${dt.getDate()}` : "";
-      days += `<div class="hb${we ? " we" : ""}${i === todayI ? " today" : ""}" style="left:${i * PX}px;width:${PX}px">${lbl}</div>`;
+      const first = dt.getDate() === 1;
+      const lbl = (everyDay || dt.getDay() === 1) ? dt.getDate() : "";
+      days += `<div class="hb${we ? " we" : ""}${i === todayI ? " today" : ""}${first ? " m1" : ""}${dt.getDay() === 1 ? " mon" : ""}" style="left:${i * PX}px;width:${PX}px">${lbl}</div>`;
     }
   } else if (PX >= 2.6) {
     let d2 = new Date(yearStart());
-    d2.setDate(d2.getDate() + (8 - (d2.getDay() || 7)) % 7);  // first monday
+    d2.setDate(d2.getDate() + (8 - (d2.getDay() || 7)) % 7);  // prvi ponedjeljak
     while (d2 < new Date(YEAR + 1, 0, 1)) {
       const a = Math.round((d2 - yearStart()) / 864e5);
-      /* samo dan (bez mjeseca) — mjesec se vidi u traci iznad */
       days += `<div class="hb" style="left:${a * PX}px;width:${wpx}px">${wpx >= 18 ? String(d2.getDate()) : ""}</div>`;
       d2.setDate(d2.getDate() + 7);
     }
@@ -922,10 +924,11 @@ function headerBands(totalW) {
 }
 
 function trackBg() {
-  const imgs = [`linear-gradient(90deg,rgba(255,255,255,.11) 1px,transparent 1px)`];
+  /* sedmične linije jasnije; dnevne suptilne (da kolone budu čitljive ali ne bučne) */
+  const imgs = [`linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px)`];
   const sizes = [`${7 * PX}px 100%`];
   if (dayMode()) {
-    imgs.push(`linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px)`);
+    imgs.push(`linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px)`);
     sizes.push(`${PX}px 100%`);
   }
   return `background-image:${imgs.join(",")};background-size:${sizes.join(",")}`;
@@ -1099,7 +1102,13 @@ function renderTimeline(keepScroll) {
   /* prazno stanje: objasni ZAŠTO nema redova i šta dalje */
   if (!anyRow) html += `<div class="tl-empty">${t("tlEmpty")}</div>`;
 
-  html = `<div class="tl-inner" style="position:relative;min-width:max-content">${html}
+  /* jasni mjesečni separatori preko cijele visine (čitljivije kolone) */
+  let monthLines = "";
+  for (let m = 1; m < 12; m++) {
+    const idx = Math.round((new Date(YEAR, m, 1) - yearStart()) / 864e5);
+    if (idx > 0 && idx < n) monthLines += `<i class="month-line" style="left:${LABELW + idx * PX}px"></i>`;
+  }
+  html = `<div class="tl-inner" style="position:relative;min-width:max-content">${html}${monthLines}
     ${todayI >= 0 && todayI < n ? `<i class="today-line" data-lbl="${t("danas")}" style="left:${LABELW + todayI * PX + PX / 2}px"></i>` : ""}</div>`;
   sc.innerHTML = html;
   sc.scrollLeft = sl; sc.scrollTop = st;
