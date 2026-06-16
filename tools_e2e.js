@@ -391,11 +391,18 @@ function ok(name, cond, extra = "") {
   const ndays = Math.round((new Date(segH.datum_do) - new Date(segH.datum_od)) / 864e5) + 1;
   ok("crtanje PO DANU (kratak povlak < 7 dana)", ndays >= 1 && ndays < 7, `(${ndays}d)`);
 
-  // (e) dupli klik na traku = završeno; undo vraća; desni klik = editor
+  // (e) dupli klik = OTVORI EDITOR (NE mijenja status tiho -> termin nikad ne "nestaje")
   const segMEl = page.locator(`.seg[data-seg="${segM.id}"]`);
   await segMEl.dblclick();
-  await page.waitForTimeout(800);
-  ok("dupli klik -> završeno", (await (await page.request.get(BASE + "/api/data")).json())
+  await page.waitForTimeout(400);
+  ok("dupli klik -> editor otvoren", await page.locator("#pop:not(.hidden)").isVisible());
+  ok("dupli klik NE mijenja status sam (ne briše/nestaje)",
+    (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === segM.id).status === "otvoreno");
+  // u editoru: označi 'završeno' + Sačuvaj -> tek tada se status mijenja
+  await page.click('#popStatus .stpill[data-st="završeno"]');
+  await page.click("#popSave");
+  await page.waitForTimeout(700);
+  ok("editor: 'završeno' + Sačuvaj -> status snimljen", (await (await page.request.get(BASE + "/api/data")).json())
     .segments.find(s => s.id === segM.id).status === "završeno");
   await page.click("#btnUndo");
   await page.waitForTimeout(800);

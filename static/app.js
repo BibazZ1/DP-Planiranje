@@ -1174,29 +1174,16 @@ function bindTimeline() {
     });
   });
   $$("#tlScroll .seg").forEach(sg => {
-    /* dupli klik:
-       - probijen rok (otvoreno + kraj u prošlosti) -> NE označavaj tiho završeno;
-         otvori editor (razlog + produženje datuma crveno svijetle)
-       - inače -> brzi toggle završeno ↔ otvoreno */
-    sg.addEventListener("dblclick", async e => {
+    /* dupli klik = OTVORI EDITOR (status/datumi/komentar mijenjaš eksplicitno i vidiš ih).
+       Ranije je dupli klik tiho prebacivao status -> uz aktivan filter bi termin "nestao"
+       iz prikaza (djelovalo kao brisanje). Editor nikad ne briše niti skriva termin. */
+    sg.addEventListener("dblclick", e => {
       e.stopPropagation();
       const s = DATA.segments.find(x => x.id === +sg.dataset.seg);
       if (!s) return;
       if (!canEditProjekt(taskProjekt(s.task_id))) return lockToast(taskProjekt(s.task_id));
-      if (s.status !== "završeno" && s.datum_do < todayIso()) {
-        ensureDpSelected(s.task_id);
-        openPop("edit", s.id, e.clientX, e.clientY);   // traži razlog + produženje
-        return;
-      }
-      const cur = s.status;
-      const next = cur === "završeno" ? "otvoreno" : "završeno";
-      s.status = next;
-      try { await api(`/api/segments/${s.id}`, "PATCH", { status: next }); }
-      catch (err) { s.status = cur; return handleApiErr(err); }
-      pushUndo({ label: t("statusLbl"),
-        run: async () => api(`/api/segments/${s.id}`, "PATCH", { status: cur }) });
-      renderAll();
-      histDirty();
+      ensureDpSelected(s.task_id);
+      openPop("edit", s.id, e.clientX, e.clientY);
     });
     /* desni klik = puni editor (komentar, eskalacija, datumi, brisanje) */
     sg.addEventListener("contextmenu", e => {
