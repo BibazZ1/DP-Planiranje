@@ -239,7 +239,9 @@ function ok(name, cond, extra = "") {
 
   // ---------- 12b. klik na DP ćeliju: puni projekat+kunde + otvara bočni panel ----------
   await page.locator('.cell[data-fdp]').first().click();
-  await page.waitForTimeout(500);
+  // panel klizi 0.38s (transform+visibility) — čekaj da se stvarno otvori, ne fiksni timeout
+  await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+  await page.waitForTimeout(450);
   ok("klik na DP -> projekat popunjen", await chipX("data-xproj").isVisible());
   ok("klik na DP -> kunde popunjen", await chipX("data-xkunde").isVisible());
   ok("klik na DP -> DP čip", await chipX("data-xdp").isVisible());
@@ -282,8 +284,12 @@ function ok(name, cond, extra = "") {
   // ---------- 12f. plan-vs-stvarnost ----------
   ok("plan-vs-stvarnost (HP/HA trake) prikazan", (await page.locator(".pv-wrap").count()) === 1);
 
-  // ---------- 12g. krupna vremena + Escape skida DP ali OSTAVLJA projekat ----------
-  ok("historija: krupno KO + KADA", (await page.locator("#drHist .evwhen b").count()) >= 1);
+  // ---------- 12g. zbijena historija (1 red, boja po akciji) + Escape skida DP ali OSTAVLJA projekat ----------
+  ok("historija: zbijen red (vrijeme)", (await page.locator("#drHist .dr-h .evt").count()) >= 1);
+  ok("historija: puni datum dd/mm/yyyy hh:mm",
+    /\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(await page.locator("#drHist .dr-h .evt").first().textContent().catch(() => "")));
+  ok("historija: boja po akciji",
+    (await page.locator("#drHist .dr-h.ev-green, #drHist .dr-h.ev-teal, #drHist .dr-h.ev-amber, #drHist .dr-h.ev-blue, #drHist .dr-h.ev-red, #drHist .dr-h.ev-purple, #drHist .dr-h.ev-gray").count()) >= 1);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   ok("Esc: panel zatvoren", !(await page.locator("#drawer.open").isVisible().catch(() => false)));

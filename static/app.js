@@ -2389,14 +2389,6 @@ function fmtTs(ts) {
   const [d, tm] = String(ts).split("T");
   return fmt(d).slice(0, 6) + " " + (tm || "").slice(0, 5);
 }
-function avatar(u) {
-  u = (u || "").trim();
-  if (!u) return `<span class="av unk">?</span>`;
-  const ini = u.split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
-  let h = 0;
-  for (const c of u) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return `<span class="av" style="--ah:${h % 360}">${esc(ini)}</span>`;
-}
 function evText(e) {
   if (e.kind === "seg")
     return `<em>${esc(e.aktivnost)}</em> · ${hcLbl(e.polje)}: ${esc(e.vrijednost)}`;
@@ -2414,23 +2406,51 @@ function evText(e) {
       return `${FL[e.polje] || esc(e.polje)}: ${esc(e.staro ?? "")} <i class="arr">→</i> ${esc(e.novo ?? "")}`;
   }
 }
+function fmtTsParts(ts) {
+  const [d, tm] = String(ts).split("T");
+  return [fmt(d).slice(0, 6), (tm || "").slice(0, 5)];
+}
+/* dd/mm/yyyy hh:mm — puni datum, jedno polje */
+function evWhen(ts) {
+  const [d, tm] = String(ts).split("T");
+  const [y, m, dd] = (d || "").split("-");
+  if (!y) return String(ts);
+  return `${dd}/${m}/${y} ${(tm || "").slice(0, 5)}`;
+}
+/* kratko ime: Ime P. */
+function shortUser(u) {
+  u = (u || "").trim();
+  if (!u) return t("nepoznat");
+  const p = u.split(/\s+/);
+  return p.length > 1 ? `${p[0]} ${p[p.length - 1][0]}.` : u;
+}
+/* boja po vrsti akcije — da se na prvi pogled razazna šta se desilo */
+function evColor(e) {
+  const a = (e.action || "").toLowerCase();
+  const p = (e.polje || "").toLowerCase();
+  const v = String(e.vrijednost ?? e.novo ?? "").toLowerCase();
+  if (/obrisan|brisanj/.test(a) || a === "termin obrisan") return "ev-red";
+  if (/kreir|dodan/.test(a) || p === "kreirano") return "ev-green";
+  if (p === "status") return /zavr/.test(v) ? "ev-teal" : "ev-amber";
+  if (/datum|kraj|rok|od$|do$/.test(p)) return "ev-blue";
+  if (/kasni|produ/.test(p)) return "ev-purple";
+  if (/eskalac/.test(p)) return "ev-orange";
+  return "ev-gray";
+}
 function evRow(e) {
   /* u POP pogledu označi događaje koji pripadaju pojedinom DP-u */
   const child = SEL && SEL.type === "pop" && (e.kind === "seg" || e.entity === "dp");
   const chLbl = e.kind === "seg" ? e.dp_naziv : e.label;
   const pre = child && chLbl ? `<small class="ch">${esc(chLbl)}</small> ` : "";
-  /* KO i KADA — krupno i jasno, na prvi pogled */
-  const [dd, tt] = fmtTsParts(e.ts);
-  return `<div class="dr-h">${avatar(e.user)}<div class="bd">
-    <div class="evhead">
-      <b class="evwho">${e.user ? esc(e.user) : t("nepoznat")}</b>
-      <span class="evwhen"><b>${tt}</b><i>${dd}</i></span>
-    </div>
-    <div class="tx">${pre}${evText(e)}</div></div></div>`;
-}
-function fmtTsParts(ts) {
-  const [d, tm] = String(ts).split("T");
-  return [fmt(d).slice(0, 6), (tm || "").slice(0, 5)];
+  const detail = evText(e);
+  /* jedan red: tačka · vrijeme · šta · ko — boja po akciji */
+  const plain = `${shortUser(e.user)} · ${detail.replace(/<[^>]+>/g, "")}`;
+  return `<div class="dr-h ${evColor(e)}" title="${esc(plain)}">` +
+    `<i class="ev-dot"></i>` +
+    `<span class="evt">${evWhen(e.ts)}</span>` +
+    `<span class="evx">${pre}${detail}</span>` +
+    `<span class="evu">${esc(shortUser(e.user))}</span>` +
+    `</div>`;
 }
 /* drawer akcije: HP/HA upis, preimenovanje, brisanje */
 async function drNum(k) {
