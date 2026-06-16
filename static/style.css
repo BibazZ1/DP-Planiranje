@@ -307,6 +307,11 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
 .seg.esk{outline:1.5px solid #ff8c1a;outline-offset:1.5px;animation:segIn .35s both,eskPulse 1.4s ease-in-out infinite}
 @keyframes eskPulse{50%{outline-color:rgba(255,140,26,.3);box-shadow:0 0 22px rgba(255,140,26,.65)}}
+/* probijen rok: traka crveno pulsira (privlači pažnju da treba produžiti/objasniti) */
+.seg.late{animation:segIn .35s cubic-bezier(.2,.8,.25,1) both,latePulse 1.7s ease-in-out infinite}
+@keyframes latePulse{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.4)}
+  50%{box-shadow:0 4px 14px rgba(0,0,0,.4),0 0 0 3px rgba(239,68,68,.45),0 0 16px rgba(239,68,68,.6)}}
+.seg.late.esk{animation:segIn .35s both,eskPulse 1.4s ease-in-out infinite}   /* esk ima prednost */
 .seg .warn{font-size:11px;filter:drop-shadow(0 0 4px #ff8c1a)}
 /* tekst u traci iznad overlay-a */
 .seg>span{position:relative;z-index:3}
@@ -378,6 +383,8 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 .hc-h span{color:#c7d3e4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hc-h.empty{color:var(--mut2);font-style:italic;border:0}
 .hc-tip{margin-top:7px;font-size:10px;color:var(--mut2);text-align:right}
+.hc-tip.late{color:#fca5a5;font-weight:700;text-align:left;background:rgba(239,68,68,.12);
+  border:1px solid rgba(239,68,68,.35);border-radius:7px;padding:4px 8px}
 
 /* ---------- popover ---------- */
 .pop{position:fixed;z-index:100;width:300px;padding:16px 18px;

@@ -310,7 +310,7 @@ function ok(name, cond, extra = "") {
     return tr.locator(".tl-track").boundingBox();
   };
 
-  // (a) crtanje koje ZAVRŠAVA PRIJE DANAS -> Swal traži razlog; Otkaži = ništa se ne kreira
+  // (a) crtanje -> PITA otvoren/završen; Otkaži = ništa se ne kreira
   let bA = await rowBox("Asfaltiranje");
   let yA = bA.y + bA.height / 2;
   await page.mouse.move(bA.x + 300, yA);
@@ -321,56 +321,72 @@ function ok(name, cond, extra = "") {
   ok("brojač: datumi + trajanje + KW", /\d{2}\.\d{2}\./.test(tipTxt) && /d · KW/.test(tipTxt), `(${tipTxt})`);
   const cntBefore = await segCount();
   await page.mouse.up();
-  await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
-  ok("kraj PRIJE danas -> traži razlog (Swal)", true);
+  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
+  ok("crtanje: pita otvoren ili završen", await page.locator(".swal2-deny").isVisible());
   await page.click(".swal2-cancel");
-  // dijalog mora VIZUELNO nestati brzo (ne smije ostati "zaglavljen")
   await page.waitForSelector(".swal2-container", { state: "detached", timeout: 1500 }).catch(() => {});
   ok("Swal NESTANE poslije Otkaži (<1.5s)", (await page.locator(".swal2-container").count()) === 0);
   await page.waitForTimeout(300);
-  ok("otkazan razlog -> termin NIJE kreiran", (await segCount()) === cntBefore);
-  // klik na timeline NAKON zatvaranja ne smije pokrenuti novi 'duh' potez
-  ok("nema zaostalog dijaloga (bez 'duh' prompta)", (await page.locator(".swal2-popup").count()) === 0);
+  ok("otkazано pitanje -> termin NIJE kreiran", (await segCount()) === cntBefore);
 
-  // (b) isti potez s razlogom -> kreira se s kasni_razlog
-  bA = await rowBox("Asfaltiranje");
-  yA = bA.y + bA.height / 2;
-  await page.mouse.move(bA.x + 300, yA);
-  await page.mouse.down();
-  await page.mouse.move(bA.x + 380, yA, { steps: 4 });
-  await page.mouse.up();
+  // (a2) otvoren + kraj prije danas -> traži razlog; Otkaži razlog = ništa
+  bA = await rowBox("Asfaltiranje"); yA = bA.y + bA.height / 2;
+  await page.mouse.move(bA.x + 300, yA); await page.mouse.down();
+  await page.mouse.move(bA.x + 380, yA, { steps: 4 }); await page.mouse.up();
+  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
+  await page.click(".swal2-confirm");   // otvoren
+  await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
+  ok("otvoren + kraj prije danas -> traži razlog", true);
+  await page.click(".swal2-cancel");
+  await page.waitForTimeout(400);
+  ok("otkazan razlog -> termin NIJE kreiran", (await segCount()) === cntBefore);
+
+  // (b) otvoren + razlog -> kreira se s kasni_razlog
+  bA = await rowBox("Asfaltiranje"); yA = bA.y + bA.height / 2;
+  await page.mouse.move(bA.x + 300, yA); await page.mouse.down();
+  await page.mouse.move(bA.x + 380, yA, { steps: 4 }); await page.mouse.up();
+  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
+  await page.click(".swal2-confirm");   // otvoren
   await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
   await page.fill(".swal2-popup input.swal2-input", "kasni zbog dozvole");
   await page.click(".swal2-confirm");
-  await page.waitForSelector(".swal2-container", { state: "detached", timeout: 1500 }).catch(() => {});
-  ok("Swal NESTANE poslije Sačuvaj (<1.5s)", (await page.locator(".swal2-container").count()) === 0);
-  await page.waitForTimeout(500);
-  ok("razlog upisan -> termin kreiran", (await segCount()) === cntBefore + 1);
+  await page.waitForTimeout(600);
+  ok("otvoren+razlog -> termin kreiran", (await segCount()) === cntBefore + 1);
   ok("kasni_razlog snimljen", (await lastSeg()).kasni_razlog === "kasni zbog dozvole");
+  ok("kreiran kao otvoren", (await lastSeg()).status === "otvoreno");
 
-  // (c) crtanje POSLIJE danas -> NIŠTA ne pita: odmah otvoreno, bez popovera
+  // (c) crtanje POSLIJE danas -> izaberi otvoren -> odmah kreira (bez razloga)
   const bM = await rowBox("Montaža");
   const yM = bM.y + bM.height / 2;
-  await page.mouse.move(bM.x + 660, yM);
-  await page.mouse.down();
-  await page.mouse.move(bM.x + 740, yM, { steps: 4 });
-  await page.mouse.up();
-  await page.waitForTimeout(800);
-  ok("budući termin: NEMA Swal pitanja", (await page.locator(".swal2-popup").count()) === 0);
-  ok("budući termin: NEMA popovera", !(await page.locator("#pop:not(.hidden)").isVisible().catch(() => false)));
-  ok("budući termin: kreiran odmah", (await segCount()) === cntBefore + 2);
+  await page.mouse.move(bM.x + 660, yM); await page.mouse.down();
+  await page.mouse.move(bM.x + 740, yM, { steps: 4 }); await page.mouse.up();
+  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
+  await page.click(".swal2-confirm");   // otvoren
+  await page.waitForTimeout(700);
+  ok("budući termin: bez razloga (nema input Swala)", (await page.locator(".swal2-popup input.swal2-input").count()) === 0);
+  ok("budući termin: kreiran", (await segCount()) === cntBefore + 2);
   const segM = await lastSeg();
-  ok("default status = otvoreno", segM.status === "otvoreno");
-  ok("brojač sakriven poslije puštanja", !(await page.locator(".dragtip:not(.hidden)").isVisible().catch(() => false)));
+  ok("budući: status otvoreno", segM.status === "otvoreno");
 
-  // (d) crtanje je PO DANU: kratak povlak (~12px) < 7 dana
+  // (c2) crtanje -> ZAVRŠEN -> kreira završen i bez razloga (gotov je); prazan red
+  const bD = await rowBox("Pregled");
+  const yD = bD.y + bD.height / 2;
+  await page.mouse.move(bD.x + 300, yD); await page.mouse.down();
+  await page.mouse.move(bD.x + 360, yD, { steps: 4 }); await page.mouse.up();
+  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
+  await page.click(".swal2-deny");   // završen
+  await page.waitForTimeout(700);
+  ok("završen termin: ne traži razlog", (await page.locator(".swal2-popup input.swal2-input").count()) === 0);
+  ok("završen termin: status završeno", (await lastSeg()).status === "završeno");
+
+  // (d) crtanje je PO DANU: kratak povlak < 7 dana (otvoren u budućnosti)
   const bH = await rowBox("Horizontalno");
   const yH = bH.y + bH.height / 2;
-  await page.mouse.move(bH.x + 700, yH);
-  await page.mouse.down();
-  await page.mouse.move(bH.x + 712, yH, { steps: 3 });
-  await page.mouse.up();
-  await page.waitForTimeout(800);
+  await page.mouse.move(bH.x + 700, yH); await page.mouse.down();
+  await page.mouse.move(bH.x + 712, yH, { steps: 3 }); await page.mouse.up();
+  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
+  await page.click(".swal2-confirm");
+  await page.waitForTimeout(700);
   const segH = await lastSeg();
   const ndays = Math.round((new Date(segH.datum_do) - new Date(segH.datum_od)) / 864e5) + 1;
   ok("crtanje PO DANU (kratak povlak < 7 dana)", ndays >= 1 && ndays < 7, `(${ndays}d)`);
@@ -476,6 +492,19 @@ function ok(name, cond, extra = "") {
   const lateList = dLate.segments.filter(s => s.status !== "završeno" && s.datum_do < todayStr);
   ok("kasni: ima zakašnjelih (preduslov)", lateList.length > 0, `(${lateList.length})`);
   ok("kasni: NEMA plutajućeg balona (uklonjen)", (await page.locator("#lateBubble").count()) === 0);
+  // probijena traka crveno pulsira; dupli klik NE označava tiho završeno -> otvara editor (razlog+produženje)
+  ok("kasni: traka crveno pulsira (.seg.late)", (await page.locator(".seg.late").count()) >= 1);
+  const odEl = page.locator(".seg.late").first();
+  const odSegId = +(await odEl.getAttribute("data-seg"));
+  await odEl.dblclick();
+  await page.waitForTimeout(300);
+  ok("kasni: dupli klik otvara editor (ne toggle završeno)", await page.locator("#pop:not(.hidden)").isVisible());
+  ok("kasni: dupli klik NE mijenja status u završeno",
+    (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === odSegId).status === "otvoreno");
+  ok("kasni editor (dbl): razlog+datum crveno svijetle",
+    (await page.locator("#popKasniWrap.req-late").count()) === 1 && (await page.locator("#popWhenEdit.req-late").count()) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
   // ukupni "kasni" čip u filteru svijetli (glow) dok ima zakašnjelih
   ok("kasni: ukupni čip u filteru svijetli (glow)",
     (await page.locator(".slicers .chip.late.glow").count()) === 1);

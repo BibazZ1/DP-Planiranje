@@ -58,6 +58,8 @@ const I18N = {
     kasni: "KASNI", kasniDoDanas: "produženo do danas",
     razlogProd: "razlog produženja", razlogNijeUpisan: "nije upisan — dupli klik!",
     hist: "Historija", noHist: "nema zabilježenih promjena", hcEdit: "dupli klik = uredi",
+    drawAskTitle: "Otvoren ili završen termin?",
+    hcLateTip: "PROBIJEN ROK · dupli klik = produži rok + razlog · povuci rub = pomjeri kraj",
     hKreirano: "kreirano", hStatus: "status", hPocetak: "početak", hKraj: "kraj",
     hEskalacija: "eskalacija", hEskOd: "eskalacija od", obrisano: "(obrisano)",
     promptAkt: "Naziv nove aktivnosti:", promptNaziv: "Naziv aktivnosti:",
@@ -151,6 +153,8 @@ const I18N = {
     kasni: "LATE", kasniDoDanas: "extended to today",
     razlogProd: "extension reason", razlogNijeUpisan: "not entered — double-click!",
     hist: "History", noHist: "no recorded changes", hcEdit: "double-click = edit",
+    drawAskTitle: "Open or completed slot?",
+    hcLateTip: "OVERDUE · double-click = extend + reason · drag edge = move end",
     hKreirano: "created", hStatus: "status", hPocetak: "start", hKraj: "end",
     hEskalacija: "escalation", hEskOd: "escalation from", obrisano: "(cleared)",
     promptAkt: "Name of the new activity:", promptNaziv: "Activity name:",
@@ -244,6 +248,8 @@ const I18N = {
     kasni: "VERSPÄTET", kasniDoDanas: "bis heute verlängert",
     razlogProd: "Verlängerungsgrund", razlogNijeUpisan: "nicht eingetragen — Doppelklick!",
     hist: "Verlauf", noHist: "keine Änderungen erfasst", hcEdit: "Doppelklick = bearbeiten",
+    drawAskTitle: "Offen oder abgeschlossen?",
+    hcLateTip: "ÜBERFÄLLIG · Doppelklick = verlängern + Grund · Rand ziehen = Ende verschieben",
     hKreirano: "erstellt", hStatus: "Status", hPocetak: "Beginn", hKraj: "Ende",
     hEskalacija: "Eskalation", hEskOd: "Eskalation ab", obrisano: "(gelöscht)",
     promptAkt: "Name der neuen Aktivität:", promptNaziv: "Name der Aktivität:",
@@ -1168,12 +1174,20 @@ function bindTimeline() {
     });
   });
   $$("#tlScroll .seg").forEach(sg => {
-    /* dupli klik = brzi toggle završeno ↔ otvoreno */
+    /* dupli klik:
+       - probijen rok (otvoreno + kraj u prošlosti) -> NE označavaj tiho završeno;
+         otvori editor (razlog + produženje datuma crveno svijetle)
+       - inače -> brzi toggle završeno ↔ otvoreno */
     sg.addEventListener("dblclick", async e => {
       e.stopPropagation();
       const s = DATA.segments.find(x => x.id === +sg.dataset.seg);
       if (!s) return;
       if (!canEditProjekt(taskProjekt(s.task_id))) return lockToast(taskProjekt(s.task_id));
+      if (s.status !== "završeno" && s.datum_do < todayIso()) {
+        ensureDpSelected(s.task_id);
+        openPop("edit", s.id, e.clientX, e.clientY);   // traži razlog + produženje
+        return;
+      }
       const cur = s.status;
       const next = cur === "završeno" ? "otvoreno" : "završeno";
       s.status = next;
@@ -1362,23 +1376,33 @@ document.addEventListener("mouseup", async e => {
   $$(".ghost").forEach(g => g.remove());
   if (!moved) return;                       // običan klik nije crtanje
   const od = iso(dateOfIdx(a)), do_ = iso(dateOfIdx(b));
-  /* CRTANJE = ODMAH KREIRA otvoreni termin, bez popovera i bez pitanja.
-     JEDINI izuzetak: kraj prije danas -> razlog produženja je OBAVEZAN. */
+  /* poslije crtanja PITAJ: otvoren ili završen termin? */
+  const ans = await swalBase({
+    title: t("drawAskTitle"), icon: "question",
+    showDenyButton: true, showCancelButton: true,
+    confirmButtonText: t("stOtvoreno"), denyButtonText: t("stZavrseno"),
+    cancelButtonText: t("otkazi"),
+    confirmButtonColor: "#ef4444", denyButtonColor: "#10b981",
+  });
+  if (ans.isDismissed) return;              // otkazано -> ništa
+  const status = ans.isDenied ? "završeno" : "otvoreno";
+  /* otvoren termin kojem je kraj već prošao -> razlog produženja je OBAVEZAN
+     (završen termin u prošlosti je uredu — gotov je) */
   let kasni_razlog = "";
-  if (do_ < todayIso()) {
+  if (status !== "završeno" && do_ < todayIso()) {
     kasni_razlog = (await uiPrompt(t("kasniPitanje"), "") || "").trim();
     if (!kasni_razlog) return;              // bez razloga nema kreiranja
   }
   let r;
   try {
     r = await api("/api/segments", "POST",
-      { task_id: taskId, datum_od: od, datum_do: do_, status: "otvoreno", kasni_razlog });
+      { task_id: taskId, datum_od: od, datum_do: do_, status, kasni_razlog });
   } catch (e) {
     return handleApiErr(e);   // 409/400/500 -> jasna poruka, čist UI
   }
   if (!r || !r.id) return;
   DATA.segments.push({ id: r.id, task_id: taskId, datum_od: od, datum_do: do_,
-    status: "otvoreno", komentar: "", eskalacija: 0, esk_razlog: "", esk_datum: "",
+    status, komentar: "", eskalacija: 0, esk_razlog: "", esk_datum: "",
     kasni_razlog });
   pushUndo({ label: t("noviTermin"),
     run: async () => api(`/api/segments/${r.id}`, "DELETE") });
@@ -1680,7 +1704,7 @@ function hcShow(el, ev) {
           <em>${hcLbl(h.polje)}</em><span>${esc(h.vrijednost)}</span>${h.user
             ? `<b class="hc-u">${esc(h.user)}</b>` : ""}</div>`).join("")
       : `<div class="hc-h empty">${t("noHist")}</div>`}</div>
-    <div class="hc-tip">${t("hcEdit")}</div>`;
+    <div class="hc-tip${late ? " late" : ""}">${late ? t("hcLateTip") : t("hcEdit")}</div>`;
     hcEl.classList.remove("hidden");
   }
   const W = 340, H = hcEl.offsetHeight || 220;
