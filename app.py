@@ -947,7 +947,7 @@ DP_COLS = [
 ]
 POP_COLS = [
     ("Projekt", "projekt", "t"), ("Kunde", "kunde", "t"), ("POP/FCP ID", "naziv", "t"),
-    ("HP", "hp", "i"), ("HA", "ha", "i"), ("Broj DP-ova", "dp_count", "i"),
+    ("Broj DP-ova", "dp_count", "i"),
     ("Kreirao", "created_by", "t"), ("Kreirano", "created_at", "d"),
 ]
 PROJ_COLS = [

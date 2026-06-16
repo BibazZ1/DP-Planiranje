@@ -116,8 +116,8 @@ function ok(name, cond, extra = "") {
   ok("dijalog: Projekat predizabran iz filtera", preProj.includes("WANDLITZ"), `(${preProj})`);
   ok("dijalog: ništa ne svijetli (sve popunjeno)", (await page.locator("#dlgPop .glow-req").count()) === 0);
   await page.fill('#frmPop input[name="naziv"]', "POP TEST-1");
-  await page.fill('#frmPop input[name="hp"]', "10");
-  await page.fill('#frmPop input[name="ha"]', "5");
+  ok("POP dijalog: nema HP/HA polja (vodi se na DP-u)",
+    (await page.locator('#frmPop input[name="hp"], #frmPop input[name="ha"]').count()) === 0);
   await page.click('#frmPop button[value="ok"]');
   await page.waitForTimeout(800);
   ok("POP kreiran (bez greške)", !(await page.locator("#dlgPop[open]").isVisible().catch(() => false)));
@@ -126,7 +126,8 @@ function ok(name, cond, extra = "") {
   await page.click("#btnAddDp");
   await page.waitForSelector("#dlgDp[open]", { timeout: 5000 });
   ok("DP dijalog: Kunde+Projekat predizabrani", (await pickVal("dpProj")).includes("WANDLITZ"));
-  ok("DP dijalog: POP korak SVIJETLI", await page.locator("#dpPop.glow-req").isVisible());
+  // poslije kreiranja POP-a tabela se fokusira na njega -> DP dijalog ga predizabere
+  ok("DP dijalog: POP predizabran (fokus na novi POP)", (await pickVal("dpPop")) === "POP TEST-1");
   await pick("dpPop", "POP TEST-1");
   await page.fill('#frmDp input[name="naziv"]', "DP T1");
   await page.fill('#frmDp input[name="hp"]', "10");
@@ -135,6 +136,7 @@ function ok(name, cond, extra = "") {
   const rows = await page.locator(".tl-row[data-task]").count();
   ok("DP kreiran -> 8 aktivnosti u timelineu", rows === 8, `(${rows})`);
   ok("prazno stanje nestalo", !(await page.locator(".tl-empty").isVisible().catch(() => false)));
+  ok("auto-fokus: tabela filtrirana na novi DP", (await page.locator('#activeBar .fchip[data-xdp]').count()) >= 1);
 
   // ---------- 5b. claim sistem (vlasništvo projekta + atribucija) ----------
   ok("claim: 'Preuzmi' kad slobodno", await page.locator("#btnClaim").isVisible());
@@ -496,6 +498,9 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(400);
   ok("modal: red otvara editor termina", await page.locator("#pop:not(.hidden)").isVisible());
   ok("modal: datum-polja otkrivena (produženje)", (await page.locator("#popWhenEdit.hidden").count()) === 0);
+  // probijen rok -> razlog (komentar) i datum-kraj crveno svijetle (jaka obaveza)
+  ok("kasni editor: razlog crveno svijetli", (await page.locator("#popKasniWrap.req-late").count()) === 1);
+  ok("kasni editor: datum-kraj crveno svijetli", (await page.locator("#popWhenEdit.req-late").count()) === 1);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
   await page.locator(`.tl-row.group[data-dp="${lateDpId}"] .gs-late`).click();

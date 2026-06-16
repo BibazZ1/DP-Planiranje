@@ -70,7 +70,7 @@ const I18N = {
     noviPop: "Novi POP", noviPopH: "Novi POP", popNaziv: "Naziv POP",
     izaberiPh: "— izaberi —", popNovPh: "izaberi postojeći ili upiši novi…",
     dpSub: "novi dionički plan — 8 aktivnosti automatski",
-    popSub: "nova POP/FCP tačka pod projektom",
+    popSub: "nova POP/FCP tačka pod projektom", popHpNote: "HP i HA se vode na DP-u (ne na POP-u).",
     kundePh: "izaberi klijenta…", projPh: "izaberi projekat…",
     foldFilteri: "Filteri", foldAnalitika: "Analitika", ocisti: "Očisti",
     aktivniFilteri: "aktivni filteri",
@@ -163,7 +163,7 @@ const I18N = {
     noviPop: "New POP", noviPopH: "New POP", popNaziv: "POP name",
     izaberiPh: "— select —", popNovPh: "pick existing or type a new one…",
     dpSub: "new section plan — 8 activities auto-created",
-    popSub: "new POP/FCP point under a project",
+    popSub: "new POP/FCP point under a project", popHpNote: "HP and HA are tracked on the DP (not the POP).",
     kundePh: "select a client…", projPh: "select a project…",
     foldFilteri: "Filters", foldAnalitika: "Analytics", ocisti: "Clear",
     aktivniFilteri: "active filters",
@@ -256,7 +256,7 @@ const I18N = {
     noviPop: "Neuer POP", noviPopH: "Neuer POP", popNaziv: "POP-Name",
     izaberiPh: "— wählen —", popNovPh: "wählen oder neu eingeben…",
     dpSub: "neuer DP — 8 Aktivitäten automatisch",
-    popSub: "neuer POP/FCP-Punkt unter einem Projekt",
+    popSub: "neuer POP/FCP-Punkt unter einem Projekt", popHpNote: "HP und HA werden am DP geführt (nicht am POP).",
     kundePh: "Kunde wählen…", projPh: "Projekt wählen…",
     foldFilteri: "Filter", foldAnalitika: "Analyse", ocisti: "Leeren",
     aktivniFilteri: "aktive Filter",
@@ -1102,7 +1102,7 @@ function renderTimeline(keepScroll) {
           <div class="pw-info" title="${t("cekaDpTip")}">
             <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(p.naziv)}</span>
               <span class="waitb">${t("cekaDp")}</span></div>
-            <span class="meta">HP ${p.hp || 0} · HA ${p.ha || 0}${p.projekt ? " · " + esc(p.projekt) : ""}</span></div>
+            <span class="meta">${esc(p.projekt || "")}</span></div>
           <div class="gr-side">
             <button class="btn sm primary addDpHere" data-pop="${p.id}">${t("dodajDp")}</button></div>
         </div>
@@ -1533,7 +1533,15 @@ function popLate() {
   return popCtx && popCtx.status !== "završeno" &&
          $("#popDo").value && $("#popDo").value < todayIso();
 }
-function updateKasniVis() { $("#popKasniWrap").classList.toggle("hidden", !popLate()); }
+function updateKasniVis() {
+  const late = popLate();
+  $("#popKasniWrap").classList.toggle("hidden", !late);
+  /* probijen rok -> JAKO naglasi obje obaveze: produži datum-kraj I upiši razlog (crveno svijetle) */
+  if (late) $("#popWhenEdit").classList.remove("hidden");   // odmah otkrij datume za produženje
+  $("#popWhenEdit").classList.toggle("req-late", late);
+  $("#popWhenDisp").classList.toggle("req-late", late);
+  $("#popKasniWrap").classList.toggle("req-late", late);
+}
 
 $$("#popStatus .stpill").forEach(p => p.addEventListener("click", () => {
   popCtx.status = p.dataset.st;
@@ -2148,6 +2156,17 @@ function fillProjFilter(projekt) {
   PROJ.name = pr.projektname;
   PROJ.kunde = pr.kunde || "";
 }
+/* poslije kreiranja: filtriraj tabelu SAMO na novi POP/DP (lakša koncentracija) */
+function focusNew({ dpId, popNaziv, projekt }) {
+  F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear();
+  F.esk = false; F.kasni = false; F.dOd = F.dDo = "";
+  clearDate("fDateOd"); clearDate("fDateDo");
+  PROJ.name = PROJ.kunde = PROJ.code = "";
+  if (projekt) fillProjFilter(projekt);
+  if (dpId) F.dp.add(dpId);
+  else if (popNaziv) F.pop.add(popNaziv);
+  renderAll();
+}
 function selectDp(dpId) {
   if (SEL && SEL.type === "dp" && SEL.id === dpId) {
     SEL = null; F.dp.delete(dpId); closeDrawer();
@@ -2203,6 +2222,8 @@ function openDrawer() {
   $("#drMeta").innerHTML = meta;
   $("#drHp").value = hp ?? 0;
   $("#drHa").value = ha ?? 0;
+  /* HP/HA se vode na DP-u — sakrij editor za POP */
+  const nums = $(".dr-nums"); if (nums) nums.classList.toggle("hidden", SEL.type === "pop");
   $("#drawer").classList.add("open");
   renderDrawerStats();
   loadComments();
@@ -2489,16 +2510,15 @@ $("#frmPop").addEventListener("submit", async e => {
   if (!POPK.kunde.get() || !projekt) { refreshCascade(POP_CFG); return; }
   const naziv = $("#frmPop [name=naziv]").value.trim();
   if (!naziv) { $("#frmPop [name=naziv]").focus(); return; }
-  const body = { projekt, naziv,
-    hp: $("#frmPop [name=hp]").value, ha: $("#frmPop [name=ha]").value };
   try {
-    await api("/api/pops", "POST", body);
+    await api("/api/pops", "POST", { projekt, naziv });   // POP nema HP/HA (to je na DP-u)
   } catch {
     uiAlert(t("popPostoji"), "warning");
     return;
   }
   $("#dlgPop").close();
   await load();
+  focusNew({ popNaziv: naziv, projekt });   // filtriraj tabelu samo na novi POP
 });
 
 $("#frmDp").addEventListener("submit", async e => {
@@ -2515,9 +2535,13 @@ $("#frmDp").addEventListener("submit", async e => {
     body.pop = DPK.pop.get();
     if (!DPK.kunde.get() || !body.projekt || !body.pop) { refreshCascade(DP_CFG); return; }
   }
-  await api("/api/dps", "POST", body);
+  const created = await api("/api/dps", "POST", body);
   $("#dlgDp").close();
   await load();
+  if (created && created.id) {   // filtriraj tabelu samo na novi DP
+    const nd = DATA.dps.find(x => x.id === created.id);
+    focusNew({ dpId: created.id, projekt: nd && nd.projekt });
+  }
 });
 
 /* ✕ u zaglavlju dijaloga */
