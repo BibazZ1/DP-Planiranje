@@ -412,27 +412,27 @@ main{padding:8px 18px 18px;display:flex;flex-direction:column;gap:7px}
   animation:errShake .3s ease-in-out}
 @keyframes errShake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .pop-field{display:block;font-size:10px;color:var(--mut);text-transform:uppercase;
-  letter-spacing:1px;margin-bottom:10px}
+  letter-spacing:1px;margin-bottom:8px}
 /* komentar/razlog kao chat-oblačić: mekana pozadina, ikona, jasno polje */
 .pop-field.chat{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.22);
-  border-radius:12px;padding:8px 10px 10px;margin-bottom:11px;text-transform:none;letter-spacing:0}
-.pop-field.chat>span{display:flex;align-items:center;gap:6px;margin-bottom:6px;
-  font:700 9.5px var(--mono);letter-spacing:.6px;text-transform:uppercase;color:#9fb6d6}
+  border-radius:10px;padding:6px 9px 8px;margin-bottom:8px;text-transform:none;letter-spacing:0}
+.pop-field.chat>span{display:flex;align-items:center;gap:6px;margin-bottom:4px;
+  font:700 9px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:#9fb6d6}
 .pop-field.chat>span svg{color:#7dd3fc;flex:none}
 .pop-field.chat .opt{font-style:normal;font:500 9px 'Inter',sans-serif;color:var(--mut2);
   text-transform:none;letter-spacing:0}
 .pop-field.chat input{margin-top:0!important;background:rgba(2,6,15,.5)!important;
-  border:1px solid rgba(59,130,246,.18)!important;border-radius:9px!important;padding:9px 11px!important;
-  font-size:12.5px!important}
+  border:1px solid rgba(59,130,246,.18)!important;border-radius:8px!important;padding:6px 9px!important;
+  font-size:12px!important}
 .pop-field.chat input:focus{border-color:var(--blue)!important;box-shadow:0 0 0 1px var(--blue)!important}
 /* obavezan razlog (probijen rok) = crveni oblačić */
 .pop-field.chat.kasni{background:rgba(239,68,68,.09);border-color:rgba(239,68,68,.38)}
 .pop-field.chat.kasni>span,.pop-field.chat.kasni>span svg{color:#fca5a5}
 .pop-field.chat.kasni input{border-color:rgba(239,68,68,.3)!important}
 .pop-field.chat.kasni input:focus{border-color:var(--red)!important;box-shadow:0 0 0 1px var(--red)!important}
-.pop-esk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--red);
-  margin-bottom:10px;cursor:pointer;font-weight:600}
-.pop-esk input{accent-color:var(--red);width:15px;height:15px}
+.pop-esk{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--red);
+  margin-bottom:8px;cursor:pointer;font-weight:600}
+.pop-esk input{accent-color:var(--red);width:14px;height:14px}
 .pop-btns{display:flex;gap:8px;align-items:center}
 .pop-btns .btn{padding:6px 13px;font-size:12px}
 
@@ -622,21 +622,21 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;paddin
   letter-spacing:1.4px}
 .dr-list{flex:1;overflow-y:auto;padding-right:4px}
 /* historija = jedan zbijen red: tačka · vrijeme · šta · ko — boja po akciji */
-.dr-h{display:flex;align-items:center;gap:7px;padding:3px 0 3px 7px;
-  border-bottom:1px solid rgba(255,255,255,.05);border-left:2px solid var(--ev,#64748b);
-  font-size:11px;line-height:1.35}
+.dr-h{display:flex;align-items:center;gap:6px;padding:1.5px 0 1.5px 6px;
+  border-bottom:1px solid rgba(255,255,255,.045);border-left:2px solid var(--ev,#64748b);
+  font-size:10.5px;line-height:1.2}
 .dr-h.empty{display:block;border-left:0;border-bottom:0;padding:6px 0;
   color:var(--mut2);font-style:italic}
-.dr-h .ev-dot{width:6px;height:6px;border-radius:50%;background:var(--ev,#64748b);flex:none}
-.dr-h .evt{font:600 9.5px var(--mono);color:var(--mut);flex:none;white-space:nowrap;letter-spacing:.2px}
+.dr-h .ev-dot{width:5px;height:5px;border-radius:50%;background:var(--ev,#64748b);flex:none}
+.dr-h .evt{font:600 9px var(--mono);color:var(--mut);flex:none;white-space:nowrap}
 .dr-h .evx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#d7e1f0}
 .dr-h .evx em{font-style:normal;font-weight:600;color:var(--ev,#9fb6d6)}
 .dr-h .evx .arr{color:var(--mut2);font-style:normal}
-.dr-h .evx svg{width:11px;height:11px;vertical-align:-1px;opacity:.8}
+.dr-h .evx svg{width:10px;height:10px;vertical-align:-1px;opacity:.8}
 .dr-h .evx .ch{font:600 9px var(--mono);color:var(--amber);background:var(--amber-glow);
   border-radius:5px;padding:1px 4px;margin-right:3px;white-space:nowrap}
-.dr-h .evu{flex:none;max-width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  font:600 9.5px 'Inter',sans-serif;color:var(--mut2)}
+.dr-h .evu{flex:none;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font:600 9px 'Inter',sans-serif;color:var(--mut2)}
 /* boje po vrsti akcije */
 .dr-h.ev-green{--ev:#34d399}
 .dr-h.ev-red{--ev:#f87171}
@@ -847,8 +847,8 @@ span.flatpickr-weekday{color:#64748b!important}
 .pop{animation:popIn2 .26s cubic-bezier(.2,.9,.3,1.18) both}
 @keyframes popIn2{from{opacity:0;transform:scale(.88) translateY(-8px);filter:blur(5px)}
   to{opacity:1;transform:none;filter:none}}
-.pop-ctx{display:flex;align-items:center;gap:6px;font:600 10.5px var(--mono);
-  color:var(--mut);margin:-6px 0 10px}
+.pop-ctx{display:flex;align-items:center;gap:6px;font:600 10px var(--mono);
+  color:var(--mut);margin:-4px 0 7px}
 .pop-ctx i{font-style:normal;color:var(--mut2)}
 .pop-ctx b{color:var(--txt)}
 .pc-dot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
@@ -930,21 +930,22 @@ span.flatpickr-weekday{color:#64748b!important}
 
 
 /* ================== popover redizajn ================== */
-.pop{width:320px;padding:16px 18px;border:1px solid rgba(16,185,129,.25)!important;
+.pop{width:282px;padding:11px 13px;border:1px solid rgba(16,185,129,.25)!important;
   background:linear-gradient(150deg,rgba(15,23,42,.97),rgba(30,41,59,.97))!important;
   box-shadow:0 0 40px rgba(16,185,129,.12),0 24px 70px rgba(0,0,0,.65)!important}
-.pop-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
-.pop-head{margin-bottom:0!important;font-size:14.5px;letter-spacing:.4px}
-.pop-x{border:0;background:rgba(255,255,255,.06);color:var(--mut);width:24px;height:24px;
-  border-radius:7px;cursor:pointer;font-size:11px;line-height:1;flex:none;transition:.15s}
+.pop-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.pop-head{margin-bottom:0!important;font-size:12.5px;letter-spacing:.3px}
+.pop-x{border:0;background:rgba(255,255,255,.06);color:var(--mut);width:21px;height:21px;
+  border-radius:6px;cursor:pointer;font-size:10px;line-height:1;flex:none;transition:.15s}
 .pop-x:hover{background:rgba(239,68,68,.18);color:#f87171}
 .pop-dates label{font-size:9px}
-.pop input[type=date]{font:600 13px var(--mono);padding:7px 9px}
+.pop input[type=date]{font:600 11.5px var(--mono);padding:5px 8px}
 .pop-dur{text-align:center;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);
-  border-radius:9999px;padding:4px 12px;margin:-2px 0 12px}
-.pop-status{margin-bottom:13px}
-.stpill{padding:8px 0;font-size:12.5px;border-radius:10px}
-.pop-btns{margin-top:4px;padding-top:12px;border-top:1px solid rgba(255,255,255,.07)}
+  border-radius:9999px;padding:3px 11px;margin:-1px 0 8px;font-size:11px}
+.pop-status{margin-bottom:8px}
+.stpill{padding:5px 0;font-size:11px;border-radius:8px}
+.pop-btns{margin-top:2px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07)}
+.pop-btns .btn{padding:5px 13px;font-size:12px}
 
 /* ================== zivi brojac datuma pri crtanju/razvlacenju ================== */
 .dragtip{position:fixed;z-index:200;display:flex;align-items:center;gap:7px;
@@ -961,20 +962,20 @@ span.flatpickr-weekday{color:#64748b!important}
 @keyframes ghostPulse{50%{opacity:.55}}
 
 /* ================== popover: datum kao read-only traka (klik = uredi) ================== */
-.pop-when{margin-bottom:12px}
+.pop-when{margin-bottom:8px}
 .pw-disp{width:100%;display:flex;align-items:center;gap:6px;cursor:pointer;
   background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.28);
-  border-radius:10px;padding:8px 11px;color:var(--txt);font:inherit;text-align:left;transition:.15s}
+  border-radius:9px;padding:6px 10px;color:var(--txt);font:inherit;text-align:left;transition:.15s}
 .pw-disp:hover{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.5)}
-.pw-disp b{font:700 13px var(--mono);letter-spacing:.4px}
-.pw-disp .pw-arr{font-style:normal;color:var(--mut2);font-size:12px}
-.pw-disp .pw-n{margin-left:auto;font:700 10.5px var(--mono);color:#34d399;
-  background:rgba(16,185,129,.14);border-radius:9999px;padding:2px 9px}
+.pw-disp b{font:700 12px var(--mono);letter-spacing:.3px}
+.pw-disp .pw-arr{font-style:normal;color:var(--mut2);font-size:11px}
+.pw-disp .pw-n{margin-left:auto;font:700 10px var(--mono);color:#34d399;
+  background:rgba(16,185,129,.14);border-radius:9999px;padding:1px 8px}
 .pw-disp .pw-pen{font-style:normal;color:var(--mut2);font-size:11px;margin-left:4px}
-.pw-edit{display:flex;gap:8px;margin-top:8px}
+.pw-edit{display:flex;gap:8px;margin-top:6px}
 .pw-edit label{flex:1;font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:1px}
 .pw-edit input[type=date]{display:block;width:100%;margin-top:3px;border:1px solid var(--line);
-  border-radius:8px;padding:7px 9px;font:600 12.5px var(--mono);background:var(--field);color:var(--txt)}
+  border-radius:8px;padding:5px 8px;font:600 11.5px var(--mono);background:var(--field);color:var(--txt)}
 .pw-edit input[type=date]:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
 .pop-field .opt{font-style:normal;color:var(--mut2);font-size:9px;text-transform:none;letter-spacing:0}
 

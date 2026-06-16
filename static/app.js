@@ -2410,12 +2410,13 @@ function fmtTsParts(ts) {
   const [d, tm] = String(ts).split("T");
   return [fmt(d).slice(0, 6), (tm || "").slice(0, 5)];
 }
-/* dd/mm/yyyy hh:mm — puni datum, jedno polje */
+/* zbijen datum: dd/mm hh:mm za tekuću godinu, dd/mm/yy za ranije */
 function evWhen(ts) {
   const [d, tm] = String(ts).split("T");
   const [y, m, dd] = (d || "").split("-");
   if (!y) return String(ts);
-  return `${dd}/${m}/${y} ${(tm || "").slice(0, 5)}`;
+  const hm = (tm || "").slice(0, 5);
+  return y === todayIso().slice(0, 4) ? `${dd}/${m} ${hm}` : `${dd}/${m}/${y.slice(2)} ${hm}`;
 }
 /* kratko ime: Ime P. */
 function shortUser(u) {

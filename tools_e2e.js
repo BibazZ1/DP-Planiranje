@@ -286,8 +286,8 @@ function ok(name, cond, extra = "") {
 
   // ---------- 12g. zbijena historija (1 red, boja po akciji) + Escape skida DP ali OSTAVLJA projekat ----------
   ok("historija: zbijen red (vrijeme)", (await page.locator("#drHist .dr-h .evt").count()) >= 1);
-  ok("historija: puni datum dd/mm/yyyy hh:mm",
-    /\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(await page.locator("#drHist .dr-h .evt").first().textContent().catch(() => "")));
+  ok("historija: zbijen datum dd/mm[/yy] hh:mm",
+    /\d{2}\/\d{2}(\/\d{2})?\s+\d{2}:\d{2}/.test(await page.locator("#drHist .dr-h .evt").first().textContent().catch(() => "")));
   ok("historija: boja po akciji",
     (await page.locator("#drHist .dr-h.ev-green, #drHist .dr-h.ev-teal, #drHist .dr-h.ev-amber, #drHist .dr-h.ev-blue, #drHist .dr-h.ev-red, #drHist .dr-h.ev-purple, #drHist .dr-h.ev-gray").count()) >= 1);
   await page.keyboard.press("Escape");
