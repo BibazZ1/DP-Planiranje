@@ -413,6 +413,23 @@ main{padding:14px 22px 40px;display:flex;flex-direction:column;gap:12px}
 @keyframes errShake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .pop-field{display:block;font-size:10px;color:var(--mut);text-transform:uppercase;
   letter-spacing:1px;margin-bottom:10px}
+/* komentar/razlog kao chat-oblačić: mekana pozadina, ikona, jasno polje */
+.pop-field.chat{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.22);
+  border-radius:12px;padding:8px 10px 10px;margin-bottom:11px;text-transform:none;letter-spacing:0}
+.pop-field.chat>span{display:flex;align-items:center;gap:6px;margin-bottom:6px;
+  font:700 9.5px var(--mono);letter-spacing:.6px;text-transform:uppercase;color:#9fb6d6}
+.pop-field.chat>span svg{color:#7dd3fc;flex:none}
+.pop-field.chat .opt{font-style:normal;font:500 9px 'Inter',sans-serif;color:var(--mut2);
+  text-transform:none;letter-spacing:0}
+.pop-field.chat input{margin-top:0!important;background:rgba(2,6,15,.5)!important;
+  border:1px solid rgba(59,130,246,.18)!important;border-radius:9px!important;padding:9px 11px!important;
+  font-size:12.5px!important}
+.pop-field.chat input:focus{border-color:var(--blue)!important;box-shadow:0 0 0 1px var(--blue)!important}
+/* obavezan razlog (probijen rok) = crveni oblačić */
+.pop-field.chat.kasni{background:rgba(239,68,68,.09);border-color:rgba(239,68,68,.38)}
+.pop-field.chat.kasni>span,.pop-field.chat.kasni>span svg{color:#fca5a5}
+.pop-field.chat.kasni input{border-color:rgba(239,68,68,.3)!important}
+.pop-field.chat.kasni input:focus{border-color:var(--red)!important;box-shadow:0 0 0 1px var(--red)!important}
 .pop-esk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--red);
   margin-bottom:10px;cursor:pointer;font-weight:600}
 .pop-esk input{accent-color:var(--red);width:15px;height:15px}

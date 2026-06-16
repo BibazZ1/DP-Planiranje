@@ -32,7 +32,7 @@ const I18N = {
     zDani: "dani", zSedmice: "sedmice", zMjeseci: "mjeseci",
     stOtvoreno: "otvoreno", stUToku: "u toku", stZavrseno: "završeno",
     od: "od", do: "do", komentar: "komentar", komPh: "npr. čeka se dozvola…",
-    kasniLbl: "razlog produženja — termin probio rok (obavezno)",
+    kasniLbl: "Zašto termin kasni? (obavezno)",
     kasniPh: "zašto još nije gotovo?", esk: "eskalacija",
     eskOd: "eskalacija od datuma", eskRazlog: "razlog eskalacije", eskPh: "šta je zapelo?",
     obrisi: "Obriši", otkazi: "Otkaži", sacuvaj: "Sačuvaj", odustani: "Odustani",
@@ -127,7 +127,7 @@ const I18N = {
     zDani: "days", zSedmice: "weeks", zMjeseci: "months",
     stOtvoreno: "open", stUToku: "in progress", stZavrseno: "done",
     od: "from", do: "to", komentar: "comment", komPh: "e.g. waiting for permit…",
-    kasniLbl: "extension reason — deadline passed (required)",
+    kasniLbl: "Why is the slot late? (required)",
     kasniPh: "why is it not finished yet?", esk: "escalation",
     eskOd: "escalation from date", eskRazlog: "escalation reason", eskPh: "what is stuck?",
     obrisi: "Delete", otkazi: "Cancel", sacuvaj: "Save", odustani: "Cancel",
@@ -222,7 +222,7 @@ const I18N = {
     zDani: "Tage", zSedmice: "Wochen", zMjeseci: "Monate",
     stOtvoreno: "offen", stUToku: "laufend", stZavrseno: "fertig",
     od: "von", do: "bis", komentar: "Kommentar", komPh: "z. B. warten auf Genehmigung…",
-    kasniLbl: "Verlängerungsgrund — Termin überschritten (Pflicht)",
+    kasniLbl: "Warum ist der Termin überfällig? (Pflicht)",
     kasniPh: "warum noch nicht fertig?", esk: "Eskalation",
     eskOd: "Eskalation ab Datum", eskRazlog: "Eskalationsgrund", eskPh: "was klemmt?",
     obrisi: "Löschen", otkazi: "Abbrechen", sacuvaj: "Speichern", odustani: "Abbrechen",
@@ -1538,6 +1538,19 @@ function closePop() {
   $("#pop").classList.add("hidden");
   popCtx = null;
 }
+/* editor prati svoj termin pri skrolu (oblačić "na terminu"), umjesto da ostane
+   fiksiran u viewportu; pozicija se drži uz traku, uz blago zaključavanje na rub ekrana */
+function repositionPopToSeg() {
+  if (!popCtx || popCtx.mode !== "edit") return;
+  const seg = document.querySelector(`.seg[data-seg="${popCtx.segId}"]`);
+  const pop = $("#pop");
+  if (!seg || pop.classList.contains("hidden")) return;
+  const r = seg.getBoundingClientRect();
+  const W = pop.offsetWidth || 320, H = pop.offsetHeight || 330;
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - W - 16)) + "px";
+  pop.style.top = Math.max(8, Math.min(r.bottom + 8, innerHeight - H - 16)) + "px";
+}
+$("#tlScroll").addEventListener("scroll", repositionPopToSeg, { passive: true });
 
 /* termin probio rok? (otvoreno / u toku sa krajem u prošlosti) -> razlog obavezan */
 function popLate() {
@@ -1547,6 +1560,9 @@ function popLate() {
 function updateKasniVis() {
   const late = popLate();
   $("#popKasniWrap").classList.toggle("hidden", !late);
+  /* kad je razlog OBAVEZAN (probijen rok), sakrij opcionalni "Komentar" — jedan jasan
+     komentar umjesto dva polja ("ako MORA komentarisati, nema 'opcionalno'") */
+  $("#popKomWrap").classList.toggle("hidden", late);
   /* probijen rok -> JAKO naglasi obje obaveze: produži datum-kraj I upiši razlog (crveno svijetle) */
   if (late) $("#popWhenEdit").classList.remove("hidden");   // odmah otkrij datume za produženje
   $("#popWhenEdit").classList.toggle("req-late", late);

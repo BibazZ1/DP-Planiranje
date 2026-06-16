@@ -172,10 +172,14 @@
       <label><span data-i18n="do">do</span> <input type="date" id="popDo"></label>
     </div>
   </div>
-  <label class="pop-field"><span><span data-i18n="komentar">komentar</span> <i class="opt" data-i18n="opcionalno">(opcionalno)</i></span>
+  <label class="pop-field chat" id="popKomWrap"><span>
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L3 21l2.3-6.5A8 8 0 1 1 21 11.5z"/></svg>
+    <span data-i18n="komentar">Komentar</span> <i class="opt" data-i18n="opcionalno">(opcionalno)</i></span>
     <input id="popKom" data-i18n-ph="komPh" placeholder="npr. čeka se dozvola…">
   </label>
-  <label class="pop-field pop-kasni hidden" id="popKasniWrap"><span data-i18n="kasniLbl">Razlog produženja — termin probio rok (obavezno)</span>
+  <label class="pop-field chat kasni pop-kasni hidden" id="popKasniWrap"><span>
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L3 21l2.3-6.5A8 8 0 1 1 21 11.5z"/></svg>
+    <span data-i18n="kasniLbl">Zašto termin kasni? (obavezno)</span></span>
     <input id="popKasni" data-i18n-ph="kasniPh" placeholder="zašto još nije gotovo?">
   </label>
   <label class="pop-esk"><input type="checkbox" id="popEsk"> <span data-i18n="esk">Eskalacija</span></label>

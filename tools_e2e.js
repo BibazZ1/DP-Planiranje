@@ -414,6 +414,7 @@ function ok(name, cond, extra = "") {
   ok("editor: datum-polja skrivena po defaultu", (await page.locator("#popWhenEdit.hidden").count()) === 1);
   ok("editor: read-only datum traka", await page.locator("#popWhenDisp").isVisible());
   ok("editor: komentar opcionalan", (await page.locator("#pop .pop-field .opt").first().textContent()).toLowerCase().includes("opciona"));
+  ok("editor: komentar je chat-oblačić", (await page.locator("#popKomWrap.chat").count()) === 1);
   await page.click("#popWhenDisp");
   await page.waitForTimeout(200);
   ok("editor: klik na datum otkriva ručno uređivanje", (await page.locator("#popWhenEdit.hidden").count()) === 0);
@@ -510,6 +511,10 @@ function ok(name, cond, extra = "") {
     (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === odSegId).status === "otvoreno");
   ok("kasni editor (dbl): razlog+datum crveno svijetle",
     (await page.locator("#popKasniWrap.req-late").count()) === 1 && (await page.locator("#popWhenEdit.req-late").count()) === 1);
+  ok("kasni editor: opcionalni Komentar sakriven (jedan jasan komentar)",
+    (await page.locator("#popKomWrap.hidden").count()) === 1);
+  ok("kasni editor: razlog je crveni chat-oblačić",
+    (await page.locator("#popKasniWrap.chat.kasni").count()) === 1);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
   // ukupni "kasni" čip u filteru svijetli (glow) dok ima zakašnjelih
