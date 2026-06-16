@@ -1868,10 +1868,12 @@ function renderStats() {
       <td>${fmt(s.datum_od)} – ${fmt(s.datum_do)}</td><td>${stT(s.status)}</td>
       <td class="tag-esk">${esc(s.esk_razlog || "—")}</td><td>${esc(s.komentar || "")}</td></tr>`;
   }).join("");
-  $("#eskPanel").innerHTML = `<h3>${t("eskTitle")}</h3>
-    <table class="mini"><tr><th>${t("thDp")}</th><th>${t("thAkt")}</th><th>${t("thTermin")}</th>
-    <th>${t("thStatus")}</th><th>${t("thRazlog")}</th><th>${t("thKomentar")}</th></tr>` +
-    (rows || `<tr><td colspan="6" class="empty">${t("noEsk")}</td></tr>`) + `</table>`;
+  /* prazno -> tanak jednoredni prikaz (ne troši prostor); ima eskalacija -> puna tabela */
+  $("#eskPanel").innerHTML = eskSegs.length
+    ? `<h3>${t("eskTitle")}</h3>
+       <table class="mini"><tr><th>${t("thDp")}</th><th>${t("thAkt")}</th><th>${t("thTermin")}</th>
+       <th>${t("thStatus")}</th><th>${t("thRazlog")}</th><th>${t("thKomentar")}</th></tr>${rows}</table>`
+    : `<div class="esk-empty"><b>${t("eskTitle")}</b> · ${t("noEsk")}</div>`;
 }
 
 /* ---------- projekat (Daily, Azure) — filteri + statistika + DP-ovi ---------- */
