@@ -35,6 +35,7 @@ const I18N = {
     kasniLbl: "Zašto termin kasni? (obavezno)",
     kasniPh: "zašto još nije gotovo?", esk: "eskalacija",
     eskOd: "eskalacija od datuma", eskRazlog: "razlog eskalacije", eskPh: "šta je zapelo?",
+    eskGripTip: "povuci = pomjeri početak eskalacije",
     obrisi: "Obriši", otkazi: "Otkaži", sacuvaj: "Sačuvaj", odustani: "Odustani",
     noviDpH: "Novi DP", projDaily: "Projekat (Daily)", nazivDp: "Naziv DP",
     lokacija: "Lokacija / dionica", voditelj: "Voditelj projekta",
@@ -92,7 +93,7 @@ const I18N = {
     rokLbl: "rok", rokTip: "rok DP-a = kraj termina Aktivacija",
     tlEmpty: "Nema DP-ova za izabrane filtere.<br>Očisti filtere, ili kreiraj <b>＋ Novi POP</b> pa <b>＋ Novi DP</b> pod izabranim projektom.",
     drDpCount: "DP-ova", histTitle: "Historija",
-    histEmpty: "još nema zabilježenih aktivnosti", histLoad: "učitavam…",
+    histEmpty: "još nema zabilježenih aktivnosti", histEmptyAkt: "nema promjena za ovu aktivnost", histLoad: "učitavam…",
     aKreirano: "kreirano", aObrisano: "obrisano", aTerminObrisan: "termin obrisan",
     aAktDodana: "aktivnost dodana", aAktObrisana: "aktivnost obrisana",
     fNaziv: "naziv", fOdjel: "odjel",
@@ -130,6 +131,7 @@ const I18N = {
     kasniLbl: "Why is the slot late? (required)",
     kasniPh: "why is it not finished yet?", esk: "escalation",
     eskOd: "escalation from date", eskRazlog: "escalation reason", eskPh: "what is stuck?",
+    eskGripTip: "drag = move escalation start",
     obrisi: "Delete", otkazi: "Cancel", sacuvaj: "Save", odustani: "Cancel",
     noviDpH: "New DP", projDaily: "Project (Daily)", nazivDp: "DP name",
     lokacija: "Location / section", voditelj: "Project manager",
@@ -187,7 +189,7 @@ const I18N = {
     rokLbl: "due", rokTip: "DP due date = end of Activations",
     tlEmpty: "No DPs match the selected filters.<br>Clear the filters, or create <b>＋ New POP</b> then <b>＋ New DP</b> under the selected project.",
     drDpCount: "DPs", histTitle: "History",
-    histEmpty: "no recorded activity yet", histLoad: "loading…",
+    histEmpty: "no recorded activity yet", histEmptyAkt: "no changes for this activity", histLoad: "loading…",
     aKreirano: "created", aObrisano: "deleted", aTerminObrisan: "slot deleted",
     aAktDodana: "activity added", aAktObrisana: "activity deleted",
     fNaziv: "name", fOdjel: "department",
@@ -225,6 +227,7 @@ const I18N = {
     kasniLbl: "Warum ist der Termin überfällig? (Pflicht)",
     kasniPh: "warum noch nicht fertig?", esk: "Eskalation",
     eskOd: "Eskalation ab Datum", eskRazlog: "Eskalationsgrund", eskPh: "was klemmt?",
+    eskGripTip: "ziehen = Eskalationsbeginn verschieben",
     obrisi: "Löschen", otkazi: "Abbrechen", sacuvaj: "Speichern", odustani: "Abbrechen",
     noviDpH: "Neuer DP", projDaily: "Projekt (Daily)", nazivDp: "DP-Name",
     lokacija: "Lage / Abschnitt", voditelj: "Projektleiter",
@@ -282,7 +285,7 @@ const I18N = {
     rokLbl: "Frist", rokTip: "DP-Frist = Ende der Aktivierungen",
     tlEmpty: "Keine DPs für die gewählten Filter.<br>Filter leeren, oder <b>＋ Neuer POP</b> und dann <b>＋ Neuer DP</b> unter dem gewählten Projekt anlegen.",
     drDpCount: "DPs", histTitle: "Verlauf",
-    histEmpty: "noch keine Aktivitäten erfasst", histLoad: "lädt…",
+    histEmpty: "noch keine Aktivitäten erfasst", histEmptyAkt: "keine Änderungen für diese Tätigkeit", histLoad: "lädt…",
     aKreirano: "erstellt", aObrisano: "gelöscht", aTerminObrisan: "Termin gelöscht",
     aAktDodana: "Aktivität hinzugefügt", aAktObrisana: "Aktivität gelöscht",
     fNaziv: "Name", fOdjel: "Abteilung",
@@ -355,6 +358,7 @@ function aktColor(name) {
 let charts = {};
 let drag = null;                  // {taskId, trackEl, d0, d1, moved}
 let segResize = null;             // {id, side:'l'|'r', segEl, track, a, b, curA, curB}
+let eskDrag = null;               // {id, segEl, grip, part, track, a, b, cur} — povlačenje početka eskalacije
 let popCtx = null;                // {mode:'new'|'edit', taskId, segId, status}
 const F = { dp: new Set(), pop: new Set(), st: new Set(), odj: new Set(), esk: false,
             kasni: false, dOd: "", dDo: "" };
@@ -641,6 +645,15 @@ function renderAll() {
   renderTimeline(true);
   renderStats();
   renderProj();   // DP čipovi u projekt-panelu prate iste filtere
+  markEditingSeg();   // istakni termin koji se trenutno uređuje (preživi re-render)
+}
+/* termin koji se uređuje = vizuelno istaknut (.sel) na grafu */
+function markEditingSeg() {
+  $$("#tlScroll .seg.sel").forEach(el => el.classList.remove("sel"));
+  if (popCtx && popCtx.mode === "edit" && popCtx.segId != null) {
+    const el = document.querySelector(`#tlScroll .seg[data-seg="${popCtx.segId}"]`);
+    if (el) el.classList.add("sel");
+  }
 }
 
 /* ---------- zakašnjeli termini: lista + modal (okida se iz "N kasni" čipa u redu DP-a) ---------- */
@@ -984,7 +997,7 @@ function renderTimeline(keepScroll) {
   const segsByTask = {};
   for (const s of DATA.segments) (segsByTask[s.task_id] ||= []).push(s);
   /* prevodi unaprijed: unutar petlje "for (const t of rows)" t je TASK, ne i18n! */
-  const txtKasni = t("kasniTip"), txtDep = t("depTip"), txtOrig = t("origLbl");
+  const txtKasni = t("kasniTip"), txtDep = t("depTip"), txtOrig = t("origLbl"), txtEskGrip = t("eskGripTip");
 
   let html = headerBands(totalW);
   let anyRow = false;
@@ -1092,6 +1105,8 @@ function renderTimeline(keepScroll) {
         if (s.eskalacija) {
           const ka = s.esk_datum ? Math.max(a, Math.min(b, dayIdx(s.esk_datum))) : a;
           overlays += `<i class="eskpart" style="left:${(ka - a) * PX}px;width:${(b - ka + 1) * PX}px"></i>`;
+          /* ručica: povuci da pomjeriš POČETAK eskalacije direktno na grafu */
+          overlays += `<i class="esk-grip" title="${txtEskGrip}" style="left:${(ka - a) * PX}px"></i>`;
         }
         segs += `<div class="seg ${cls}${s.eskalacija ? " esk" : ""}${late ? " late" : ""}${dim ? " dim" : ""}" data-seg="${s.id}"
           style="left:${x}px;width:${w}px">` +
@@ -1232,6 +1247,31 @@ function bindTimeline() {
       segEl.classList.add("resizing");
     });
   });
+  /* ručica eskalacije: povuci POČETAK eskalacije direktno na grafu (snap po danu) */
+  $$("#tlScroll .seg.esk .esk-grip").forEach(g => {
+    g.addEventListener("mousedown", e => {
+      if (e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation();
+      const segEl = g.closest(".seg");
+      const s = DATA.segments.find(x => x.id === +segEl.dataset.seg);
+      if (!s) return;
+      if (!canEditProjekt(taskProjekt(s.task_id))) return lockToast(taskProjekt(s.task_id));
+      const a = dayIdx(s.datum_od), b = dayIdx(s.datum_do);
+      eskDrag = { id: s.id, segEl, grip: g, part: segEl.querySelector(".eskpart"), track: segEl.closest(".tl-track"),
+        a, b, cur: s.esk_datum ? Math.max(a, Math.min(b, dayIdx(s.esk_datum))) : a };
+      segEl.classList.add("eskdragging");
+    });
+  });
+  /* hover nad aktivnošću -> historija u panelu se fokusira na tu aktivnost (privremeno) */
+  $$("#tlScroll .tl-row[data-task]").forEach(row => {
+    const tid = +row.dataset.task;
+    row.addEventListener("mouseenter", () => drHoverTask(tid));
+  });
+  const tlBody = $("#tlScroll");
+  if (tlBody && !tlBody.dataset.hovBound) {
+    tlBody.dataset.hovBound = "1";
+    tlBody.addEventListener("mouseleave", drHoverClear);
+  }
   $$("#tlScroll .delDp").forEach(b => b.addEventListener("click", async () => {
     const dpId = +b.closest(".tl-row").dataset.dp;
     const dp = DATA.dps.find(d => d.id === dpId);
@@ -1440,6 +1480,39 @@ document.addEventListener("mouseup", async () => {
     histDirty();
   }
 });
+/* live povlačenje POČETKA eskalacije po danima (snap), uz živi datum */
+document.addEventListener("mousemove", e => {
+  if (!eskDrag) return;
+  const k = Math.max(eskDrag.a, Math.min(eskDrag.b, trackDay(e, eskDrag.track)));
+  eskDrag.cur = k;
+  const off = (k - eskDrag.a) * PX;
+  eskDrag.grip.style.left = off + "px";
+  if (eskDrag.part) { eskDrag.part.style.left = off + "px"; eskDrag.part.style.width = (eskDrag.b - k + 1) * PX + "px"; }
+  if (popCtx && popCtx.mode === "edit" && popCtx.segId === eskDrag.id) $("#popEskDat").value = iso(dateOfIdx(k));
+  dragTip.innerHTML = `<b>⚑ ${fmt(iso(dateOfIdx(k))).slice(0, 6)}</b><span class="dt-n">KW${isoWeekOf(dateOfIdx(k))}</span>`;
+  dragTip.classList.remove("hidden");
+  dragTip.style.left = Math.min(e.clientX + 16, innerWidth - 200) + "px";
+  dragTip.style.top = Math.max(8, e.clientY - 46) + "px";
+});
+document.addEventListener("mouseup", async () => {
+  if (!eskDrag) return;
+  const ed = eskDrag; eskDrag = null;
+  ed.segEl.classList.remove("eskdragging");
+  dragTipHide();
+  const newDate = iso(dateOfIdx(ed.cur));
+  const s = DATA.segments.find(x => x.id === ed.id);
+  if (s && s.esk_datum !== newDate) {
+    const old = s.esk_datum;
+    s.esk_datum = newDate;
+    try { await api(`/api/segments/${ed.id}`, "PATCH", { esk_datum: newDate }); }
+    catch (err) { s.esk_datum = old; renderAll(); return handleApiErr(err); }
+    pushUndo({ label: t("urediTermin"), run: async () =>
+      api(`/api/segments/${ed.id}`, "PATCH", { esk_datum: old }) });
+    if (popCtx && popCtx.mode === "edit" && popCtx.segId === ed.id) $("#popEskDat").value = newDate;
+    renderAll();
+    histDirty();
+  }
+});
 
 document.addEventListener("mouseup", async e => {
   if (!drag) return;
@@ -1611,10 +1684,14 @@ function openPop(mode, segId, cx, cy, init = {}) {
   /* termin probio rok -> fokus na obavezni razlog; inače NE traži komentar
      (Enter sprema odmah) */
   if (popLate()) $("#popKasni").focus();
+  markEditingSeg();                 // istakni traku koja se uređuje
+  if (mode === "edit") drLockTask(taskId);   // panel: historija zaključana na ovu aktivnost
 }
 function closePop() {
   $("#pop").classList.add("hidden");
   popCtx = null;
+  markEditingSeg();   // skini isticanje
+  drUnlock();         // panel: historija nazad na cijeli DP
 }
 /* editor prati svoj termin pri skrolu (oblačić "na terminu"), umjesto da ostane
    fiksiran u viewportu; pozicija se drži uz traku, uz blago zaključavanje na rub ekrana */
@@ -1889,7 +1966,7 @@ function renderStats() {
   const segs = visibleSegs();
   const c = st => segs.filter(s => s.status === st).length;
   for (const k in charts) { charts[k].destroy(); delete charts[k]; }
-  const C = (id, cfg) => charts[id] = new Chart($(id), cfg);
+  const C = (id, cfg) => { const el = $(id); if (el) charts[id] = new Chart(el, cfg); };   // null-safe: graf može biti uklonjen iz HTML-a
   const taskOf = s => DATA.tasks.find(t => t.id === s.task_id);
 
   const STATUSI = ["završeno", "otvoreno"];
@@ -1932,35 +2009,6 @@ function renderStats() {
                 y: { stacked: true, ticks: { precision: 0 } } },
       plugins: { legend: { position: "bottom" } } } });
 
-  const dps = scopedDps().filter(dpFilterOk);
-  const pctDp = dps.map(d => {
-    const ss = segs.filter(s => {
-      const t = taskOf(s);
-      return t && t.dp_id === d.id;
-    });
-    return ss.length ? Math.round(ss.filter(s => s.status === "završeno").length / ss.length * 100) : 0;
-  });
-  /* kondenzovano + skrol: stotine DP-ova -> tanke trake, lista se skroluje unutar kartice */
-  $("#chDpInner").style.height = Math.max(118, dps.length * 15) + "px";
-  C("#chDp", { type: "bar", data: {
-      labels: dps.map(d => `${d.pop} · ${d.naziv}`),
-      datasets: [{ data: pctDp,
-        backgroundColor: pctDp.map(p => p >= 100 ? "#10b981" : "#3b82f6"),
-        borderRadius: 4, barThickness: 9 }] },
-    options: { maintainAspectRatio: false, indexAxis: "y",
-      onHover: chartCursor,
-      onClick: (e, els) => {
-        if (!els.length) return;
-        const d = dps[els[0].index];
-        if (!d) return;
-        F.dp.has(d.id) ? F.dp.delete(d.id) : F.dp.add(d.id);
-        renderAll();
-        flashSegs(s => { const t = taskOf(s); return t && t.dp_id === d.id; });
-      },
-      scales: { x: { max: 100, ticks: { callback: v => v + "%" }, position: "top" },
-                y: { grid: { display: false }, ticks: { autoSkip: false, font: { size: 9.5 } } } },
-      plugins: { legend: { display: false } } } });
-
   const eskSegs = DATA.segments.filter(s => s.eskalacija);
   const rows = eskSegs.map(s => {
     const tk = DATA.tasks.find(x => x.id === s.task_id) || {};
@@ -1978,7 +2026,10 @@ function renderStats() {
 }
 
 /* ---------- projekat (Daily, Azure) — filteri + statistika + DP-ovi ---------- */
-const PROJ = { rows: [], sync: null, kunde: "", code: "", name: "" };
+/* dateTotals: Σ po projektu suženo na Datum od/do (učita se s /api/projects/totals);
+   dateKey: ključ raspona za keš (da ne dohvaćamo isto dvaput) */
+const PROJ = { rows: [], sync: null, kunde: "", code: "", name: "", dateTotals: null, dateKey: "" };
+const ZERO_TOT = { hp: 0, trasa_m: 0, ha_m: 0, ha_stck: 0, montaza: 0, datum_od: "", datum_do: "" };
 function fmtNum(v) {
   return (v || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 });
 }
@@ -1990,6 +2041,23 @@ async function loadProjects() {
     PROJ.rows = []; PROJ.sync = { status: "greška", error: String(e) };
   }
   renderAll();
+}
+/* HP/Trasa/HA/Montaža po projektu suženi na Datum od/do (server sumira project_daily).
+   Bez raspona -> dateTotals=null pa kartice koriste pune projektne totale (kao prije). */
+async function refreshDateTotals() {
+  const od = F.dOd, do_ = F.dDo;
+  if (!od && !do_) { PROJ.dateTotals = null; PROJ.dateKey = ""; return; }
+  const key = od + "|" + do_;
+  if (PROJ.dateKey === key && PROJ.dateTotals) return;   // već dohvaćeno za isti raspon
+  try {
+    const qs = new URLSearchParams();
+    if (od) qs.set("od", od);
+    if (do_) qs.set("do", do_);
+    const d = await api("/api/projects/totals?" + qs.toString());
+    const m = new Map();
+    for (const r of d.totals) m.set(r.projektname, r);
+    PROJ.dateTotals = m; PROJ.dateKey = key;
+  } catch (e) { PROJ.dateTotals = null; PROJ.dateKey = ""; }
 }
 function projFiltered() {
   return PROJ.rows.filter(p =>
@@ -2016,8 +2084,12 @@ function renderProj() {
   renderProjClaim();
 
   const f = projFiltered();
-  const sum = k => f.reduce((a, p) => a + (p[k] || 0), 0);
-  const lastWork = f.map(p => p.datum_do).filter(Boolean).sort().pop();
+  /* kad je Datum od/do aktivan -> HP/Trasa/HA/Montaža se sumiraju u tom rasponu
+     (po projektu iz project_daily); inače puni projektni totali */
+  const dateOn = !!(F.dOd || F.dDo) && PROJ.dateTotals;
+  const tot = p => dateOn ? (PROJ.dateTotals.get(p.projektname) || ZERO_TOT) : p;
+  const sum = k => f.reduce((a, p) => a + (tot(p)[k] || 0), 0);
+  const lastWork = f.map(p => tot(p).datum_do).filter(Boolean).sort().pop();
   const active = PROJ.kunde || PROJ.code || PROJ.name;
   const title = PROJ.name ? esc(PROJ.name)
     : active ? `${f.length} ${t("projekata")} (${t("filterLbl")})`
@@ -2038,13 +2110,14 @@ function renderProj() {
         <span class="pv-num">${fmtNum(act)} / ${fmtNum(plan)} <b>${plan ? p + "%" : "—"}</b></span></div>`;
     };
     pv = `<div class="pv-wrap"><h4>${t("planVs")}</h4>
-      ${pvBar("HP", f[0].hp || 0, planHP)}
-      ${pvBar("HA", f[0].ha_stck || 0, planHA)}
+      ${pvBar("HP", tot(f[0]).hp || 0, planHP)}
+      ${pvBar("HA", tot(f[0]).ha_stck || 0, planHA)}
       <span class="hint">${t("planVsHint")}</span></div>`;
   }
   /* --- KPI kartice projekta -> idu u sekciju Analitika --- */
   $("#projKpis").innerHTML = `<div class="proj-title">${title}
       ${PROJ.name && f[0] ? `<span class="proj-sub">${esc(f[0].kunde)} · code ${esc(f[0].projectcode)}</span>` : ""}
+      ${dateOn ? `<span class="proj-range">${fmt(F.dOd) || "…"} – ${fmt(F.dDo) || "…"}</span>` : ""}
     </div>
     <div class="kpis proj-kpis">
       ${card("purple", fmtNum(sum("hp")), "HP")}
@@ -2472,6 +2545,38 @@ function drawerSync() {
   else { SEL = null; closeDrawer(); }
 }
 function histDirty() { if (SEL) loadDrawerHist(); }
+/* fokus historije na pojedinu aktivnost: hover (privremeno) ili klik/editor (zaključano) */
+let DR_EVENTS = [];
+let drFocusTask = null, drFocusLock = false;
+function paintDrawerHist() {
+  const wrap = $("#drHist");
+  if (!wrap) return;
+  let evs = DR_EVENTS, focusAkt = null;
+  if (drFocusTask != null) {
+    const tk = DATA.tasks.find(x => x.id === drFocusTask);
+    focusAkt = tk && tk.aktivnost;
+    if (focusAkt) evs = DR_EVENTS.filter(e => e.aktivnost === focusAkt);
+  }
+  const foc = $("#drHistFoc");
+  if (foc) foc.textContent = focusAkt ? `· ${tAkt(focusAkt)}${drFocusLock ? " 📌" : ""}` : "";
+  wrap.innerHTML = evs.length
+    ? evs.map(evRow).join("")
+    : `<div class="dr-h empty">${focusAkt ? t("histEmptyAkt") : t("histEmpty")}</div>`;
+}
+/* hover nad aktivnošću -> privremeno fokusiraj njenu historiju; klik/editor -> zaključaj */
+function drHoverTask(taskId) {
+  if (drFocusLock || !SEL || SEL.type !== "dp") return;
+  if (drFocusTask === taskId) return;
+  drFocusTask = taskId; paintDrawerHist();
+}
+function drHoverClear() {
+  if (drFocusLock || drFocusTask == null) return;
+  drFocusTask = null; paintDrawerHist();
+}
+function drLockTask(taskId) {   // editor otvoren -> historija ostaje na toj aktivnosti
+  drFocusTask = taskId; drFocusLock = true; paintDrawerHist();
+}
+function drUnlock() { drFocusLock = false; drFocusTask = null; paintDrawerHist(); }
 async function loadDrawerHist() {
   if (!SEL) return;
   const key = `${SEL.type}:${SEL.id}`;
@@ -2479,10 +2584,10 @@ async function loadDrawerHist() {
   try {
     const r = await api(`/api/history?entity=${SEL.type}&id=${SEL.id}`);
     if (!SEL || `${SEL.type}:${SEL.id}` !== key) return;   // izbor se promijenio
-    $("#drHist").innerHTML = r.events.length
-      ? r.events.map(evRow).join("")
-      : `<div class="dr-h empty">${t("histEmpty")}</div>`;
+    DR_EVENTS = r.events || [];
+    paintDrawerHist();
   } catch {
+    DR_EVENTS = [];
     $("#drHist").innerHTML = `<div class="dr-h empty">—</div>`;
   }
 }
@@ -2804,11 +2909,11 @@ const FP = {};
       altInput: true, altFormat: "d/m/Y",   // korisnik vidi dd/mm/gggg
       monthSelectorType: "static",
       disableMobile: true, allowInput: true,
-      onChange: (_d, ds) => { set(ds || ""); renderAll(); },
+      onChange: async (_d, ds) => { set(ds || ""); await refreshDateTotals(); renderAll(); },
     });
   } else {
     const el = $("#" + id); el.type = "date";
-    el.addEventListener("change", e => { set(e.target.value || ""); renderAll(); });
+    el.addEventListener("change", async e => { set(e.target.value || ""); await refreshDateTotals(); renderAll(); });
   }
 });
 function clearDate(id) {

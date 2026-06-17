@@ -66,13 +66,14 @@
       <span class="fold-chev">▾</span>
     </button>
     <div class="fold-body">
-      <div class="kpis" id="kpis"></div>
-      <div id="projKpis"></div>
-      <div class="charts">
+      <div class="an-top">
+        <div class="an-left">
+          <div class="kpis" id="kpis"></div>
+          <div id="projKpis"></div>
+        </div>
         <div class="chartbox glass"><h3 data-i18n="chStatus">Termini po statusu</h3><div class="cv"><canvas id="chStatus"></canvas></div></div>
-        <div class="chartbox glass"><h3 data-i18n="chOdjel">Termini po odjelu</h3><div class="cv"><canvas id="chOdjel"></canvas></div></div>
-        <div class="chartbox glass"><h3 data-i18n="chDp">Napredak po DP — % završeno</h3><div class="cv scroll"><div id="chDpInner"><canvas id="chDp"></canvas></div></div></div>
       </div>
+      <div class="chartbox glass an-bar"><h3 data-i18n="chOdjel">Termini po odjelu</h3><div class="cv"><canvas id="chOdjel"></canvas></div></div>
     </div>
   </section>
 
@@ -304,7 +305,7 @@
     </div>
   </div>
   <div class="dr-hist">
-    <h4 data-i18n="histTitle">Historija</h4>
+    <h4><span data-i18n="histTitle">Historija</span><span class="dr-hist-foc" id="drHistFoc"></span></h4>
     <div class="dr-list" id="drHist"></div>
   </div>
 </aside>

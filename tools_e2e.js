@@ -427,6 +427,12 @@ function ok(name, cond, extra = "") {
   await page.locator(`.seg[data-seg="${segM.id}"]`).click({ button: "right" });
   await page.waitForTimeout(400);
   ok("desni klik -> editor otvoren", await page.locator("#pop:not(.hidden)").isVisible());
+  // klik na termin -> vizuelno istaknut na grafu (.sel)
+  ok("termin koji se uređuje istaknut (.seg.sel)", (await page.locator(".seg.sel").count()) === 1);
+  ok("istaknut je BAŠ taj termin", (await page.locator(`.seg[data-seg="${segM.id}"].sel`).count()) === 1);
+  // panel historija zaključana na tu aktivnost (fokus oznaka prisutna)
+  ok("panel: historija fokusirana na aktivnost (📌)",
+    ((await page.locator("#drHistFoc").textContent().catch(() => "")) || "").trim().length > 0);
   // editor MORA ostati cijeli u ekranu (i kad je visok zbog eskalacije na zadnjem redu) + skrolabilan
   await page.locator("#popEsk").check().catch(() => {});   // proširi -> najviši slučaj (eskalacija polja)
   await page.waitForTimeout(150);
@@ -450,6 +456,34 @@ function ok(name, cond, extra = "") {
   ok("editor: klik na datum otkriva ručno uređivanje", (await page.locator("#popWhenEdit.hidden").count()) === 0);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
+  ok("zatvaranje editora skida isticanje (.seg.sel)", (await page.locator(".seg.sel").count()) === 0);
+  ok("zatvaranje editora čisti fokus historije",
+    (((await page.locator("#drHistFoc").textContent().catch(() => "")) || "").trim()) === "");
+
+  // ---------- 12i. eskalacija: ručica na grafu pomjera POČETAK eskalacije ----------
+  await page.locator(`.seg[data-seg="${segM.id}"]`).scrollIntoViewIfNeeded().catch(() => {});
+  await page.locator(`.seg[data-seg="${segM.id}"]`).click({ button: "right" });
+  await page.waitForSelector("#pop:not(.hidden)", { timeout: 5000 });
+  await page.locator("#popEsk").check();
+  await page.waitForTimeout(150);
+  await page.click("#popSave");
+  await page.waitForTimeout(700);
+  ok("eskalacija uključena -> ručica na traci (.esk-grip)",
+    (await page.locator(`.seg[data-seg="${segM.id}"].esk .esk-grip`).count()) === 1);
+  const eskBefore = (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === segM.id).esk_datum;
+  await page.locator(`.seg[data-seg="${segM.id}"]`).scrollIntoViewIfNeeded().catch(() => {});
+  const grip = page.locator(`.seg[data-seg="${segM.id}"] .esk-grip`);
+  const gb = await grip.boundingBox();
+  await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(gb.x + 70, gb.y + gb.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(700);
+  const eskAfter = (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === segM.id).esk_datum;
+  ok("ručica eskalacije: drag-and-drop pomjerio esk_datum", !!eskAfter && eskAfter !== eskBefore, `(${eskBefore} -> ${eskAfter})`);
+
+  await page.keyboard.press("Escape");   // zatvori bočni panel (inače prekriva desne filtere/Očisti)
+  await page.waitForTimeout(250);
   await page.click("#pfClear");
   await page.waitForTimeout(400);
 
