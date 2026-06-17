@@ -696,6 +696,18 @@ function ok(name, cond, extra = "") {
   ok("zaglavlje: dnevna traka bez naziva dana (samo broj)",
     (await page.locator(".tl-head-band.days .hb").allInnerTexts()).every(s => !/[A-Za-zČčŠšĐđŽž]/.test(s)));
 
+  // ---------- jezik: aktivnosti + odjeli su PODACI -> prevode se za prikaz ----------
+  await page.locator('#langToggle button[data-lang="de"]').click();
+  await page.waitForTimeout(400);
+  const actDe = (await page.locator("#tlScroll .act-name").allInnerTexts()).map(s => s.trim());
+  ok("DE: aktivnost prevedena (Genehmigungen)", actDe.includes("Genehmigungen"), `(${actDe.slice(0,3)})`);
+  ok("DE: aktivnost prevedena (Horizontalbohrung)", actDe.includes("Horizontalbohrung"));
+  const odjDe = (await page.locator("#slicers .chip.odj").allInnerTexts()).map(s => s.trim());
+  ok("DE: odjel/Abteilung preveden (Planung)", odjDe.includes("Planung"), `(${odjDe})`);
+  await page.locator('#langToggle button[data-lang="bs"]').click();
+  await page.waitForTimeout(400);
+  ok("BS vraćeno (Dozvole)", (await page.locator("#tlScroll .act-name").allInnerTexts()).map(s => s.trim()).includes("Dozvole"));
+
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
   ok("nema JS grešaka u konzoli", realErrors.length === 0, JSON.stringify(realErrors.slice(0, 3)));

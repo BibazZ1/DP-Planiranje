@@ -313,6 +313,25 @@ const tf = (k, ...args) => args.reduce((s, a, i) => s.replaceAll(`{${i}}`, a), t
 const stT = st => st === "otvoreno" ? t("stOtvoreno") : st === "u toku" ? t("stUToku")
   : st === "završeno" ? t("stZavrseno") : st;
 
+/* Aktivnosti i odjeli su PODACI (8 standardnih, fiksne bs/de vrijednosti u bazi).
+   Prevodimo ih SAMO za prikaz — vrijednost u bazi/filterima ostaje kanonska. */
+const AKT_I18N = {
+  en: { "Dozvole": "Permits", "Priključak na POP": "POP connection", "Pregled objekata": "Site survey",
+    "Iskopni radovi": "Excavation", "Horizontalno bušenje": "Horizontal drilling",
+    "Asfaltiranje": "Asphalting", "Montaža": "Assembly", "Aktivacije": "Activation" },
+  de: { "Dozvole": "Genehmigungen", "Priključak na POP": "POP-Anschluss", "Pregled objekata": "Objektbegehung",
+    "Iskopni radovi": "Erdarbeiten", "Horizontalno bušenje": "Horizontalbohrung",
+    "Asfaltiranje": "Asphaltierung", "Montaža": "Montage", "Aktivacije": "Aktivierung" },
+};
+const ODJ_I18N = {
+  en: { "Dozvole": "Permits", "POP / Provajder": "POP / Provider", "Planiranje": "Planning",
+    "Tiefbau": "Civil works", "Spülbohrung": "Flush drilling", "Montaža": "Assembly", "Aktivacija": "Activation" },
+  de: { "Dozvole": "Genehmigungen", "POP / Provajder": "POP / Provider", "Planiranje": "Planung",
+    "Tiefbau": "Tiefbau", "Spülbohrung": "Spülbohrung", "Montaža": "Montage", "Aktivacija": "Aktivierung" },
+};
+const tAkt = name => (AKT_I18N[LANG] && AKT_I18N[LANG][name]) || name;
+const tOdjel = name => (ODJ_I18N[LANG] && ODJ_I18N[LANG][name]) || name;
+
 let DATA = { dps: [], pops: [], tasks: [], segments: [], history: [] };
 let YEAR = 2026;
 let PX = 3.8;                     // pixels per day
@@ -800,7 +819,7 @@ function renderSlicers() {
     if (d) act.push(fchip(`${esc(dpLbl(d))}`, `data-xdp="${id}"`));
   });
   [...F.st].forEach(s => act.push(fchip(esc(stT(s)), `data-xst="${esc(s)}"`)));
-  [...F.odj].forEach(o => act.push(fchip(esc(o), `data-xodj="${esc(o)}"`)));
+  [...F.odj].forEach(o => act.push(fchip(esc(tOdjel(o)), `data-xodj="${esc(o)}"`)));
   if (F.esk) act.push(fchip(`${t("kEsk")}`, `data-xesk="1"`));
   if (F.kasni) act.push(fchip(`${t("kasniChip")}`, `data-xlate="1"`));
   if (F.dOd) act.push(fchip(`≥ ${fmt(F.dOd)}`, `data-xdod="1"`));
@@ -844,7 +863,7 @@ function renderSlicers() {
     </div>
     <div class="sl-row">
       <span class="sl-lbl">${t("odjelLbl")}</span>
-      ${odj.map(o => chip(esc(o), "mini odj", F.odj.has(o), `data-odj="${o}"`)).join("")}
+      ${odj.map(o => chip(esc(tOdjel(o)), "mini odj", F.odj.has(o), `data-odj="${esc(o)}"`)).join("")}
     </div>`;
 
   $$("#slicers .chip").forEach(ch => ch.addEventListener("click", () => {
@@ -1084,8 +1103,8 @@ function renderTimeline(keepScroll) {
           <span class="c-pop cell" data-fpop="${esc(dp.pop)}" data-fpopid="${dp.pop_id || ""}" title="klik = filter + detalji POP-a">${esc(dp.pop)}</span>
           <span class="c-dp cell" data-fdp="${dp.id}" title="klik = filter + detalji (HP/HA, historija)">${esc(dp.naziv)}</span>
           <span class="c-act">
-            <span class="act-name" title="dupli klik = preimenuj">${esc(t.aktivnost)}</span>
-            <span class="odj-tag" title="klik = promijeni odjel">${esc(t.odjel || "—")}</span>
+            <span class="act-name" title="dupli klik = preimenuj">${esc(tAkt(t.aktivnost))}</span>
+            <span class="odj-tag" title="klik = promijeni odjel">${esc(t.odjel ? tOdjel(t.odjel) : "—")}</span>
             <button class="rowdel" title="Obriši">✕</button>
           </span>
         </div>
@@ -1565,7 +1584,7 @@ function openPop(mode, segId, cx, cy, init = {}) {
   const dp = DATA.dps.find(d => d.id === tk.dp_id) || {};
   $("#popCtx").innerHTML = tk.aktivnost
     ? `<span class="pc-dot" style="background:${aktColor(tk.aktivnost)}"></span>` +
-      `${esc(dp.naziv || "")} <i>▸</i> <b>${esc(tk.aktivnost)}</b>` : "";
+      `${esc(dp.naziv || "")} <i>▸</i> <b>${esc(tAkt(tk.aktivnost))}</b>` : "";
   $("#popWhenEdit").classList.add("hidden");   // datumi su skriveni (dolaze iz crteža)
   popDurUpd();
   $("#popKom").value = s.komentar || "";
@@ -1740,7 +1759,7 @@ function hcShow(el, ev) {
     hcEl.style.setProperty("--hc-ac", aktColor(tk.aktivnost));
     hcEl.innerHTML = `
     <div class="hc-head"><span class="hc-dot" style="background:${aktColor(tk.aktivnost)}"></span>
-      <b>${esc(tk.aktivnost || "")}</b><span class="hc-st ${stCls}">${esc(stT(s.status))}</span></div>
+      <b>${esc(tk.aktivnost ? tAkt(tk.aktivnost) : "")}</b><span class="hc-st ${stCls}">${esc(stT(s.status))}</span></div>
     <div class="hc-ctx">${esc(dp.pop || "")} <i>▸</i> <b>${esc(dp.naziv || "")}</b>${s.created_by
       ? ` <span class="hc-by">${t("nacrtao")} ${esc(s.created_by)}</span>` : ""}</div>
     <div class="hc-when">
@@ -1871,7 +1890,7 @@ function renderStats() {
     return t && t.odjel === o && s.status === st;
   }).length);
   C("#chOdjel", { type: "bar", data: {
-      labels: odj,
+      labels: odj.map(tOdjel),
       datasets: [
         { label: stT("završeno"), data: byOdj("završeno"), backgroundColor: "#10b981", borderRadius: 5 },
         { label: stT("otvoreno"), data: byOdj("otvoreno"), backgroundColor: "#ef4444", borderRadius: 5 }] },
@@ -2448,7 +2467,7 @@ function fmtTs(ts) {
 }
 function evText(e) {
   if (e.kind === "seg")
-    return `<em>${esc(e.aktivnost)}</em> · ${hcLbl(e.polje)}: ${esc(e.vrijednost)}`;
+    return `<em>${esc(tAkt(e.aktivnost))}</em> · ${hcLbl(e.polje)}: ${esc(e.vrijednost)}`;
   const FL = { naziv: t("fNaziv"), lokacija: t("lokacija"), voditelj: t("voditelj"),
     hp: "HP", ha: "HA", pop: "POP", projekt: t("projekat"),
     aktivnost: t("aktivnost"), odjel: t("fOdjel") };
