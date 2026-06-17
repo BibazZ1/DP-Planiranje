@@ -1756,17 +1756,21 @@ function hcShow(el, ev) {
     ${s.eskalacija ? `<div class="hc-row orange"><span>${t("hEskalacija")}${s.esk_datum
       ? " · " + fmt(s.esk_datum) : ""}</span>${esc(s.esk_razlog || "—")}</div>` : ""}
     <div class="hc-hist"><h4>${t("hist")}</h4>${hist.length
-      ? hist.slice(0, 6).map(h => `<div class="hc-h"><i>${fmtTs(h.ts)}</i>
+      ? hist.slice(0, 4).map(h => `<div class="hc-h"><i>${fmtTs(h.ts)}</i>
           <em>${hcLbl(h.polje)}</em><span>${esc(h.vrijednost)}</span>${h.user
             ? `<b class="hc-u">${esc(h.user)}</b>` : ""}</div>`).join("")
       : `<div class="hc-h empty">${t("noHist")}</div>`}</div>
     <div class="hc-tip${late ? " late" : ""}">${late ? t("hcLateTip") : t("hcEdit")}</div>`;
     hcEl.classList.remove("hidden");
   }
-  const W = 340, H = hcEl.offsetHeight || 220;
-  hcEl.style.left = Math.min(ev.clientX + 14, innerWidth - W - 14) + "px";
-  hcEl.style.top = (ev.clientY + 16 + H > innerHeight ? Math.max(8, ev.clientY - H - 12)
-    : ev.clientY + 16) + "px";
+  /* uvijek drži CIJELU karticu u ekranu — flip iznad kursora pa klanjanje na rubove */
+  const W = hcEl.offsetWidth || 328, H = hcEl.offsetHeight || 220;
+  let left = Math.max(8, Math.min(ev.clientX + 14, innerWidth - W - 12));
+  let top = ev.clientY + 16;
+  if (top + H > innerHeight - 8) top = ev.clientY - H - 12;   // nema mjesta dolje -> iznad
+  top = Math.max(8, Math.min(top, innerHeight - H - 8));      // nikad van ekrana (gore/dolje)
+  hcEl.style.left = left + "px";
+  hcEl.style.top = top + "px";
 }
 $("#tlScroll").addEventListener("mousemove", e => {
   if (drag || segResize || popCtx) return hcHide();

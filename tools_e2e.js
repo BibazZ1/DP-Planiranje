@@ -514,6 +514,15 @@ function ok(name, cond, extra = "") {
   ok("kasni: traka crveno pulsira (.seg.late)", (await page.locator(".seg.late").count()) >= 1);
   const odEl = page.locator(".seg.late").first();
   const odSegId = +(await odEl.getAttribute("data-seg"));
+  // hovercard za prekoračeni rok mora biti CIJELI vidljiv (ne odsječen)
+  await odEl.hover();
+  await page.waitForSelector(".hovercard:not(.hidden)", { timeout: 3000 }).catch(() => {});
+  const hcBox = await page.locator(".hovercard").boundingBox().catch(() => null);
+  ok("hovercard (prekoračen rok): cijeli unutar ekrana (ne odsječen)",
+    !!hcBox && hcBox.y >= 0 && (hcBox.y + hcBox.height) <= (await page.evaluate(() => innerHeight)) + 1);
+  ok("hovercard: tip ('dupli klik') vidljiv na dnu", await page.locator(".hovercard .hc-tip").isVisible().catch(() => false));
+  await page.mouse.move(5, 5);   // skloni hover prije dblclick
+  await page.waitForTimeout(150);
   await odEl.dblclick();
   await page.waitForTimeout(300);
   ok("kasni: dupli klik otvara editor (ne toggle završeno)", await page.locator("#pop:not(.hidden)").isVisible());

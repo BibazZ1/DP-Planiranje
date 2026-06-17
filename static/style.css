@@ -352,13 +352,15 @@ main{padding:5px 14px 8px;display:flex;flex-direction:column;gap:5px}
   padding:1px 0;box-shadow:0 0 14px rgba(16,185,129,.8)}
 
 /* ---------- hover kartica (detalji + historija) ---------- */
-.hovercard{position:fixed;z-index:95;width:340px;max-height:360px;overflow:hidden;
-  padding:13px 15px 11px;border-radius:14px;pointer-events:none;
+/* overflow:visible — NIKAD ne odsijecaj sadržaj (prekoračeni rok ima više redova);
+   JS klanja poziciju da cijela kartica stane u ekran */
+.hovercard{position:fixed;z-index:95;width:328px;overflow:visible;
+  padding:9px 11px 8px;border-radius:13px;pointer-events:none;
   background:linear-gradient(150deg,rgba(22,33,52,.98),rgba(13,20,33,.98));
   border:1px solid var(--line2);box-shadow:0 18px 50px rgba(0,0,0,.65);
-  font-size:12px;line-height:1.45;animation:popIn .15s ease-out both}
-.hc-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-.hc-head b{font-size:13px;color:#eef4fc;flex:1}
+  font-size:11.5px;line-height:1.38;animation:popIn .15s ease-out both}
+.hc-head{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.hc-head b{font-size:12.5px;color:#eef4fc;flex:1}
 .hc-dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
 .hc-st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
   border-radius:8px;padding:2px 9px}
@@ -367,22 +369,22 @@ main{padding:5px 14px 8px;display:flex;flex-direction:column;gap:5px}
 .hc-st.red{color:var(--red);background:var(--red-glow)}
 .hc-dates{font:600 11.5px var(--mono);color:#aebdd2;margin-bottom:7px}
 .hc-late{color:#ff8c1a;font-weight:700}
-.hc-row{margin:4px 0;padding:6px 9px;border-radius:8px;background:rgba(255,255,255,.05);
+.hc-row{margin:3px 0;padding:4px 8px;border-radius:7px;background:rgba(255,255,255,.05);
   color:#dbe6f3}
-.hc-row span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:1px;
+.hc-row span{display:block;font-size:8.5px;text-transform:uppercase;letter-spacing:1px;
   color:var(--mut);margin-bottom:1px}
 .hc-row.purple{background:rgba(129,140,248,.13);border-left:3px solid var(--purple)}
 .hc-row.orange{background:rgba(255,140,26,.12);border-left:3px solid #ff8c1a}
-.hc-hist{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
-.hc-hist h4{margin:0 0 5px;font-size:9.5px;color:var(--mut);text-transform:uppercase;
+.hc-hist{margin-top:6px;border-top:1px solid var(--line);padding-top:5px}
+.hc-hist h4{margin:0 0 4px;font-size:9px;color:var(--mut);text-transform:uppercase;
   letter-spacing:1.4px}
-.hc-h{display:flex;gap:7px;align-items:baseline;padding:2.5px 0;
+.hc-h{display:flex;gap:7px;align-items:baseline;padding:2px 0;
   border-bottom:1px dashed rgba(255,255,255,.05)}
 .hc-h i{font:500 10px var(--mono);color:var(--mut2);font-style:normal;flex:none}
 .hc-h em{font-style:normal;font-size:10px;color:var(--blue);flex:none;font-weight:600}
 .hc-h span{color:#c7d3e4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hc-h.empty{color:var(--mut2);font-style:italic;border:0}
-.hc-tip{margin-top:7px;font-size:10px;color:var(--mut2);text-align:right}
+.hc-tip{margin-top:6px;font-size:9.5px;color:var(--mut2);text-align:right}
 .hc-tip.late{color:#fca5a5;font-weight:700;text-align:left;background:rgba(239,68,68,.12);
   border:1px solid rgba(239,68,68,.35);border-radius:7px;padding:4px 8px}
 
