@@ -38,6 +38,16 @@ INSERT INTO projects(projektname,kunde,projectcode,hp,trasa_m,datum_od,datum_do,
  ('[SUED] MUSTERSTADT','mih construct GmbH','SU-MUS',500,2000,'2026-03-01','2026-05-20','2026-06-12T08:00:00')
 ON CONFLICT (projektname) DO NOTHING
 """)
+# po-dan razrez (Azure Daily) — da Datum od/do filter može sumirati HP/Trasa/HA/Montaža u rasponu
+tcur.execute("""
+INSERT INTO project_daily(projektname,datum,hp,trasa_m,ha_m,ha_stck,montaza) VALUES
+ ('[NORD CLUSTER 1] WANDLITZ [IP]','2026-06-10',100,500,300,50,20),
+ ('[NORD CLUSTER 1] WANDLITZ [IP]','2026-07-15',150,700,400,60,30),
+ ('[NORD CLUSTER 1] WANDLITZ [IP]','2026-08-20',200,900,500,70,40),
+ ('[NORD CLUSTER 1] BRIESEN [IP]','2026-06-20',80,400,250,40,15),
+ ('[SUED] MUSTERSTADT','2026-05-10',60,300,200,30,10)
+ON CONFLICT (projektname,datum) DO NOTHING
+""")
 tcon.commit()
 tcon.close()
 print("test DB created + schema + fixtures")

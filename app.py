@@ -185,6 +185,21 @@ WHERE [Projektname] IS NOT NULL AND LTRIM(RTRIM([Projektname])) <> ''
 GROUP BY [Projektname]
 """
 
+# Isto, ali po DANU (Datum) — omogućava sumiranje HP/Trasa/HA/Montaže u rasponu Datum od/do
+AZURE_DAILY_QUERY = """
+SELECT [Projektname],
+       CAST([Datum] AS DATE)     AS Datum,
+       SUM([HP])                 AS HP,
+       SUM([Trasa(m)])           AS Trasa_m,
+       SUM([HA(m)])              AS HA_m,
+       SUM([HA stck.])           AS HA_stck,
+       SUM([Montage])            AS Montaza
+FROM [SREDJENI_Daily]
+WHERE [Projektname] IS NOT NULL AND LTRIM(RTRIM([Projektname])) <> ''
+  AND [Datum] IS NOT NULL
+GROUP BY [Projektname], CAST([Datum] AS DATE)
+"""
+
 
 def sync_projects_from_azure():
     """Povuče zbirne podatke po projektu iz Azure SQL (samo SELECT) u Postgres."""
@@ -202,6 +217,13 @@ def sync_projects_from_azure():
         )
         az = pyodbc.connect(cs, readonly=True)
         rows = az.cursor().execute(AZURE_PROJECT_QUERY).fetchall()
+        # dnevni razrez je "nice-to-have" — ako padne (npr. kolona Datum nedostaje),
+        # NE smije srušiti glavni sync projekata
+        daily, daily_err = [], None
+        try:
+            daily = az.cursor().execute(AZURE_DAILY_QUERY).fetchall()
+        except Exception as de:
+            daily_err = str(de)
         az.close()
 
         now = now_iso()
@@ -218,9 +240,24 @@ def sync_projects_from_azure():
             [(r[0].strip(), (r[1] or "").strip(), (r[2] or "").strip(),
               float(r[3] or 0), float(r[4] or 0), float(r[5] or 0), float(r[6] or 0),
               float(r[7] or 0), str(r[8] or ""), str(r[9] or ""), now) for r in rows])
-        con.commit()
+        con.commit()   # projekte commituj ODMAH — ne ovise o dnevnom razrezu
+        # po-dan razrez (puna zamjena svaki sync) -> Datum od/do filter može sumirati raspon;
+        # odvojen commit + try da greška ovdje ne poništi gornji (projektni) sync
+        if daily_err is None:
+            try:
+                cur.execute("DELETE FROM project_daily")
+                cur.executemany(
+                    "INSERT INTO project_daily(projektname,datum,hp,trasa_m,ha_m,ha_stck,montaza) "
+                    "VALUES(%s,%s,%s,%s,%s,%s,%s)",
+                    [(d[0].strip(), str(d[1] or "")[:10],
+                      float(d[2] or 0), float(d[3] or 0), float(d[4] or 0),
+                      float(d[5] or 0), float(d[6] or 0)) for d in daily])
+                con.commit()
+            except Exception as de:
+                con.rollback()
+                daily_err = str(de)
         con.close()
-        _sync_state.update(status="ok", time=now, count=len(rows))
+        _sync_state.update(status="ok", time=now, count=len(rows), daily_error=daily_err)
     except Exception as e:
         _sync_state.update(status="greška", error=str(e))
     finally:
@@ -848,6 +885,29 @@ def api_projects():
     rows = [dict(r) for r in db().execute(
         "SELECT * FROM projects ORDER BY projektname")]
     return jsonify({"projects": rows, "sync": _sync_state})
+
+
+@app.route("/api/projects/totals")
+@api_login_required
+def api_projects_totals():
+    """Σ HP/Trasa/HA/Montaža po projektu, suženo na raspon Datum od/do (project_daily).
+    Bez od/do = ukupno (poklapa se s kolonama u 'projects')."""
+    od = (request.args.get("od") or "").strip()
+    do = (request.args.get("do") or "").strip()
+    cond, params = [], []
+    if od:
+        cond.append("datum >= %s")
+        params.append(od)
+    if do:
+        cond.append("datum <= %s")
+        params.append(do)
+    where = (" WHERE " + " AND ".join(cond)) if cond else ""
+    rows = [dict(r) for r in db().execute(
+        "SELECT projektname, SUM(hp) AS hp, SUM(trasa_m) AS trasa_m, "
+        "SUM(ha_m) AS ha_m, SUM(ha_stck) AS ha_stck, SUM(montaza) AS montaza, "
+        "MIN(datum) AS datum_od, MAX(datum) AS datum_do "
+        "FROM project_daily" + where + " GROUP BY projektname", tuple(params))]
+    return jsonify({"totals": rows})
 
 
 @app.route("/api/projects/sync", methods=["POST"])

@@ -220,6 +220,17 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(400);
   ok("uklanjanje datuma vraća sve", (await segVisible()) === 3);
 
+  // ---------- 9b. zelene projektne količine prate Datum von/bis (project_daily) ----------
+  const greenHp = async () => +(((await page.locator("#projKpis .kpi .num").first().textContent()) || "0").replace(/[^\d]/g, ""));
+  const gAll = await greenHp();                       // bez raspona = puni projektni HP (2500)
+  await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.setDate("2026-06-01", true));
+  await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-07-01", true));
+  await page.waitForTimeout(700);
+  const gRange = await greenHp();
+  ok("zelene količine (HP) prate Datum von/bis", gAll !== gRange && gRange === 180, `(all=${gAll} range=${gRange})`);
+  await page.click("#pfClear");
+  await page.waitForTimeout(400);
+
   // ---------- 10. POP / DP combo filteri ----------
   await page.click("#fPop");
   await page.waitForSelector(".combo:has(#fPop) .combo-list:not([hidden]) .combo-opt", { timeout: 5000 });
@@ -541,6 +552,15 @@ function ok(name, cond, extra = "") {
   ok("/api/stats by_odjel bez utoku", (stats.by_odjel || []).every(r => !("utoku" in r)));
   ok("/api/baseline uklonjen (404/405)",
     [404, 405].includes((await page.request.post(BASE + "/api/baseline", { data: {} })).status()));
+  // /api/projects/totals: Σ po projektu suženo na Datum od/do (project_daily)
+  const totAll = await (await page.request.get(BASE + "/api/projects/totals")).json();
+  ok("/api/projects/totals: ukupno (bez raspona) sumira sve dane",
+    Math.round((totAll.totals || []).reduce((a, r) => a + (+r.hp || 0), 0)) === 590, // 100+150+200+80+60
+    `(${(totAll.totals || []).reduce((a, r) => a + (+r.hp || 0), 0)})`);
+  const totRange = await (await page.request.get(BASE + "/api/projects/totals?od=2026-06-01&do=2026-07-01")).json();
+  ok("/api/projects/totals: raspon Jun sumira samo dane u opsegu",
+    Math.round((totRange.totals || []).reduce((a, r) => a + (+r.hp || 0), 0)) === 180, // Wandlitz 10.06=100 + Briesen 20.06=80
+    `(${JSON.stringify((totRange.totals || []).map(r => [r.projektname, r.hp]))})`);
 
   // delete-undo je DOM test -> vrati se na timeline (admin sekcija je ostavila /admin)
   await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });

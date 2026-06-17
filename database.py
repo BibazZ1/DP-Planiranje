@@ -142,6 +142,16 @@ CREATE TABLE IF NOT EXISTS projects(
     datum_do TEXT,
     synced_at TEXT
 );
+CREATE TABLE IF NOT EXISTS project_daily(
+    projektname TEXT NOT NULL,
+    datum TEXT NOT NULL,
+    hp DOUBLE PRECISION DEFAULT 0,
+    trasa_m DOUBLE PRECISION DEFAULT 0,
+    ha_m DOUBLE PRECISION DEFAULT 0,
+    ha_stck DOUBLE PRECISION DEFAULT 0,
+    montaza DOUBLE PRECISION DEFAULT 0,
+    PRIMARY KEY(projektname, datum)
+);
 CREATE TABLE IF NOT EXISTS audit_log(
     id SERIAL PRIMARY KEY,
     ts TEXT NOT NULL,
@@ -179,6 +189,7 @@ CREATE TABLE IF NOT EXISTS meta(
     key TEXT PRIMARY KEY,
     value TEXT DEFAULT ''
 );
+CREATE INDEX IF NOT EXISTS idx_pdaily_datum ON project_daily(datum);
 CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity, entity_id, ts);
 CREATE INDEX IF NOT EXISTS idx_sh_seg ON seg_history(seg_id);
 CREATE INDEX IF NOT EXISTS idx_seg_task ON segments(task_id);
