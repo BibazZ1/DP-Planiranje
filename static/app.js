@@ -756,9 +756,15 @@ function renderKpis() {
   const segs = visibleSegs();
   const c = st => segs.filter(s => s.status === st).length;
   const esk = segs.filter(s => s.eskalacija).length;
-  const dps = scopedDps().filter(dpFilterOk);
-  const hp = dps.reduce((a, d) => a + (d.hp || 0), 0);
-  const ha = dps.reduce((a, d) => a + (d.ha || 0), 0);
+  /* HP/HA = zbroj po DP-ovima koji imaju BAR JEDAN termin u trenutnom filteru
+     (Kunde/Projekt/POP/DP/Abteilung/Status/DATUM) -> "koliko je HP/HA planirano
+     u tom rasponu za tog providera/POP/projekat". Bez filtera = svi DP-ovi s terminima. */
+  const taskDp = new Map(DATA.tasks.map(tk => [tk.id, tk.dp_id]));
+  const dpIds = new Set();
+  segs.forEach(s => { const id = taskDp.get(s.task_id); if (id != null) dpIds.add(id); });
+  const kdps = DATA.dps.filter(d => dpIds.has(d.id));
+  const hp = kdps.reduce((a, d) => a + (d.hp || 0), 0);
+  const ha = kdps.reduce((a, d) => a + (d.ha || 0), 0);
   /* kartice = filteri: klik na status/eskalacije filtrira sve ispod */
   $("#kpis").innerHTML = `
     <div class="kpi blue click${F.st.size || F.esk ? "" : " on"}" data-all="1" title="${t("clearAll")}"><div class="num" data-n="${segs.length}">0</div><div class="lbl">${t("kTermina")}</div></div>
@@ -1599,9 +1605,9 @@ function openPop(mode, segId, cx, cy, init = {}) {
     p.classList.toggle("on", p.dataset.st === (popCtx.status)));
   updateKasniVis();
   pop.classList.remove("hidden");
-  const W = 300, H = pop.offsetHeight || 330;
-  pop.style.left = Math.min(cx, innerWidth - W - 16) + "px";
-  pop.style.top = Math.min(cy + 10, innerHeight - H - 16) + "px";
+  const W = pop.offsetWidth || 282, H = pop.offsetHeight || 330;
+  pop.style.left = Math.max(8, Math.min(cx, innerWidth - W - 16)) + "px";
+  pop.style.top = Math.max(8, Math.min(cy + 10, innerHeight - H - 16)) + "px";
   /* termin probio rok -> fokus na obavezni razlog; inače NE traži komentar
      (Enter sprema odmah) */
   if (popLate()) $("#popKasni").focus();
@@ -1623,6 +1629,16 @@ function repositionPopToSeg() {
   pop.style.top = Math.max(8, Math.min(r.bottom + 8, innerHeight - H - 16)) + "px";
 }
 $("#tlScroll").addEventListener("scroll", repositionPopToSeg, { passive: true });
+/* kad editor naraste (eskalacija/razlog/datumi se otkriju) -> ponovo ga uglavi u ekran,
+   da donja polja ne ispadnu ispod (uz max-height skrola unutar sebe ako je baš visok) */
+function clampPop() {
+  const pop = $("#pop");
+  if (pop.classList.contains("hidden")) return;
+  const W = pop.offsetWidth || 282, H = pop.offsetHeight || 330;
+  const left = parseFloat(pop.style.left) || 8, top = parseFloat(pop.style.top) || 8;
+  pop.style.left = Math.max(8, Math.min(left, innerWidth - W - 16)) + "px";
+  pop.style.top = Math.max(8, Math.min(top, innerHeight - H - 8)) + "px";
+}
 
 /* termin probio rok? (otvoreno / u toku sa krajem u prošlosti) -> razlog obavezan */
 function popLate() {
@@ -1640,6 +1656,7 @@ function updateKasniVis() {
   $("#popWhenEdit").classList.toggle("req-late", late);
   $("#popWhenDisp").classList.toggle("req-late", late);
   $("#popKasniWrap").classList.toggle("req-late", late);
+  clampPop();
 }
 
 $$("#popStatus .stpill").forEach(p => p.addEventListener("click", () => {
@@ -1653,6 +1670,7 @@ $("#popOd").addEventListener("change", popDurUpd);
 $("#popWhenDisp").addEventListener("click", () => {
   const ed = $("#popWhenEdit");
   ed.classList.toggle("hidden");
+  clampPop();
   if (!ed.classList.contains("hidden")) $("#popOd").focus();
 });
 /* Enter bilo gdje u popoveru = Sačuvaj (ne moraš ništa kliknuti) */
@@ -1665,6 +1683,7 @@ $("#popEsk").addEventListener("change", () => {
   $("#popRazlogWrap").classList.toggle("hidden", !on);
   $("#popEskDatWrap").classList.toggle("hidden", !on);
   if (on && !$("#popEskDat").value) $("#popEskDat").value = todayIso();
+  clampPop();
 });
 $("#popCancel").addEventListener("click", closePop);
 $("#popClose").addEventListener("click", closePop);
@@ -1753,6 +1772,8 @@ function hcShow(el, ev) {
   const hist = (DATA.history || []).filter(h => h.seg_id === s.id);
   const stCls = s.status === "završeno" ? "teal" : "red";
   const nd = durDays(s.datum_od, s.datum_do);
+  /* HP/HA iz DP-a + koja je veličina "mjerodavna" za ovu aktivnost (Montaža/Aktivacija -> HA, ostalo -> HP) */
+  const haRel = /montaž|aktiv/i.test(`${tk.aktivnost || ""} ${tk.odjel || ""}`);
   /* ne re-renderuj isti sadržaj na svaki mousemove — samo pomjeri */
   if (hcEl.dataset.seg !== String(s.id)) {
     hcEl.dataset.seg = String(s.id);
@@ -1767,6 +1788,10 @@ function hcShow(el, ev) {
       <span class="hc-arrow">→</span>
       <span class="hc-d"><i>${t("do")}</i><b>${fmt(s.datum_do)}</b><em>KW${isoWeekOf(s.datum_do)}</em></span>
       <span class="hc-dur">${nd}d</span>
+    </div>
+    <div class="hc-qty">
+      <span class="hc-q${haRel ? "" : " rel"}">HP <b>${fmtNum(dp.hp || 0)}</b></span>
+      <span class="hc-q${haRel ? " rel" : ""}">HA <b>${fmtNum(dp.ha || 0)}</b></span>
     </div>
     ${late ? `<div class="hc-row red"><span>${t("kasniChip")}</span><b>+${lateDays(s)} ${t("dana")}</b> · ${t("rokLbl")} ${fmt(s.datum_do)}</div>` : ""}
     ${s.komentar ? `<div class="hc-row amber"><span>${t("komentar")}</span>${esc(s.komentar)}</div>` : ""}

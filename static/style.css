@@ -369,6 +369,13 @@ main{padding:5px 14px 8px;display:flex;flex-direction:column;gap:5px}
 .hc-st.red{color:var(--red);background:var(--red-glow)}
 .hc-dates{font:600 11.5px var(--mono);color:#aebdd2;margin-bottom:7px}
 .hc-late{color:#ff8c1a;font-weight:700}
+.hc-qty{display:flex;gap:6px;margin:3px 0}
+.hc-q{flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:3px 9px;border-radius:7px;background:rgba(255,255,255,.05);
+  font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mut)}
+.hc-q b{font:700 13px var(--mono);color:#cfdaea;text-transform:none}
+.hc-q.rel{background:rgba(16,185,129,.13);border:1px solid rgba(16,185,129,.3)}
+.hc-q.rel,.hc-q.rel b{color:#6ee7b7}
 .hc-row{margin:3px 0;padding:4px 8px;border-radius:7px;background:rgba(255,255,255,.05);
   color:#dbe6f3}
 .hc-row span{display:block;font-size:8.5px;text-transform:uppercase;letter-spacing:1px;
@@ -943,7 +950,12 @@ span.flatpickr-weekday{color:#64748b!important}
 /* ================== popover redizajn ================== */
 .pop{width:282px;padding:11px 13px;border:1px solid rgba(16,185,129,.25)!important;
   background:linear-gradient(150deg,rgba(15,23,42,.97),rgba(30,41,59,.97))!important;
-  box-shadow:0 0 40px rgba(16,185,129,.12),0 24px 70px rgba(0,0,0,.65)!important}
+  box-shadow:0 0 40px rgba(16,185,129,.12),0 24px 70px rgba(0,0,0,.65)!important;
+  /* visok editor (npr. eskalacija na zadnjem redu) -> skrola unutar sebe umjesto da
+     ispadne ispod ekrana; pozicija se uvijek klanja u vidno polje */
+  max-height:calc(100vh - 16px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.pop::-webkit-scrollbar{width:8px}
+.pop::-webkit-scrollbar-thumb{background:rgba(148,163,184,.35);border-radius:8px}
 .pop-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
 .pop-head{margin-bottom:0!important;font-size:12.5px;letter-spacing:.3px}
 .pop-x{border:0;background:rgba(255,255,255,.06);color:var(--mut);width:21px;height:21px;

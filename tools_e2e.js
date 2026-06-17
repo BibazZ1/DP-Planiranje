@@ -205,11 +205,17 @@ function ok(name, cond, extra = "") {
   await page.click('.chip[data-late="1"]');
   await page.waitForTimeout(300);
 
-  // ---------- 9. datumski filter (flatpickr) ----------
+  // ---------- 9. datumski filter (flatpickr) + HP/HA KPI prati raspon ----------
+  const hpD = () => page.locator("#kpis .kpi.purple .num").first().getAttribute("data-n").then(v => +v);
+  const hpAll = await hpD();
   await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.setDate("2026-07-01", true));
   await page.waitForTimeout(400);
   ok("datum od -> AKTIVNI čip", await chipX("data-xdod").isVisible());
   ok("datum od filtrira termine", (await segVisible()) === 1);
+  await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.setDate("2031-01-01", true));
+  await page.waitForTimeout(300);
+  ok("KPI HP prati datumski filter (0 kad nema termina u rasponu)",
+    hpAll > 0 && (await hpD()) === 0, `(all=${hpAll})`);
   await chipX("data-xdod").click();
   await page.waitForTimeout(400);
   ok("uklanjanje datuma vraća sve", (await segVisible()) === 3);
@@ -421,6 +427,20 @@ function ok(name, cond, extra = "") {
   await page.locator(`.seg[data-seg="${segM.id}"]`).click({ button: "right" });
   await page.waitForTimeout(400);
   ok("desni klik -> editor otvoren", await page.locator("#pop:not(.hidden)").isVisible());
+  // editor MORA ostati cijeli u ekranu (i kad je visok zbog eskalacije na zadnjem redu) + skrolabilan
+  await page.locator("#popEsk").check().catch(() => {});   // proširi -> najviši slučaj (eskalacija polja)
+  await page.waitForTimeout(150);
+  const popBox = await page.locator("#pop").boundingBox();
+  const vh = await page.evaluate(() => window.innerHeight);
+  ok("editor: cijeli unutar ekrana (ne ispada ispod)",
+    !!popBox && popBox.y >= -1 && (popBox.y + popBox.height) <= vh + 1,
+    `(y=${popBox && Math.round(popBox.y)} h=${popBox && Math.round(popBox.height)} vh=${vh})`);
+  ok("editor: skrolabilan kad je visok (overflow-y auto)",
+    (await page.locator("#pop").evaluate(el => getComputedStyle(el).overflowY)) === "auto");
+  ok("editor: polja eskalacije dostupna (otkrivena)",
+    (await page.locator("#popEskDatWrap").count()) === 1 &&
+    !(await page.locator("#popEskDatWrap").evaluate(el => el.classList.contains("hidden"))));
+  await page.locator("#popEsk").uncheck().catch(() => {});
   ok("editor: datum-polja skrivena po defaultu", (await page.locator("#popWhenEdit.hidden").count()) === 1);
   ok("editor: read-only datum traka", await page.locator("#popWhenDisp").isVisible());
   ok("editor: komentar opcionalan", (await page.locator("#pop .pop-field .opt").first().textContent()).toLowerCase().includes("opciona"));
@@ -521,6 +541,11 @@ function ok(name, cond, extra = "") {
   ok("hovercard (prekoračen rok): cijeli unutar ekrana (ne odsječen)",
     !!hcBox && hcBox.y >= 0 && (hcBox.y + hcBox.height) <= (await page.evaluate(() => innerHeight)) + 1);
   ok("hovercard: tip ('dupli klik') vidljiv na dnu", await page.locator(".hovercard .hc-tip").isVisible().catch(() => false));
+  // hovercard prikazuje HP/HA količine DP-a (mjerodavna istaknuta)
+  ok("hovercard: HP/HA količine prikazane", (await page.locator(".hovercard .hc-qty .hc-q").count()) === 2);
+  const qtyTxt = (await page.locator(".hovercard .hc-qty").innerText().catch(() => "")).replace(/\s+/g, " ");
+  ok("hovercard: sadrži HP i HA", /HP/.test(qtyTxt) && /HA/.test(qtyTxt), `(${qtyTxt})`);
+  ok("hovercard: mjerodavna količina istaknuta (.rel)", (await page.locator(".hovercard .hc-q.rel").count()) === 1);
   await page.mouse.move(5, 5);   // skloni hover prije dblclick
   await page.waitForTimeout(150);
   await odEl.dblclick();
