@@ -199,11 +199,23 @@
 
 <!-- mali izbor poslije crtanja — zalijepljen za ghost (trebovanje), prati ga pri skrolu -->
 <div class="draw-ask hidden" id="drawAsk">
-  <div class="da-q" data-i18n="drawAskTitle">Otvoren ili završen termin?</div>
-  <div class="da-btns">
-    <button type="button" class="da-b open" id="daOpen" data-i18n="stOtvoreno">otvoreno</button>
-    <button type="button" class="da-b done" id="daDone" data-i18n="stZavrseno">završeno</button>
-    <button type="button" class="da-b cancel" id="daCancel" data-i18n="otkazi">Otkaži</button>
+  <!-- pane 1: status izbor -->
+  <div class="da-pane" id="daChoice">
+    <div class="da-q" data-i18n="drawAskTitle">Otvoren ili završen termin?</div>
+    <div class="da-btns">
+      <button type="button" class="da-b open" id="daOpen" data-i18n="stOtvoreno">otvoreno</button>
+      <button type="button" class="da-b done" id="daDone" data-i18n="stZavrseno">završeno</button>
+      <button type="button" class="da-b cancel" id="daCancel" data-i18n="otkazi">Otkaži</button>
+    </div>
+  </div>
+  <!-- pane 2: razlog produženja (otvoren termin koji završava prije danas) — i dalje zalijepljen -->
+  <div class="da-pane hidden" id="daReason">
+    <div class="da-q late" data-i18n="kasniLbl">Zašto termin kasni? (obavezno)</div>
+    <input type="text" class="da-input" id="daReasonInput" data-i18n-ph="kasniPh" placeholder="zašto još nije gotovo?">
+    <div class="da-btns">
+      <button type="button" class="da-b done" id="daReasonSave" data-i18n="sacuvaj">Sačuvaj</button>
+      <button type="button" class="da-b cancel" id="daReasonCancel" data-i18n="otkazi">Otkaži</button>
+    </div>
   </div>
 </div>
 

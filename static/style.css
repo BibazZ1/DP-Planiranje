@@ -738,24 +738,33 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;margin:16px 0 0;paddin
 .combo-empty{padding:7px 10px;font-size:12px;color:var(--mut2);font-style:italic}
 
 /* ================== SweetAlert2 "scifi" dijalozi (preuzeto iz ULAZNE-FAKTURE) ================== */
+/* kompaktni dijalozi — ne smiju dominirati ekranom (uska kartica, ne pola ekrana) */
 div:where(.swal2-container).scifi-popup .swal2-popup{
+  width:330px!important;max-width:calc(100vw - 32px)!important;padding:14px 16px!important;
   background:linear-gradient(135deg,rgba(15,23,42,.98) 0%,rgba(30,41,59,.98) 50%,rgba(15,23,42,.98) 100%)!important;
   border:1px solid rgba(16,185,129,.35)!important;
-  border-radius:20px!important;
-  box-shadow:0 0 40px rgba(16,185,129,.2),0 25px 80px rgba(0,0,0,.7)!important;
+  border-radius:14px!important;
+  box-shadow:0 0 30px rgba(16,185,129,.15),0 18px 56px rgba(0,0,0,.66)!important;
   font-family:'Inter',-apple-system,sans-serif!important}
 /* NAPOMENA: nikakvih custom animacija na .swal2-popup — SweetAlert sam upravlja
    brzim show/hide. Override s !important+forwards je ranije ostavljao dijalog
    "zaglavljen" na ekranu (spora 1s animacija + propuštanje klikova kroz njega). */
-div:where(.swal2-container).scifi-popup .swal2-title{color:#f1f5f9!important;font-size:19px!important}
-div:where(.swal2-container).scifi-popup .swal2-html-container{color:#94a3b8!important;font-size:14px!important}
+div:where(.swal2-container).scifi-popup .swal2-title{color:#f1f5f9!important;font-size:14px!important;
+  line-height:1.35!important;padding:2px 4px 0!important;margin:0!important}
+div:where(.swal2-container).scifi-popup .swal2-html-container{color:#94a3b8!important;font-size:12.5px!important;
+  margin:5px 0 0!important}
+div:where(.swal2-container).scifi-popup .swal2-icon{width:44px!important;height:44px!important;
+  margin:5px auto 2px!important;border-width:3px!important}
+div:where(.swal2-container).scifi-popup .swal2-icon .swal2-icon-content{font-size:1.8em!important}
 div:where(.swal2-container).scifi-popup .swal2-input{
   background:#0f172a!important;border:1px solid #334155!important;color:#f1f5f9!important;
-  border-radius:8px!important;box-shadow:none!important;font-size:14px!important}
+  border-radius:8px!important;box-shadow:none!important;font-size:12.5px!important;
+  height:auto!important;padding:8px 10px!important;margin:10px 0 2px!important}
 div:where(.swal2-container).scifi-popup .swal2-input:focus{
   border-color:#10b981!important;box-shadow:0 0 0 1px #10b981!important}
+div:where(.swal2-container).scifi-popup .swal2-actions{margin-top:12px!important;gap:8px!important}
 div:where(.swal2-container).scifi-popup .swal2-styled{
-  border-radius:8px!important;font-weight:700!important;font-size:13px!important;padding:9px 22px!important}
+  border-radius:8px!important;font-weight:700!important;font-size:12px!important;padding:7px 16px!important;margin:0!important}
 
 /* ================== Flatpickr â€” slate + emerald (kao ULAZNE) ================== */
 .flatpickr-calendar{background:#1e293b!important;border:1px solid #334155!important;
@@ -969,7 +978,14 @@ span.flatpickr-weekday{color:#64748b!important}
   border:1px solid rgba(16,185,129,.45);border-radius:11px;padding:8px 10px;
   box-shadow:0 12px 36px rgba(0,0,0,.62),0 0 18px rgba(16,185,129,.16)}
 .draw-ask.hidden{display:none}
+.draw-ask .da-pane{display:flex;flex-direction:column;gap:7px}
+.draw-ask .da-pane.hidden{display:none}
 .draw-ask .da-q{font:700 10.5px 'Inter',sans-serif;color:#cfe0d8;text-align:center;letter-spacing:.2px}
+.draw-ask .da-q.late{color:#fca5a5}
+.draw-ask .da-input{width:210px;max-width:60vw;background:rgba(2,6,15,.55);color:#f1f5f9;
+  border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:6px 9px;font-size:12px;outline:none}
+.draw-ask .da-input:focus{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
+.draw-ask .da-input.err{border-color:var(--red);box-shadow:0 0 10px var(--red-glow);animation:errShake .3s ease-in-out}
 .draw-ask .da-btns{display:flex;gap:6px}
 .da-b{flex:1;border:1px solid transparent;border-radius:8px;padding:4px 12px;
   font:700 11.5px 'Inter',sans-serif;cursor:pointer;transition:.15s;white-space:nowrap}

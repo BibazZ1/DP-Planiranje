@@ -343,10 +343,12 @@ function ok(name, cond, extra = "") {
   await page.mouse.move(bA.x + 380, yA, { steps: 4 }); await page.mouse.up();
   await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
   await page.click("#daOpen");   // otvoren
-  await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
-  ok("otvoren + kraj prije danas -> traži razlog", true);
-  await page.click(".swal2-cancel");
-  await page.waitForTimeout(400);
+  await page.waitForSelector("#daReason:not(.hidden)", { timeout: 5000 });
+  ok("otvoren + kraj prije danas -> traži razlog (u oblačiću, ne modal)", await page.locator("#daReasonInput").isVisible());
+  ok("razlog: nema velikog SweetAlerta", (await page.locator(".swal2-popup input.swal2-input").count()) === 0);
+  await page.click("#daReasonCancel");
+  await page.waitForSelector("#drawAsk.hidden", { timeout: 1500 }).catch(() => {});
+  await page.waitForTimeout(300);
   ok("otkazan razlog -> termin NIJE kreiran", (await segCount()) === cntBefore);
 
   // (b) otvoren + razlog -> kreira se s kasni_razlog
@@ -355,9 +357,9 @@ function ok(name, cond, extra = "") {
   await page.mouse.move(bA.x + 380, yA, { steps: 4 }); await page.mouse.up();
   await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
   await page.click("#daOpen");   // otvoren
-  await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
-  await page.fill(".swal2-popup input.swal2-input", "kasni zbog dozvole");
-  await page.click(".swal2-confirm");
+  await page.waitForSelector("#daReason:not(.hidden)", { timeout: 5000 });
+  await page.fill("#daReasonInput", "kasni zbog dozvole");
+  await page.click("#daReasonSave");
   await page.waitForTimeout(600);
   ok("otvoren+razlog -> termin kreiran", (await segCount()) === cntBefore + 1);
   ok("kasni_razlog snimljen", (await lastSeg()).kasni_razlog === "kasni zbog dozvole");

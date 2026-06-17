@@ -1323,8 +1323,9 @@ function dragTipShow(e, a, b) {
 }
 function dragTipHide() { dragTip.classList.add("hidden"); }
 
-/* poslije crtanja: mali izbor (otvoreno/završeno) zalijepljen za ghost-"trebovanje".
-   Fixed je, ali ga JS drži uz traku pri skrolu — ne ostaje fiksiran na ekranu. */
+/* poslije crtanja: mali izbor zalijepljen za ghost-"trebovanje" (NE veliki modal).
+   Fixed je, ali ga JS drži uz traku pri skrolu. Otvoren termin koji završava prije
+   danas traži razlog produženja — i to se rješava u istom oblačiću (pane 2). */
 let drawAskState = null;
 function placeDrawAsk() {
   if (!drawAskState) return;
@@ -1337,17 +1338,22 @@ function placeDrawAsk() {
   ask.style.left = left + "px";
   ask.style.top = Math.max(8, top) + "px";
 }
-function askDrawStatus(ghostEl) {
+/* vrati {status, kasni_razlog} ili null (otkazano). isPast = kraj prije danas. */
+function askDraw(ghostEl, isPast) {
   return new Promise(resolve => {
     const onScroll = () => placeDrawAsk();
-    drawAskState = { resolve, ghostEl, onScroll };
+    drawAskState = { resolve, ghostEl, onScroll, isPast };
+    $("#daChoice").classList.remove("hidden");   // uvijek počni od izbora
+    $("#daReason").classList.add("hidden");
+    $("#daReasonInput").value = "";
+    $("#daReasonInput").classList.remove("err");
     $("#drawAsk").classList.remove("hidden");
     placeDrawAsk();
     $("#tlScroll").addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
   });
 }
-function closeDrawAsk(val) {
+function drawAskTo(val) {   // finaliziraj + počisti (ukloni trebovanje, skini listenere)
   if (!drawAskState) return;
   $("#drawAsk").classList.add("hidden");
   $("#tlScroll").removeEventListener("scroll", drawAskState.onScroll);
@@ -1357,9 +1363,27 @@ function closeDrawAsk(val) {
   drawAskState = null;
   r(val);
 }
-$("#daOpen").addEventListener("click", () => closeDrawAsk("otvoreno"));
-$("#daDone").addEventListener("click", () => closeDrawAsk("završeno"));
-$("#daCancel").addEventListener("click", () => closeDrawAsk(null));
+$("#daDone").addEventListener("click", () => drawAskTo({ status: "završeno", kasni_razlog: "" }));
+$("#daOpen").addEventListener("click", () => {
+  if (drawAskState && drawAskState.isPast) {   // probijen rok -> traži razlog u istom oblačiću
+    $("#daChoice").classList.add("hidden");
+    $("#daReason").classList.remove("hidden");
+    placeDrawAsk();
+    $("#daReasonInput").focus();
+  } else {
+    drawAskTo({ status: "otvoreno", kasni_razlog: "" });
+  }
+});
+$("#daCancel").addEventListener("click", () => drawAskTo(null));
+$("#daReasonSave").addEventListener("click", () => {
+  const v = ($("#daReasonInput").value || "").trim();
+  if (!v) { $("#daReasonInput").classList.add("err"); $("#daReasonInput").focus(); return; }
+  drawAskTo({ status: "otvoreno", kasni_razlog: v });
+});
+$("#daReasonCancel").addEventListener("click", () => drawAskTo(null));
+$("#daReasonInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); $("#daReasonSave").click(); }
+});
 
 /* live resize of an existing termin by dragging its edge */
 document.addEventListener("mousemove", e => {
@@ -1400,19 +1424,14 @@ document.addEventListener("mouseup", async e => {
   dragTipHide();
   if (!moved) { $$(".ghost").forEach(g => g.remove()); return; }   // običan klik nije crtanje
   const od = iso(dateOfIdx(a)), do_ = iso(dateOfIdx(b));
-  /* zadrži nacrtani raspon kao "trebovanje" i zalijepi izbor na njega (prati skrol) */
+  /* zadrži nacrtani raspon kao "trebovanje" i zalijepi izbor na njega (prati skrol).
+     Otvoren termin s krajem prije danas traži razlog produženja — u istom oblačiću. */
   const ghostEl = track && track.querySelector(".ghost");
   if (ghostEl) ghostEl.classList.add("keep");
-  const status = ghostEl ? await askDrawStatus(ghostEl) : null;
+  const res = ghostEl ? await askDraw(ghostEl, do_ < todayIso()) : null;
   $$(".ghost").forEach(g => g.remove());
-  if (!status) return;                      // otkazано -> ništa
-  /* otvoren termin kojem je kraj već prošao -> razlog produženja je OBAVEZAN
-     (završen termin u prošlosti je uredu — gotov je) */
-  let kasni_razlog = "";
-  if (status !== "završeno" && do_ < todayIso()) {
-    kasni_razlog = (await uiPrompt(t("kasniPitanje"), "") || "").trim();
-    if (!kasni_razlog) return;              // bez razloga nema kreiranja
-  }
+  if (!res) return;                         // otkazано -> ništa
+  const { status, kasni_razlog } = res;
   let r;
   try {
     r = await api("/api/segments", "POST",
@@ -1432,7 +1451,7 @@ document.addEventListener("mouseup", async e => {
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
-    if (drawAskState) { closeDrawAsk(null); return; }   // otkaži izbor + ukloni trebovanje
+    if (drawAskState) { drawAskTo(null); return; }   // otkaži izbor/razlog + ukloni trebovanje
     if (!$("#lateModal").classList.contains("hidden")) { closeLateModal(); return; }
     if (drag) { drag = null; dragTipHide(); $$(".ghost").forEach(g => g.remove()); }
     if (popCtx) closePop();
