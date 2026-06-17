@@ -327,20 +327,22 @@ function ok(name, cond, extra = "") {
   ok("brojač: datumi + trajanje + KW", /\d{2}\.\d{2}\./.test(tipTxt) && /d · KW/.test(tipTxt), `(${tipTxt})`);
   const cntBefore = await segCount();
   await page.mouse.up();
-  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
-  ok("crtanje: pita otvoren ili završen", await page.locator(".swal2-deny").isVisible());
-  await page.click(".swal2-cancel");
-  await page.waitForSelector(".swal2-container", { state: "detached", timeout: 1500 }).catch(() => {});
-  ok("Swal NESTANE poslije Otkaži (<1.5s)", (await page.locator(".swal2-container").count()) === 0);
-  await page.waitForTimeout(300);
+  await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
+  ok("crtanje: pita otvoren ili završen (zalijepljen za ghost)", await page.locator("#daDone").isVisible());
+  ok("crtanje: ghost-trebovanje vidljiv dok biraš", (await page.locator(".ghost.keep").count()) === 1);
+  await page.click("#daCancel");
+  await page.waitForSelector("#drawAsk.hidden", { timeout: 1500 }).catch(() => {});
+  ok("izbor NESTANE poslije Otkaži (<1.5s)", await page.locator("#drawAsk").isHidden());
+  ok("otkazано: ghost-trebovanje uklonjen", (await page.locator(".ghost").count()) === 0);
+  await page.waitForTimeout(200);
   ok("otkazано pitanje -> termin NIJE kreiran", (await segCount()) === cntBefore);
 
   // (a2) otvoren + kraj prije danas -> traži razlog; Otkaži razlog = ništa
   bA = await rowBox("Asfaltiranje"); yA = bA.y + bA.height / 2;
   await page.mouse.move(bA.x + 300, yA); await page.mouse.down();
   await page.mouse.move(bA.x + 380, yA, { steps: 4 }); await page.mouse.up();
-  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
-  await page.click(".swal2-confirm");   // otvoren
+  await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
+  await page.click("#daOpen");   // otvoren
   await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
   ok("otvoren + kraj prije danas -> traži razlog", true);
   await page.click(".swal2-cancel");
@@ -351,8 +353,8 @@ function ok(name, cond, extra = "") {
   bA = await rowBox("Asfaltiranje"); yA = bA.y + bA.height / 2;
   await page.mouse.move(bA.x + 300, yA); await page.mouse.down();
   await page.mouse.move(bA.x + 380, yA, { steps: 4 }); await page.mouse.up();
-  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
-  await page.click(".swal2-confirm");   // otvoren
+  await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
+  await page.click("#daOpen");   // otvoren
   await page.waitForSelector(".swal2-popup input.swal2-input", { timeout: 5000 });
   await page.fill(".swal2-popup input.swal2-input", "kasni zbog dozvole");
   await page.click(".swal2-confirm");
@@ -366,8 +368,8 @@ function ok(name, cond, extra = "") {
   const yM = bM.y + bM.height / 2;
   await page.mouse.move(bM.x + 660, yM); await page.mouse.down();
   await page.mouse.move(bM.x + 740, yM, { steps: 4 }); await page.mouse.up();
-  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
-  await page.click(".swal2-confirm");   // otvoren
+  await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
+  await page.click("#daOpen");   // otvoren
   await page.waitForTimeout(700);
   ok("budući termin: bez razloga (nema input Swala)", (await page.locator(".swal2-popup input.swal2-input").count()) === 0);
   ok("budući termin: kreiran", (await segCount()) === cntBefore + 2);
@@ -379,8 +381,8 @@ function ok(name, cond, extra = "") {
   const yD = bD.y + bD.height / 2;
   await page.mouse.move(bD.x + 300, yD); await page.mouse.down();
   await page.mouse.move(bD.x + 360, yD, { steps: 4 }); await page.mouse.up();
-  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
-  await page.click(".swal2-deny");   // završen
+  await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
+  await page.click("#daDone");   // završen
   await page.waitForTimeout(700);
   ok("završen termin: ne traži razlog", (await page.locator(".swal2-popup input.swal2-input").count()) === 0);
   ok("završen termin: status završeno", (await lastSeg()).status === "završeno");
@@ -390,8 +392,8 @@ function ok(name, cond, extra = "") {
   const yH = bH.y + bH.height / 2;
   await page.mouse.move(bH.x + 700, yH); await page.mouse.down();
   await page.mouse.move(bH.x + 712, yH, { steps: 3 }); await page.mouse.up();
-  await page.waitForSelector(".swal2-popup", { timeout: 5000 });
-  await page.click(".swal2-confirm");
+  await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
+  await page.click("#daOpen");
   await page.waitForTimeout(700);
   const segH = await lastSeg();
   const ndays = Math.round((new Date(segH.datum_do) - new Date(segH.datum_od)) / 864e5) + 1;

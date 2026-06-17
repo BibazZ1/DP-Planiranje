@@ -1323,6 +1323,44 @@ function dragTipShow(e, a, b) {
 }
 function dragTipHide() { dragTip.classList.add("hidden"); }
 
+/* poslije crtanja: mali izbor (otvoreno/završeno) zalijepljen za ghost-"trebovanje".
+   Fixed je, ali ga JS drži uz traku pri skrolu — ne ostaje fiksiran na ekranu. */
+let drawAskState = null;
+function placeDrawAsk() {
+  if (!drawAskState) return;
+  const ask = $("#drawAsk");
+  const r = drawAskState.ghostEl.getBoundingClientRect();
+  const W = ask.offsetWidth || 240, H = ask.offsetHeight || 64;
+  let left = Math.max(8, Math.min(r.left + r.width / 2 - W / 2, innerWidth - W - 8));
+  let top = r.bottom + 8;
+  if (top + H > innerHeight - 8) top = r.top - H - 8;   // nema mjesta dolje -> iznad ghosta
+  ask.style.left = left + "px";
+  ask.style.top = Math.max(8, top) + "px";
+}
+function askDrawStatus(ghostEl) {
+  return new Promise(resolve => {
+    const onScroll = () => placeDrawAsk();
+    drawAskState = { resolve, ghostEl, onScroll };
+    $("#drawAsk").classList.remove("hidden");
+    placeDrawAsk();
+    $("#tlScroll").addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+  });
+}
+function closeDrawAsk(val) {
+  if (!drawAskState) return;
+  $("#drawAsk").classList.add("hidden");
+  $("#tlScroll").removeEventListener("scroll", drawAskState.onScroll);
+  window.removeEventListener("resize", drawAskState.onScroll);
+  $$(".ghost").forEach(g => g.remove());
+  const r = drawAskState.resolve;
+  drawAskState = null;
+  r(val);
+}
+$("#daOpen").addEventListener("click", () => closeDrawAsk("otvoreno"));
+$("#daDone").addEventListener("click", () => closeDrawAsk("završeno"));
+$("#daCancel").addEventListener("click", () => closeDrawAsk(null));
+
 /* live resize of an existing termin by dragging its edge */
 document.addEventListener("mousemove", e => {
   if (!segResize) return;
@@ -1356,23 +1394,18 @@ document.addEventListener("mouseup", async () => {
 
 document.addEventListener("mouseup", async e => {
   if (!drag) return;
-  const { taskId, moved } = drag;
+  const { taskId, moved, track } = drag;
   const [a, b] = snapRange(drag.d0, drag.d1);
   drag = null;
   dragTipHide();
-  $$(".ghost").forEach(g => g.remove());
-  if (!moved) return;                       // običan klik nije crtanje
+  if (!moved) { $$(".ghost").forEach(g => g.remove()); return; }   // običan klik nije crtanje
   const od = iso(dateOfIdx(a)), do_ = iso(dateOfIdx(b));
-  /* poslije crtanja PITAJ: otvoren ili završen termin? */
-  const ans = await swalBase({
-    title: t("drawAskTitle"), icon: "question",
-    showDenyButton: true, showCancelButton: true,
-    confirmButtonText: t("stOtvoreno"), denyButtonText: t("stZavrseno"),
-    cancelButtonText: t("otkazi"),
-    confirmButtonColor: "#ef4444", denyButtonColor: "#10b981",
-  });
-  if (ans.isDismissed) return;              // otkazано -> ništa
-  const status = ans.isDenied ? "završeno" : "otvoreno";
+  /* zadrži nacrtani raspon kao "trebovanje" i zalijepi izbor na njega (prati skrol) */
+  const ghostEl = track && track.querySelector(".ghost");
+  if (ghostEl) ghostEl.classList.add("keep");
+  const status = ghostEl ? await askDrawStatus(ghostEl) : null;
+  $$(".ghost").forEach(g => g.remove());
+  if (!status) return;                      // otkazано -> ništa
   /* otvoren termin kojem je kraj već prošao -> razlog produženja je OBAVEZAN
      (završen termin u prošlosti je uredu — gotov je) */
   let kasni_razlog = "";
@@ -1399,6 +1432,7 @@ document.addEventListener("mouseup", async e => {
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
+    if (drawAskState) { closeDrawAsk(null); return; }   // otkaži izbor + ukloni trebovanje
     if (!$("#lateModal").classList.contains("hidden")) { closeLateModal(); return; }
     if (drag) { drag = null; dragTipHide(); $$(".ghost").forEach(g => g.remove()); }
     if (popCtx) closePop();
