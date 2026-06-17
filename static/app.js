@@ -82,6 +82,8 @@ const I18N = {
     datumOd: "Datum od", datumDo: "Datum do", nemaRez: "nema rezultata", da: "Da",
     kasniChip: "kasni", kasniTip: "rok prošao, a termin nije završen", dana: "dana",
     napredak: "napredak", gotovo: "gotovo", aktTitle: "Aktivnosti",
+    planTitle: "Raspodjela plana", planAuto: "auto", planRucno: "ručno",
+    planEst: "raspoređeno po planu (procjena)", planHint: "prazno = auto (linearno po terminima)",
     aktKlikTip: "klik = promijeni status / nacrtaj termin",
     bezTermina: "bez termina — klik crta", pomjeriSve: "Pomjeri sve",
     shiftPitanje: "Pomjeriti i sve sljedeće aktivnosti ovog DP-a?",
@@ -91,6 +93,13 @@ const I18N = {
     planVs: "Plan (DP) vs izvedeno (Daily)",
     planVsHint: "plan = Σ HP/HA unesenih na DP-ovima · izvedeno = Azure Daily",
     rokLbl: "rok", rokTip: "rok DP-a = kraj termina Aktivacija",
+    rfaLbl: "RFA datum", rfaReq: "Upiši RFA datum POP-a.",
+    rfaDlgNote: "RFA = Ready-for-Activation. Aktivacije planirane prije ovog datuma se upozoravaju.",
+    rfaNote: "Aktivacije DP-ova prije ovog datuma se označavaju upozorenjem.",
+    rfaMissing: "RFA datum nije upisan — upiši ga da se provjere aktivacije.",
+    rfaWarnTitle: "Aktivacija prije RFA",
+    rfaRowTip: "Aktivacija počinje prije RFA ({0})",
+    rfaConfLine: "{0}: aktivacija {1} (RFA {2})",
     tlEmpty: "Nema DP-ova za izabrane filtere.<br>Očisti filtere, ili kreiraj <b>＋ Novi POP</b> pa <b>＋ Novi DP</b> pod izabranim projektom.",
     drDpCount: "DP-ova", histTitle: "Historija",
     histEmpty: "još nema zabilježenih aktivnosti", histEmptyAkt: "nema promjena za ovu aktivnost", histLoad: "učitavam…",
@@ -178,6 +187,8 @@ const I18N = {
     datumOd: "Date from", datumDo: "Date to", nemaRez: "no results", da: "Yes",
     kasniChip: "late", kasniTip: "past due date and not finished", dana: "days",
     napredak: "progress", gotovo: "done", aktTitle: "Activities",
+    planTitle: "Plan allocation", planAuto: "auto", planRucno: "manual",
+    planEst: "distributed per plan (estimate)", planHint: "empty = auto (linear over termini)",
     aktKlikTip: "click = toggle status / draw dates",
     bezTermina: "no dates — click to draw", pomjeriSve: "Shift all",
     shiftPitanje: "Also shift all later activities of this DP?",
@@ -187,6 +198,13 @@ const I18N = {
     planVs: "Plan (DP) vs actual (Daily)",
     planVsHint: "plan = Σ HP/HA entered on DPs · actual = Azure Daily",
     rokLbl: "due", rokTip: "DP due date = end of Activations",
+    rfaLbl: "RFA date", rfaReq: "Enter the POP's RFA date.",
+    rfaDlgNote: "RFA = Ready-for-Activation. Activations planned before this date are flagged.",
+    rfaNote: "DP activations before this date are flagged with a warning.",
+    rfaMissing: "RFA date not set — enter it to check activations.",
+    rfaWarnTitle: "Activation before RFA",
+    rfaRowTip: "Activation starts before RFA ({0})",
+    rfaConfLine: "{0}: activation {1} (RFA {2})",
     tlEmpty: "No DPs match the selected filters.<br>Clear the filters, or create <b>＋ New POP</b> then <b>＋ New DP</b> under the selected project.",
     drDpCount: "DPs", histTitle: "History",
     histEmpty: "no recorded activity yet", histEmptyAkt: "no changes for this activity", histLoad: "loading…",
@@ -274,6 +292,8 @@ const I18N = {
     datumOd: "Datum von", datumDo: "Datum bis", nemaRez: "keine Treffer", da: "Ja",
     kasniChip: "verspätet", kasniTip: "Frist überschritten, nicht abgeschlossen", dana: "Tage",
     napredak: "Fortschritt", gotovo: "fertig", aktTitle: "Aktivitäten",
+    planTitle: "Planverteilung", planAuto: "auto", planRucno: "manuell",
+    planEst: "nach Plan verteilt (Schätzung)", planHint: "leer = auto (linear über Termine)",
     aktKlikTip: "Klick = Status wechseln / Termin zeichnen",
     bezTermina: "kein Termin — Klick zeichnet", pomjeriSve: "Alle verschieben",
     shiftPitanje: "Auch alle späteren Aktivitäten dieses DP verschieben?",
@@ -283,6 +303,13 @@ const I18N = {
     planVs: "Plan (DP) vs Ist (Daily)",
     planVsHint: "Plan = Σ HP/HA der DPs · Ist = Azure Daily",
     rokLbl: "Frist", rokTip: "DP-Frist = Ende der Aktivierungen",
+    rfaLbl: "RFA-Termin", rfaReq: "RFA-Termin des POP eingeben.",
+    rfaDlgNote: "RFA = Ready-for-Activation. Vor diesem Datum geplante Aktivierungen werden gewarnt.",
+    rfaNote: "DP-Aktivierungen vor diesem Datum werden mit einer Warnung markiert.",
+    rfaMissing: "RFA-Termin nicht eingetragen — eintragen, um Aktivierungen zu prüfen.",
+    rfaWarnTitle: "Aktivierung vor RFA",
+    rfaRowTip: "Aktivierung beginnt vor RFA ({0})",
+    rfaConfLine: "{0}: Aktivierung {1} (RFA {2})",
     tlEmpty: "Keine DPs für die gewählten Filter.<br>Filter leeren, oder <b>＋ Neuer POP</b> und dann <b>＋ Neuer DP</b> unter dem gewählten Projekt anlegen.",
     drDpCount: "DPs", histTitle: "Verlauf",
     histEmpty: "noch keine Aktivitäten erfasst", histEmptyAkt: "keine Änderungen für diese Tätigkeit", histLoad: "lädt…",
@@ -322,7 +349,7 @@ const AKT_I18N = {
   en: { "Dozvole": "Permits", "Priključak na POP": "POP connection", "Pregled objekata": "Site survey",
     "Iskopni radovi": "Excavation", "Horizontalno bušenje": "Horizontal drilling",
     "Asfaltiranje": "Asphalting", "Montaža": "Assembly", "Aktivacije": "Activation" },
-  de: { "Dozvole": "Genehmigungen", "Priključak na POP": "POP-Anschluss", "Pregled objekata": "Objektbegehung",
+  de: { "Dozvole": "Genehmigungen", "Priključak na POP": "POP-DP Anbindung", "Pregled objekata": "Hausbegehungen",
     "Iskopni radovi": "Erdarbeiten", "Horizontalno bušenje": "Horizontalbohrung",
     "Asfaltiranje": "Asphaltierung", "Montaža": "Montage", "Aktivacije": "Aktivierung" },
 };
@@ -594,6 +621,34 @@ const DEP_ORDER = ["Dozvole", "Pregled objekata", "Iskopni radovi", "Horizontaln
 /* ---------- filtering ---------- */
 /* kasni = rok (datum_do) prošao, a termin nije završen — računa se automatski */
 function segLate(s) { return s.status !== "završeno" && s.datum_do < todayIso(); }
+/* ---------- RFA (Ready-for-Activation) ---------- */
+/* RFA datum se vodi na POP-u; aktivacija DP-a ne smije početi prije RFA */
+function popRfaOf(popId) {
+  const p = DATA.pops.find(x => x.id === popId);
+  return p && p.rfa ? p.rfa : "";
+}
+/* najraniji planirani početak aktivacije ovog DP-a ("" ako nema termina aktivacije) */
+function dpActStart(dpId) {
+  const akt = DATA.tasks.find(tk => tk.dp_id === dpId && /aktivacij/i.test(tk.aktivnost));
+  if (!akt) return "";
+  const segs = DATA.segments.filter(s => s.task_id === akt.id);
+  return segs.length ? segs.map(s => s.datum_od).sort()[0] : "";
+}
+/* aktivacija DP-a počinje prije RFA svog POP-a? vrati datum početka ili "" */
+function dpRfaBreach(dp) {
+  const rfa = dp && dp.pop_id ? popRfaOf(dp.pop_id) : "";
+  if (!rfa) return "";
+  const st = dpActStart(dp.id);
+  return st && st < rfa ? st : "";
+}
+/* svi DP-ovi jednog POP-a čija aktivacija počinje prije RFA */
+function rfaConflicts(popId) {
+  const rfa = popRfaOf(popId);
+  if (!rfa) return [];
+  return DATA.dps.filter(d => d.pop_id === popId)
+    .map(d => { const st = dpActStart(d.id); return st && st < rfa ? { dp: d.naziv, datum: st } : null; })
+    .filter(Boolean);
+}
 function lateDays(s) {
   return Math.max(1, Math.round((new Date(todayIso()) - new Date(s.datum_do)) / 864e5));
 }
@@ -765,6 +820,51 @@ function countUp(el, target) {
   }
   requestAnimationFrame(tick);
 }
+/* ---------- plan raspodjela: DP-ov HP/HA -> po terminima (fazno + ručni override) ----------
+   HP "ide" na termine gradnje (sve osim Montaže/Aktivacije), HA na Montažu/Aktivaciju.
+   Ručno upisan plan_qty na terminu ima prednost; ostatak DP-ovog totala se LINEARNO
+   (po dužini termina) raspoređuje na termine te faze bez ručne vrijednosti. */
+function segIsHa(s) {
+  const tk = DATA.tasks.find(t => t.id === s.task_id);
+  return /montaž|aktiv/i.test(`${tk ? tk.aktivnost : ""} ${tk ? tk.odjel : ""}`);
+}
+function dpPhaseSegs(dpId, ha) {
+  const ids = new Set(DATA.tasks.filter(t => t.dp_id === dpId).map(t => t.id));
+  return DATA.segments.filter(s => ids.has(s.task_id) && segIsHa(s) === ha);
+}
+function hasManual(s) { return s.plan_qty != null && s.plan_qty !== ""; }
+/* Map seg.id -> planirana količina (ručna ili auto-ostatak) za DP + fazu (ha=true -> HA) */
+function planAlloc(dpId, ha) {
+  const dp = DATA.dps.find(d => d.id === dpId);
+  const total = dp ? (+dp[ha ? "ha" : "hp"] || 0) : 0;
+  const segs = dpPhaseSegs(dpId, ha);
+  const out = new Map();
+  if (!segs.length) return out;
+  let manualSum = 0;
+  segs.forEach(s => { if (hasManual(s)) { const v = Math.max(0, +s.plan_qty || 0); out.set(s.id, v); manualSum += v; } });
+  const auto = segs.filter(s => !hasManual(s));
+  const remain = Math.max(0, total - manualSum);
+  const autoDays = auto.reduce((a, s) => a + durDays(s.datum_od, s.datum_do), 0);
+  auto.forEach(s => out.set(s.id, autoDays ? remain * durDays(s.datum_od, s.datum_do) / autoDays
+                                           : remain / auto.length));
+  return out;
+}
+/* udio termina koji pada u prozor [od,do] (linearno unutar termina) */
+function overlapFrac(s, od, do_) {
+  const a = od && od > s.datum_od ? od : s.datum_od;
+  const b = do_ && do_ < s.datum_do ? do_ : s.datum_do;
+  if (a > b) return 0;
+  return durDays(a, b) / durDays(s.datum_od, s.datum_do);
+}
+/* planirano (HP ili HA) za DP u prozoru Datum od/do */
+function plannedInWindow(dpId, ha, od, do_) {
+  let sum = 0;
+  for (const [segId, qty] of planAlloc(dpId, ha)) {
+    const s = DATA.segments.find(x => x.id === segId);
+    if (s) sum += qty * overlapFrac(s, od, do_);
+  }
+  return sum;
+}
 function renderKpis() {
   const segs = visibleSegs();
   const c = st => segs.filter(s => s.status === st).length;
@@ -776,8 +876,12 @@ function renderKpis() {
   const dpIds = new Set();
   segs.forEach(s => { const id = taskDp.get(s.task_id); if (id != null) dpIds.add(id); });
   const kdps = DATA.dps.filter(d => dpIds.has(d.id));
-  const hp = kdps.reduce((a, d) => a + (d.hp || 0), 0);
-  const ha = kdps.reduce((a, d) => a + (d.ha || 0), 0);
+  /* bez Datum filtera -> puni DP totali (kao prije); s rasponom -> plan raspoređen na taj prozor */
+  const dwin = !!(F.dOd || F.dDo);
+  const hp = dwin ? Math.round(kdps.reduce((a, d) => a + plannedInWindow(d.id, false, F.dOd, F.dDo), 0))
+                  : kdps.reduce((a, d) => a + (d.hp || 0), 0);
+  const ha = dwin ? Math.round(kdps.reduce((a, d) => a + plannedInWindow(d.id, true, F.dOd, F.dDo), 0))
+                  : kdps.reduce((a, d) => a + (d.ha || 0), 0);
   /* kartice = filteri: klik na status/eskalacije filtrira sve ispod */
   $("#kpis").innerHTML = `
     <div class="kpi blue click${F.st.size || F.esk ? "" : " on"}" data-all="1" title="${t("clearAll")}"><div class="num" data-n="${segs.length}">0</div><div class="lbl">${t("kTermina")}</div></div>
@@ -785,8 +889,8 @@ function renderKpis() {
     <div class="kpi red click${F.st.has("otvoreno") ? " on" : ""}" data-st="otvoreno"><div class="num" data-n="${c("otvoreno")}">0</div><div class="lbl">${stT("otvoreno")}</div></div>
     <div class="kpi red click${F.esk ? " on" : ""}" data-esk="1"><div class="num" data-n="${esk}">0</div><div class="lbl">${t("kEsk")}</div></div>
     <div class="kpi red click${F.kasni ? " on" : ""}" data-late="1" title="${t("kasniTip")}"><div class="num" data-n="${segs.filter(segLate).length}">0</div><div class="lbl">${t("kasniChip")}</div></div>
-    <div class="kpi purple"><div class="num" data-n="${hp}">0</div><div class="lbl">HP</div></div>
-    <div class="kpi purple"><div class="num" data-n="${ha}">0</div><div class="lbl">HA</div></div>`;
+    <div class="kpi purple${dwin ? " est" : ""}"${dwin ? ` title="${t("planEst")}"` : ""}><div class="num" data-n="${hp}">0</div><div class="lbl">HP${dwin ? " ~" : ""}</div></div>
+    <div class="kpi purple${dwin ? " est" : ""}"${dwin ? ` title="${t("planEst")}"` : ""}><div class="num" data-n="${ha}">0</div><div class="lbl">HA${dwin ? " ~" : ""}</div></div>`;
   $$("#kpis .num").forEach(el => countUp(el, +el.dataset.n));
   $$("#kpis .kpi.click").forEach(k => k.addEventListener("click", () => {
     if (k.dataset.all) { F.st.clear(); F.esk = false; F.kasni = false; }
@@ -1025,6 +1129,7 @@ function renderTimeline(keepScroll) {
     const rokSegs = aktTask ? (segsByTask[aktTask.id] || []) : [];
     const rok = rokSegs.length ? rokSegs.map(s => s.datum_do).sort().pop() : "";
     const rokLate = rok && rok < todayIso() && pct < 100;
+    const rfaBreach = dpRfaBreach(dp);   // aktivacija počinje prije RFA POP-a?
     const lateCnt = allSegs.filter(segLate).length;
 
     anyRow = true;
@@ -1054,7 +1159,8 @@ function renderTimeline(keepScroll) {
       <div class="tl-label">
         <div class="gr-info" title="${t("dpHistTip")}">
           <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(dp.pop)}</span><b>${esc(dp.naziv)}</b>
-            ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}</div>
+            ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}
+            ${rfaBreach ? `<span class="rokb rfa-bad" title="${esc(tf("rfaRowTip", fmt(popRfaOf(dp.pop_id))))}">⚠ RFA</span>` : ""}</div>
           <span class="meta">${dp.lokacija ? esc(dp.lokacija) + " · " : ""}HP ${dp.hp} · HA ${dp.ha}</span></div>
         <div class="gr-side"><span class="pbar"><i style="width:${pct}%"></i></span>
           <span class="pct">${pct}%</span>
@@ -1949,6 +2055,29 @@ function chartDefaults() {
   Chart.defaults.plugins.tooltip.padding = 10;
   Chart.defaults.plugins.tooltip.cornerRadius = 8;
 }
+/* broj unutar svakog segmenta horizontalne stsložene trake (kao ULAZNE-FAKTURE "po osobi") */
+const odjCountPlugin = {
+  id: "odjStackCount",
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx; ctx.save();
+    ctx.font = "bold 10.5px 'Inter',sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(2,6,23,.9)"; ctx.shadowBlur = 3;
+    chart.data.datasets.forEach((dset, di) => {
+      const meta = chart.getDatasetMeta(di);
+      if (!meta || meta.hidden) return;
+      meta.data.forEach((bar, i) => {
+        const val = dset.data[i];
+        if (!val) return;
+        const base = bar.base != null ? bar.base : 0;
+        if (Math.abs(bar.x - base) < 14) return;   // pretanak segment -> ne crtaj broj
+        ctx.fillStyle = "#fff";
+        ctx.fillText(String(val), (bar.x + base) / 2, bar.y);
+      });
+    });
+    ctx.shadowBlur = 0; ctx.restore();
+  },
+};
 /* kratko zasvijetli trake koje odgovaraju uslovu (poslije klika na graf) */
 function flashSegs(pred) {
   $$("#tlScroll .seg").forEach(el => {
@@ -1991,12 +2120,16 @@ function renderStats() {
     const t = taskOf(s);
     return t && t.odjel === o && s.status === st;
   }).length);
-  C("#chOdjel", { type: "bar", data: {
+  C("#chOdjel", { type: "bar",
+    data: {
       labels: odj.map(tOdjel),
       datasets: [
-        { label: stT("završeno"), data: byOdj("završeno"), backgroundColor: "#10b981", borderRadius: 5 },
-        { label: stT("otvoreno"), data: byOdj("otvoreno"), backgroundColor: "#ef4444", borderRadius: 5 }] },
-    options: { maintainAspectRatio: false,
+        { label: stT("završeno"), data: byOdj("završeno"), backgroundColor: "#10b981", borderRadius: 4, borderWidth: 0 },
+        { label: stT("otvoreno"), data: byOdj("otvoreno"), backgroundColor: "#ef4444", borderRadius: 4, borderWidth: 0 }] },
+    plugins: [odjCountPlugin],
+    options: {
+      indexAxis: "y",                 // horizontalne trake: odjel lijevo, traka slijeva nadesno
+      maintainAspectRatio: false,
       onHover: chartCursor,
       onClick: (e, els) => {
         if (!els.length) return;
@@ -2005,9 +2138,14 @@ function renderStats() {
         renderAll();
         flashSegs(s => { const t = taskOf(s); return t && t.odjel === o; });
       },
-      scales: { x: { stacked: true, grid: { display: false } },
-                y: { stacked: true, ticks: { precision: 0 } } },
-      plugins: { legend: { position: "bottom" } } } });
+      scales: {
+        x: { stacked: true, beginAtZero: true,
+             grid: { color: "rgba(148,163,184,.08)" },
+             ticks: { precision: 0, color: "#cbd5e1", font: { size: 10.5, weight: "600" } } },
+        y: { stacked: true, grid: { display: false },
+             ticks: { color: "#e2e8f0", font: { size: 11, weight: "700" } } } },
+      plugins: { legend: { position: "right",
+        labels: { color: "#cbd5e1", boxWidth: 12, boxHeight: 12, padding: 8, font: { size: 11, weight: "600" } } } } } });
 
   const eskSegs = DATA.segments.filter(s => s.eskalacija);
   const rows = eskSegs.map(s => {
@@ -2101,8 +2239,11 @@ function renderProj() {
   let pv = "";
   if (PROJ.name && f[0]) {
     const dpsOf = DATA.dps.filter(d => d.projekt === PROJ.name);
-    const planHP = dpsOf.reduce((a, d) => a + (d.hp || 0), 0);
-    const planHA = dpsOf.reduce((a, d) => a + (d.ha || 0), 0);
+    /* uz Datum raspon plan se raspoređuje na taj prozor (isto kao izvedeno) -> pošten % */
+    const planHP = dateOn ? dpsOf.reduce((a, d) => a + plannedInWindow(d.id, false, F.dOd, F.dDo), 0)
+                          : dpsOf.reduce((a, d) => a + (d.hp || 0), 0);
+    const planHA = dateOn ? dpsOf.reduce((a, d) => a + plannedInWindow(d.id, true, F.dOd, F.dDo), 0)
+                          : dpsOf.reduce((a, d) => a + (d.ha || 0), 0);
     const pvBar = (lbl, act, plan) => {
       const p = plan ? Math.min(100, Math.round(act / plan * 100)) : 0;
       return `<div class="pv-row"><span class="pv-lbl">${lbl}</span>
@@ -2427,8 +2568,21 @@ function openDrawer() {
   $("#drHa").value = ha ?? 0;
   /* HP/HA se vode na DP-u — sakrij editor za POP */
   const nums = $(".dr-nums"); if (nums) nums.classList.toggle("hidden", SEL.type === "pop");
+  /* RFA se vodi na POP-u — editor samo na POP panelu */
+  const rfaWrap = $("#drRfaWrap");
+  if (SEL.type === "pop") {
+    const p = DATA.pops.find(x => x.id === SEL.id);
+    $("#drRfa").value = (p && p.rfa) || "";
+    $("#drRfa").disabled = !(p && canEditProjekt(p.projekt));
+    $("#drRfaNote").textContent = p && p.rfa ? t("rfaNote") : t("rfaMissing");
+    $("#drRfaNote").classList.toggle("warn", !(p && p.rfa));
+    rfaWrap.classList.remove("hidden");
+  } else {
+    rfaWrap.classList.add("hidden");
+  }
   $("#drawer").classList.add("open");
   renderDrawerStats();
+  renderDrawerPlan();
   loadComments();
   loadDrawerHist();
 }
@@ -2481,6 +2635,74 @@ function renderDrawerStats() {
     <button class="btn sm" data-shift="7">+1 KW ▶</button>` : "";
   $$("#drShift [data-shift]").forEach(b =>
     b.addEventListener("click", () => shiftAll(+b.dataset.shift)));
+  /* upozorenje: aktivacije planirane prije RFA datuma POP-a */
+  const warnBox = $("#drWarn");
+  if (warnBox) {
+    let conf = [], rfa = "";
+    if (SEL.type === "pop") { conf = rfaConflicts(SEL.id); rfa = popRfaOf(SEL.id); }
+    else {
+      const dp = DATA.dps.find(d => d.id === SEL.id);
+      const st = dp ? dpRfaBreach(dp) : "";
+      if (st) { conf = [{ dp: dp.naziv, datum: st }]; rfa = popRfaOf(dp.pop_id); }
+    }
+    if (conf.length) {
+      warnBox.innerHTML = `<div class="drw-h">⚠ ${t("rfaWarnTitle")}</div>` +
+        conf.map(c => `<div class="drw-row">${esc(tf("rfaConfLine", c.dp, fmt(c.datum), fmt(rfa)))}</div>`).join("");
+      warnBox.classList.remove("hidden");
+    } else { warnBox.innerHTML = ""; warnBox.classList.add("hidden"); }
+  }
+}
+/* raspodjela DP-ovog HP/HA po terminima — auto (linearno) + ručni override po terminu */
+function renderDrawerPlan() {
+  const box = $("#drPlan");
+  if (!box) return;
+  if (!SEL || SEL.type !== "dp") { box.innerHTML = ""; box.classList.add("hidden"); return; }
+  const dp = DATA.dps.find(d => d.id === SEL.id);
+  if (!dp) { box.innerHTML = ""; box.classList.add("hidden"); return; }
+  const editable = canEditProjekt(dp.projekt);
+  const phase = (ha) => {
+    const segs = dpPhaseSegs(SEL.id, ha).slice().sort((a, b) => a.datum_od < b.datum_od ? -1 : 1);
+    if (!segs.length) return "";
+    const alloc = planAlloc(SEL.id, ha);
+    const total = +dp[ha ? "ha" : "hp"] || 0;
+    let manualSum = 0;
+    segs.forEach(s => { if (hasManual(s)) manualSum += Math.max(0, +s.plan_qty || 0); });
+    const auto = Math.max(0, total - manualSum);
+    const rows = segs.map(s => {
+      const tk = DATA.tasks.find(t => t.id === s.task_id) || {};
+      const autoVal = Math.round(alloc.get(s.id) || 0);
+      const man = hasManual(s);
+      return `<label class="dpp-row${man ? " man" : ""}">
+        <span class="dpp-dot" style="background:${aktColor(tk.aktivnost)}"></span>
+        <span class="dpp-akt">${esc(tAkt(tk.aktivnost || ""))}</span>
+        <span class="dpp-dt">${fmt(s.datum_od).slice(0, 5)}–${fmt(s.datum_do).slice(0, 5)}</span>
+        <input class="dpp-in" type="number" min="0" step="1" data-seg="${s.id}"
+          placeholder="${autoVal}" value="${man ? Math.round(+s.plan_qty || 0) : ""}"${editable ? "" : " disabled"}>
+      </label>`;
+    }).join("");
+    return `<div class="dpp-phase">
+      <div class="dpp-h"><b>${ha ? "HA" : "HP"}</b>
+        <span class="dpp-sum">${t("planRucno")} ${fmtNum(manualSum)} · ${t("planAuto")} ${fmtNum(auto)} / ${fmtNum(total)}</span></div>
+      ${rows}</div>`;
+  };
+  const hpH = phase(false), haH = phase(true);
+  if (!hpH && !haH) { box.innerHTML = ""; box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  box.innerHTML = `<h4>${t("planTitle")} <i class="dpp-tip">${t("planHint")}</i></h4>${hpH}${haH}`;
+  box.querySelectorAll(".dpp-in").forEach(inp =>
+    inp.addEventListener("change", () => savePlanQty(+inp.dataset.seg, inp.value)));
+}
+async function savePlanQty(segId, raw) {
+  const s = DATA.segments.find(x => x.id === segId);
+  if (!s) return;
+  const dp = SEL && SEL.type === "dp" && DATA.dps.find(d => d.id === SEL.id);
+  if (dp && !canEditProjekt(dp.projekt)) { lockToast(dp.projekt); return renderDrawerPlan(); }
+  const val = String(raw).trim() === "" ? null : Math.max(0, Math.round(+raw || 0));
+  const old = s.plan_qty ?? null;
+  s.plan_qty = val;                 // optimistično -> odmah osvježi raspodjelu i KPI
+  renderDrawerPlan(); renderKpis();
+  try { await api(`/api/segments/${segId}`, "PATCH", { plan_qty: val }); }
+  catch (e) { s.plan_qty = old; renderDrawerPlan(); renderKpis(); handleApiErr(e); }
 }
 async function shiftAll(days) {
   const ids = drawerTaskIds();
@@ -2670,10 +2892,25 @@ async function drNum(k) {
                                  : DATA.dps.find(d => d.id === SEL.id);
   if (obj) obj[k] = v;
   renderAll();
+  renderDrawerPlan();    // novi DP total -> ponovo rasporedi auto dio po terminima
   histDirty();
 }
 $("#drHp").addEventListener("change", () => drNum("hp"));
 $("#drHa").addEventListener("change", () => drNum("ha"));
+/* RFA datum POP-a — upis/izmjena iz panela */
+$("#drRfa").addEventListener("change", async () => {
+  if (!SEL || SEL.type !== "pop") return;
+  const v = $("#drRfa").value;
+  try { await api(`/api/pops/${SEL.id}`, "PATCH", { rfa: v }); }
+  catch (e) { await load(); return handleApiErr(e); }
+  const p = DATA.pops.find(x => x.id === SEL.id);
+  if (p) p.rfa = v;
+  $("#drRfaNote").textContent = v ? t("rfaNote") : t("rfaMissing");
+  $("#drRfaNote").classList.toggle("warn", !v);
+  renderAll();
+  renderDrawerStats();
+  histDirty();
+});
 $("#drClose").addEventListener("click", deselect);
 $("#drRename").addEventListener("click", async () => {
   if (!SEL) return;
@@ -2766,8 +3003,10 @@ $("#frmPop").addEventListener("submit", async e => {
   if (!POPK.kunde.get() || !projekt) { refreshCascade(POP_CFG); return; }
   const naziv = $("#frmPop [name=naziv]").value.trim();
   if (!naziv) { $("#frmPop [name=naziv]").focus(); return; }
+  const rfa = $("#frmPop [name=rfa]").value;
+  if (!rfa) { uiAlert(t("rfaReq"), "warning"); $("#frmPop [name=rfa]").focus(); return; }
   try {
-    await api("/api/pops", "POST", { projekt, naziv });   // POP nema HP/HA (to je na DP-u)
+    await api("/api/pops", "POST", { projekt, naziv, rfa });   // RFA na POP-u; HP/HA na DP-u
   } catch {
     uiAlert(t("popPostoji"), "warning");
     return;

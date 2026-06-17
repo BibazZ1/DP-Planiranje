@@ -71,9 +71,9 @@
           <div class="kpis" id="kpis"></div>
           <div id="projKpis"></div>
         </div>
+        <div class="chartbox glass an-bar"><h3 data-i18n="chOdjel">Termini po odjelu</h3><div class="cv"><canvas id="chOdjel"></canvas></div></div>
         <div class="chartbox glass"><h3 data-i18n="chStatus">Termini po statusu</h3><div class="cv"><canvas id="chStatus"></canvas></div></div>
       </div>
-      <div class="chartbox glass an-bar"><h3 data-i18n="chOdjel">Termini po odjelu</h3><div class="cv"><canvas id="chOdjel"></canvas></div></div>
     </div>
   </section>
 
@@ -271,6 +271,9 @@
           <i class="pick-cv">▾</i><div class="pick-list" hidden></div></span></label>
       <label class="fld"><span><span data-i18n="popNaziv">Naziv POP</span></span>
         <input name="naziv" required placeholder="POP xyz-003" autocomplete="off"></label>
+      <label class="fld"><span><span data-i18n="rfaLbl">RFA datum</span></span>
+        <input name="rfa" type="date" required autocomplete="off"></label>
+      <p class="dlg-note" data-i18n="rfaDlgNote">RFA = Ready-for-Activation. Aktivacije planirane prije ovog datuma se upozoravaju.</p>
       <p class="dlg-note" data-i18n="popHpNote">HP i HA se vode na DP-u (ne na POP-u).</p>
     </div>
     <menu>
@@ -290,12 +293,18 @@
     <button class="gbtn" id="drClose" title="Esc">✕</button>
   </div>
   <div class="dr-meta" id="drMeta"></div>
+  <div class="dr-warn hidden" id="drWarn"></div>
+  <div class="dr-rfa hidden" id="drRfaWrap">
+    <label><span data-i18n="rfaLbl">RFA datum</span><input type="date" id="drRfa"></label>
+    <span class="dr-rfa-note" id="drRfaNote"></span>
+  </div>
   <div class="dr-stats" id="drStats"></div>
   <div class="dr-shift" id="drShift"></div>
   <div class="dr-nums">
     <label><span data-i18n="brojHp">Broj HP</span><input type="number" id="drHp" min="0"></label>
     <label><span data-i18n="brojHa">Broj HA</span><input type="number" id="drHa" min="0"></label>
   </div>
+  <div class="dr-plan" id="drPlan"></div>
   <div class="dr-comments" id="drCommentsWrap">
     <h4><span data-i18n="komentariTitle">Komentari</span></h4>
     <div class="dr-clist" id="drComments"></div>

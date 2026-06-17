@@ -225,11 +225,17 @@ def init_db(permanent_admin=""):
         # advisory lock: samo jedan worker kreira šemu, ostali čekaju
         cur.execute("SELECT pg_advisory_lock(727274001)")
         cur.execute(SCHEMA_SQL)
+        # migracija: RFA (Ready-for-Activation) datum se vodi na POP-u;
+        # aktivacije DP-ova ne smiju biti planirane prije ovog datuma (samo upozorenje)
+        cur.execute("ALTER TABLE pops ADD COLUMN IF NOT EXISTS rfa TEXT DEFAULT ''")
         # migracija: ko je nacrtao termin (atribucija "ko je stavljao vremena")
         cur.execute("ALTER TABLE segments ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT ''")
         # migracija: originalna pozicija termina -> "ghost" kad se pomjeri (svi vide)
         cur.execute("ALTER TABLE segments ADD COLUMN IF NOT EXISTS orig_od TEXT DEFAULT ''")
         cur.execute("ALTER TABLE segments ADD COLUMN IF NOT EXISTS orig_do TEXT DEFAULT ''")
+        # migracija: ručno raspoređena planska količina (HP ili HA, po fazi termina);
+        # NULL = automatska (linearna) raspodjela DP-ovog HP/HA po terminima te faze
+        cur.execute("ALTER TABLE segments ADD COLUMN IF NOT EXISTS plan_qty DOUBLE PRECISION")
         # postojeći termini: original = trenutna pozicija (bez ghosta dok se ne pomjere)
         cur.execute("UPDATE segments SET orig_od=datum_od, orig_do=datum_do "
                     "WHERE COALESCE(orig_od,'')='' ")

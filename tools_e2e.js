@@ -787,6 +787,57 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(400);
   ok("BS vraćeno (Dozvole)", (await page.locator("#tlScroll .act-name").allInnerTexts()).map(s => s.trim()).includes("Dozvole"));
 
+  // ---------- 16i. plan raspodjela po terminima (auto + ručni override) + KPI prozor ----------
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(400);
+  const dPlan = await (await page.request.get(BASE + "/api/data")).json();
+  // DP s bar jednim terminom -> ima fazne redove za raspodjelu
+  const planDp = dPlan.dps.find(d => dPlan.segments.some(s => {
+    const tk = dPlan.tasks.find(t => t.id === s.task_id); return tk && tk.dp_id === d.id;
+  }));
+  ok("plan: postoji DP s terminima (preduslov)", !!planDp);
+  if (planDp) {
+    await page.request.patch(BASE + "/api/dps/" + planDp.id, { data: { hp: 30, ha: 20 } });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(400);
+    const cell = page.locator(`#tlScroll .cell[data-fdp="${planDp.id}"]`).first();
+    await cell.scrollIntoViewIfNeeded().catch(() => {});
+    await cell.click();
+    await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+    await page.waitForTimeout(450);
+    ok("plan: 'Raspodjela plana' sekcija vidljiva", await page.locator("#drPlan").isVisible());
+    ok("plan: termini izlistani s poljima", (await page.locator("#drPlan .dpp-row").count()) >= 1);
+    const firstIn = page.locator("#drPlan .dpp-in").first();
+    const segId = +(await firstIn.getAttribute("data-seg"));
+    const ph = await firstIn.getAttribute("placeholder");
+    ok("plan: auto vrijednost u placeholderu", ph !== null && ph !== "", `(${ph})`);
+    const inp = () => page.locator(`#drPlan .dpp-in[data-seg="${segId}"]`);
+    await inp().fill("7"); await inp().evaluate(e => e.blur());
+    await page.waitForTimeout(700);
+    const segMan = (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === segId);
+    ok("plan: ručni override snimljen (plan_qty=7)", segMan && Math.round(+segMan.plan_qty) === 7, `(${segMan && segMan.plan_qty})`);
+    ok("plan: red označen kao ručni (.man)",
+      (await page.locator(`#drPlan .dpp-row.man .dpp-in[data-seg="${segId}"]`).count()) === 1);
+    await inp().fill(""); await inp().evaluate(e => e.blur());
+    await page.waitForTimeout(700);
+    const segAuto = (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === segId);
+    ok("plan: prazno vraća na auto (plan_qty NULL)", segAuto && (segAuto.plan_qty === null || segAuto.plan_qty === undefined), `(${segAuto && segAuto.plan_qty})`);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+  }
+  // KPI HP/HA: bez raspona = puni total; s Datum rasponom = raspoređena procjena (.est, "~")
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(300);
+  ok("plan: HP/HA kartice NISU procjena bez Datum filtera", (await page.locator("#kpis .kpi.purple.est").count()) === 0);
+  await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.setDate("2026-01-01", true));
+  await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-12-31", true));
+  await page.waitForTimeout(700);
+  ok("plan: HP/HA označene kao procjena (.est) uz Datum raspon", (await page.locator("#kpis .kpi.purple.est").count()) >= 1);
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(300);
+
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
   ok("nema JS grešaka u konzoli", realErrors.length === 0, JSON.stringify(realErrors.slice(0, 3)));

@@ -519,8 +519,11 @@ def add_pop():
     j = request.get_json(force=True)
     naziv = (j.get("naziv") or "").strip()
     projekt = (j.get("projekt") or "").strip()
+    rfa = (j.get("rfa") or "").strip()
     if not naziv:
         return jsonify({"error": "naziv je obavezan"}), 400
+    if not rfa:
+        return jsonify({"error": "RFA datum je obavezan"}), 400
     blk = _require_project_edit(projekt)
     if blk:
         return blk
@@ -530,11 +533,11 @@ def add_pop():
         return jsonify({"error": "postoji", "id": ex["id"]}), 409
     hp, ha = _int(j.get("hp")), _int(j.get("ha"))
     cur = db().execute(
-        "INSERT INTO pops(projekt,naziv,hp,ha,created_at,created_by) "
-        "VALUES(%s,%s,%s,%s,%s,%s) RETURNING id",
-        (projekt, naziv, hp, ha, now_iso(), req_user()))
+        "INSERT INTO pops(projekt,naziv,hp,ha,rfa,created_at,created_by) "
+        "VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+        (projekt, naziv, hp, ha, rfa, now_iso(), req_user()))
     pop_id = cur.fetchone()["id"]
-    audit("pop", pop_id, "kreirano", novo=f"HP {hp} · HA {ha}", label=naziv)
+    audit("pop", pop_id, "kreirano", novo=f"RFA {rfa} · HP {hp} · HA {ha}", label=naziv)
     db().commit()
     return jsonify({"id": pop_id}), 201
 
@@ -562,6 +565,8 @@ def edit_pop(pop_id):
     sets = {}
     if "naziv" in j and (j["naziv"] or "").strip():
         sets["naziv"] = j["naziv"].strip()
+    if "rfa" in j:
+        sets["rfa"] = (j["rfa"] or "").strip()
     for k in ("hp", "ha"):
         if k in j:
             sets[k] = _int(j[k])
@@ -764,6 +769,10 @@ def edit_segment(seg_id):
     if "eskalacija" in j:
         j["eskalacija"] = 1 if j["eskalacija"] else 0
     sets = {k: j[k] for k in SEG_FIELDS if k in j}
+    # plan_qty: ručna planska količina termina; "" / null -> NULL (auto raspodjela)
+    if "plan_qty" in j:
+        v = j["plan_qty"]
+        sets["plan_qty"] = None if v is None or str(v).strip() == "" else max(0.0, float(v))
     if sets:
         old = db().execute("SELECT * FROM segments WHERE id=%s", (seg_id,)).fetchone()
         if old is not None and _late_reason_missing(
@@ -781,6 +790,8 @@ def edit_segment(seg_id):
                         log_hist(seg_id, k, "uključena" if v else "isključena")
                     elif k in ("datum_od", "datum_do"):
                         log_hist(seg_id, k, f"{old[k]} → {v}")
+                    elif k == "plan_qty":
+                        log_hist(seg_id, k, "auto" if v is None else f"{v:g}")
                     else:
                         log_hist(seg_id, k, v or "(obrisano)")
         db().commit()
@@ -1007,7 +1018,7 @@ DP_COLS = [
 ]
 POP_COLS = [
     ("Projekt", "projekt", "t"), ("Kunde", "kunde", "t"), ("POP/FCP ID", "naziv", "t"),
-    ("Broj DP-ova", "dp_count", "i"),
+    ("RFA", "rfa", "d"), ("Broj DP-ova", "dp_count", "i"),
     ("Kreirao", "created_by", "t"), ("Kreirano", "created_at", "d"),
 ]
 PROJ_COLS = [
@@ -1156,7 +1167,8 @@ def export_xlsx():
     # POP-ovi (uklj. one bez DP-a)
     pops = [dict(r) for r in d.execute(
         "SELECT p.id, p.projekt AS projekt, pr.kunde AS kunde, p.naziv AS naziv, "
-        "       p.hp AS hp, p.ha AS ha, p.created_by AS created_by, p.created_at AS created_at, "
+        "       p.hp AS hp, p.ha AS ha, p.rfa AS rfa, "
+        "       p.created_by AS created_by, p.created_at AS created_at, "
         "       COUNT(dd.id) AS dp_count "
         "FROM pops p LEFT JOIN dps dd ON dd.pop_id=p.id "
         "LEFT JOIN projects pr ON pr.projektname=p.projekt "
