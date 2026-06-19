@@ -1028,6 +1028,23 @@ span.flatpickr-weekday{color:#64748b!important}
 .pv-bar.over i{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
 .pv-wrap .hint{font-size:10px}
 
+/* ---------- Prognoza (forecast) ---------- */
+.fc-hint{font-size:10px;color:var(--mut2);margin:0 0 8px;letter-spacing:.2px}
+.fc-empty{font-size:11.5px;color:var(--mut2);padding:6px 2px}
+.fc-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.fc-tbl th{text-align:right;color:var(--mut2);font-weight:600;font-size:9.5px;text-transform:uppercase;
+  letter-spacing:1px;padding:5px 10px;border-bottom:1px solid var(--line)}
+.fc-tbl th:first-child{text-align:left}
+.fc-tbl td{text-align:right;padding:5px 10px;font:600 12px var(--mono);color:var(--txt);
+  border-bottom:1px solid rgba(255,255,255,.04)}
+.fc-tbl td:first-child{text-align:left;font:600 12px 'Inter',sans-serif}
+.fc-prov td:first-child b{color:#e8eef7}
+.fc-projrow td:first-child{padding-left:24px}
+.fc-projrow td{color:var(--mut)}
+.fc-proj{font-weight:500}
+.fc-total td{border-top:1px solid var(--line);border-bottom:0;padding-top:8px;color:var(--teal)}
+.fc-total td:first-child{color:var(--mut);text-transform:uppercase;font-size:10px;letter-spacing:1.2px;font-weight:700}
+
 
 /* ================== popover redizajn ================== */
 .pop{width:280px;padding:9px 12px;border:1px solid rgba(16,185,129,.25)!important;

@@ -1139,6 +1139,35 @@ function ok(name, cond, extra = "") {
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(200);
 
+  // ---------- 16t. Prognoza panel: planirano (Hausbeg./HP/Akt) u rasponu, po provajderu/projektu/ukupno ----------
+  const fcProj = "[NORD CLUSTER 1] WANDLITZ [IP]";
+  await page.request.post(BASE + "/api/pops", { data: { projekt: fcProj, naziv: "POP FC-T", rfa: "2027-06-01" } });
+  await page.request.post(BASE + "/api/dps", { data: { pop: "POP FC-T", projekt: fcProj, naziv: "DP FC-T1", hp: 10, ha: 5 } });
+  const fcD = await (await page.request.get(BASE + "/api/data")).json();
+  const fcDp = fcD.dps.find(x => x.naziv === "DP FC-T1");
+  const fcTk = a => fcD.tasks.find(t => t.dp_id === fcDp.id && a.test(t.aktivnost));
+  const fcMk = (task, od, dod) => page.request.post(BASE + "/api/segments", { data: { task_id: task.id, datum_od: od, datum_do: dod, status: "otvoreno" } });
+  await fcMk(fcTk(/aktivacij/i), "2026-06-15", "2026-06-25");
+  await fcMk(fcTk(/pregled/i), "2026-06-20", "2026-06-25");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#forecastBody .fc-tbl", { timeout: 10000 });
+  ok("prognoza: panel + tablica vidljivi", (await page.locator("#forecastBody .fc-tbl").count()) === 1);
+  ok("prognoza: ima UKUPNO + provajder + projekt redove",
+    (await page.locator("#forecastBody .fc-total").count()) === 1 &&
+    (await page.locator("#forecastBody .fc-prov").count()) >= 1 &&
+    (await page.locator("#forecastBody .fc-projrow").count()) >= 1);
+  // reaguje na Datum prozor: uži prozor smanji planirani HP
+  await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.setDate("2026-06-01", true));
+  await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-07-01", true));
+  await page.waitForTimeout(500);
+  const fcWide = +((await page.locator("#forecastBody .fc-total td").nth(2).innerText()) || "0").replace(/\D/g, "");
+  await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-06-05", true));
+  await page.waitForTimeout(500);
+  const fcNarrow = +((await page.locator("#forecastBody .fc-total td").nth(2).innerText()) || "0").replace(/\D/g, "");
+  ok("prognoza: uži Datum prozor smanji planirani HP", fcWide > 0 && fcNarrow < fcWide, `(wide=${fcWide} narrow=${fcNarrow})`);
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(200);
+
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
   ok("nema JS grešaka u konzoli", realErrors.length === 0, JSON.stringify(realErrors.slice(0, 3)));

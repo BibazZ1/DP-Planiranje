@@ -85,6 +85,9 @@ const I18N = {
     napredak: "napredak", gotovo: "gotovo", aktTitle: "Aktivnosti",
     planTitle: "Raspodjela plana", planAuto: "auto", planRucno: "ručno",
     planEst: "raspoređeno po planu (procjena)", planHint: "prazno = auto (linearno po terminima)",
+    forecastTitle: "Prognoza", fcProvProj: "Provajder / Projekat", fcHausbeg: "Pregledi",
+    fcAkt: "Aktivacije", fcTotal: "UKUPNO", fcAll: "ukupan plan (bez raspona)",
+    fcNoData: "nema planiranih količina za izabrani raspon", fcHint: "planirano u rasponu Datum od/do (procjena po planu)",
     aktKlikTip: "klik = promijeni status / nacrtaj termin",
     bezTermina: "bez termina — klik crta", pomjeriSve: "Pomjeri sve",
     shiftPitanje: "Pomjeriti i sve sljedeće aktivnosti ovog DP-a?",
@@ -194,6 +197,9 @@ const I18N = {
     napredak: "progress", gotovo: "done", aktTitle: "Activities",
     planTitle: "Plan allocation", planAuto: "auto", planRucno: "manual",
     planEst: "distributed per plan (estimate)", planHint: "empty = auto (linear over termini)",
+    forecastTitle: "Forecast", fcProvProj: "Provider / Project", fcHausbeg: "Home visits",
+    fcAkt: "Activations", fcTotal: "TOTAL", fcAll: "total plan (no range)",
+    fcNoData: "no planned quantities for the selected range", fcHint: "planned within the Date from/to range (plan-based estimate)",
     aktKlikTip: "click = toggle status / draw dates",
     bezTermina: "no dates — click to draw", pomjeriSve: "Shift all",
     shiftPitanje: "Also shift all later activities of this DP?",
@@ -303,6 +309,9 @@ const I18N = {
     napredak: "Fortschritt", gotovo: "fertig", aktTitle: "Aktivitäten",
     planTitle: "Planverteilung", planAuto: "auto", planRucno: "manuell",
     planEst: "nach Plan verteilt (Schätzung)", planHint: "leer = auto (linear über Termine)",
+    forecastTitle: "Prognose", fcProvProj: "Provider / Projekt", fcHausbeg: "Hausbegehungen",
+    fcAkt: "Aktivierungen", fcTotal: "GESAMT", fcAll: "Gesamtplan (ohne Zeitraum)",
+    fcNoData: "keine geplanten Mengen für den gewählten Zeitraum", fcHint: "geplant im Zeitraum Datum von/bis (Schätzung nach Plan)",
     aktKlikTip: "Klick = Status wechseln / Termin zeichnen",
     bezTermina: "kein Termin — Klick zeichnet", pomjeriSve: "Alle verschieben",
     shiftPitanje: "Auch alle späteren Aktivitäten dieses DP verschieben?",
@@ -741,6 +750,7 @@ function renderAll() {
   renderTimeline(true);
   renderStats();
   renderProj();   // DP čipovi u projekt-panelu prate iste filtere
+  renderForecast();   // prognoza: planirano u rasponu Datum od/do po provajderu/projektu
   markEditingSeg();   // istakni termin koji se trenutno uređuje (preživi re-render)
 }
 /* termin koji se uređuje = vizuelno istaknut (.sel) na grafu */
@@ -905,6 +915,54 @@ function plannedInWindow(dpId, ha, od, do_) {
     if (s) sum += qty * overlapFrac(s, od, do_);
   }
   return sum;
+}
+/* "home visit" = Hausbegehung = aktivnost "Pregled objekata"; planirana u prozoru ako joj
+   bar jedna traka pada u [od,do] */
+function dpSurveyInWindow(dpId, od, do_) {
+  const ids = new Set(DATA.tasks.filter(t => t.dp_id === dpId && /pregled|begehung/i.test(t.aktivnost)).map(t => t.id));
+  if (!ids.size) return false;
+  return DATA.segments.some(s => ids.has(s.task_id) && overlapFrac(s, od, do_) > 0);
+}
+/* ---------- Prognoza: planirano (Hausbegehungen / HP / Aktivacije) u rasponu Datum od/do,
+   razloženo po provajderu (Kunde), projektu i ukupno ---------- */
+function renderForecast() {
+  const box = $("#forecastBody");
+  if (!box) return;
+  const od = F.dOd, do_ = F.dDo;
+  const meta = $("#fcMeta");
+  if (meta) meta.textContent = (od || do_) ? `${fmt(od) || "…"} – ${fmt(do_) || "…"}` : t("fcAll");
+  const byProv = new Map();
+  let tHp = 0, tHa = 0, tSv = 0;
+  for (const d of scopedDps()) {
+    const hp = Math.round(plannedInWindow(d.id, false, od, do_));
+    const ha = Math.round(plannedInWindow(d.id, true, od, do_));
+    const sv = dpSurveyInWindow(d.id, od, do_) ? 1 : 0;
+    if (!hp && !ha && !sv) continue;
+    const kunde = kundeOf(d.projekt) || "—";
+    let pv = byProv.get(kunde);
+    if (!pv) { pv = { hp: 0, ha: 0, sv: 0, projects: new Map() }; byProv.set(kunde, pv); }
+    pv.hp += hp; pv.ha += ha; pv.sv += sv;
+    let pr = pv.projects.get(d.projekt);
+    if (!pr) { pr = { hp: 0, ha: 0, sv: 0 }; pv.projects.set(d.projekt, pr); }
+    pr.hp += hp; pr.ha += ha; pr.sv += sv;
+    tHp += hp; tHa += ha; tSv += sv;
+  }
+  if (!byProv.size) { box.innerHTML = `<div class="fc-empty">${t("fcNoData")}</div>`; return; }
+  const cell = o => `<td>${fmtNum(o.sv)}</td><td>${fmtNum(o.hp)}</td><td>${fmtNum(o.ha)}</td>`;
+  let rows = "";
+  [...byProv.entries()].sort((a, b) => cmpStr(a[0], b[0])).forEach(([kunde, pv]) => {
+    rows += `<tr class="fc-prov"><td><b>${esc(kunde)}</b></td>${cell(pv)}</tr>`;
+    [...pv.projects.entries()].sort((a, b) => cmpStr(a[0], b[0])).forEach(([proj, pr]) => {
+      rows += `<tr class="fc-projrow"><td><span class="fc-proj">${esc(proj)}</span></td>${cell(pr)}</tr>`;
+    });
+  });
+  box.innerHTML = `<div class="fc-hint">${t("fcHint")}</div>
+    <table class="fc-tbl">
+      <thead><tr><th>${t("fcProvProj")}</th><th>${t("fcHausbeg")}</th><th>HP</th><th>${t("fcAkt")}</th></tr></thead>
+      <tbody>${rows}
+        <tr class="fc-total"><td>${t("fcTotal")}</td>${cell({ sv: tSv, hp: tHp, ha: tHa })}</tr>
+      </tbody>
+    </table>`;
 }
 function renderKpis() {
   const segs = visibleSegs();
