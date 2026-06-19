@@ -944,6 +944,25 @@ function ok(name, cond, extra = "") {
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(300);
 
+  // ---------- 16m. otvoreni bočni panel se PREVODI kad se prebaci jezik ----------
+  const dLang = (await (await page.request.get(BASE + "/api/data")).json()).dps[0];
+  if (dLang) {
+    await page.locator(`#tlScroll .cell[data-fdp="${dLang.id}"]`).first().click();
+    await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+    await page.waitForTimeout(400);
+    await page.locator('#langToggle button[data-lang="de"]').click();
+    await page.waitForTimeout(500);
+    ok("jezik: otvoreni panel se prevodi na DE (dinamički t() sadržaj)",
+      /Fortschritt/i.test(await page.locator("#drStats").innerText()));
+    await page.locator('#langToggle button[data-lang="bs"]').click();
+    await page.waitForTimeout(500);
+    ok("jezik: panel se vraća na BS", /napredak/i.test(await page.locator("#drStats").innerText()));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+  }
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(200);
+
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
   ok("nema JS grešaka u konzoli", realErrors.length === 0, JSON.stringify(realErrors.slice(0, 3)));

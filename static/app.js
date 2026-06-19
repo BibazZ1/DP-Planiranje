@@ -2664,7 +2664,7 @@ function renderDrawerStats() {
       const diff = Math.round((new Date(rok) - new Date(todayIso())) / 864e5);
       const lateR = diff < 0 && pct < 100;
       rokHtml = `<div class="drs-rok${lateR ? " late" : ""}">
-        <i>${t("rokLbl")} · Aktivacije</i>
+        <i>${t("rokLbl")} · ${tAkt("Aktivacije")}</i>
         <b>${fmt(rok)} · KW${isoWeekOf(rok)}</b>
         <em>${diff < 0 ? `${t("rokProsao")} ${-diff} ${t("dana")}` : `${t("rokZa")} ${diff} ${t("dana")}`}</em>
       </div>`;
@@ -3262,6 +3262,7 @@ function setLang(l) {
   localStorage.setItem("dp_lang", l);
   applyLang();
   renderAll();
+  if (SEL) openDrawer();   // otvoreni panel ima dinamički t()-sadržaj -> ponovo iscrtaj na novom jeziku
 }
 $$("#langToggle button").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
 applyLang();
