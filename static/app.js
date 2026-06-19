@@ -637,6 +637,14 @@ const DEP_ORDER = ["Dozvole", "Pregled objekata", "Iskopni radovi", "Horizontaln
 /* ---------- filtering ---------- */
 /* kasni = rok (datum_do) prošao, a termin nije završen — računa se automatski */
 function segLate(s) { return s.status !== "završeno" && s.datum_do < todayIso(); }
+/* aktivnost je "gotova" tek kad joj je ZADNJA traka završena (prekid pa nastavak).
+   Napredak se računa po SVIM aktivnostima DP-a: aktivnost bez ijedne trake = nije
+   gotova, pa DP ne može biti 100% dok sve aktivnosti nisu odrađene. */
+function taskComplete(segs) {
+  if (!segs || !segs.length) return false;
+  const last = segs.reduce((m, s) => (!m || s.datum_do > m.datum_do ? s : m), null);
+  return !!last && last.status === "završeno";
+}
 /* ---------- RFA (Ready-for-Activation) ---------- */
 /* RFA datum se vodi na POP-u; aktivacija DP-a ne smije početi prije RFA */
 function popRfaOf(popId) {
@@ -1163,8 +1171,9 @@ function renderTimeline(keepScroll) {
 
     const dpTasks = DATA.tasks.filter(x => x.dp_id === dp.id);
     const allSegs = dpTasks.flatMap(x => segsByTask[x.id] || []);
-    const pct = allSegs.length
-      ? Math.round(allSegs.filter(s => s.status === "završeno").length / allSegs.length * 100) : 0;
+    /* napredak po AKTIVNOSTI (ne po traci): aktivnost bez trake = nije gotova */
+    const pct = dpTasks.length
+      ? Math.round(dpTasks.filter(x => taskComplete(segsByTask[x.id])).length / dpTasks.length * 100) : 0;
 
     /* rok DP-a = kraj termina aktivnosti "Aktivacije" (kraj gradnje = aktivacija) */
     const aktTask = DATA.tasks.find(tk => tk.dp_id === dp.id && /aktivacij/i.test(tk.aktivnost));
@@ -2651,9 +2660,14 @@ function drawerTaskIds() {
 function renderDrawerStats() {
   const ids = drawerTaskIds();
   const segs = DATA.segments.filter(s => ids.has(s.task_id));
-  const done = segs.filter(s => s.status === "završeno").length;
   const lateN = segs.filter(segLate).length;
-  const pct = segs.length ? Math.round(done / segs.length * 100) : 0;
+  /* napredak po AKTIVNOSTI: gotova tek kad joj je zadnja traka završena; aktivnost
+     bez trake = nije gotova -> DP nije 100% dok sve aktivnosti nisu odrađene */
+  const byT = {};
+  segs.forEach(s => (byT[s.task_id] ||= []).push(s));
+  const total = ids.size;
+  const done = [...ids].filter(id => taskComplete(byT[id])).length;
+  const pct = total ? Math.round(done / total * 100) : 0;
   let rokHtml = "";
   if (SEL && SEL.type === "dp") {
     const aktT = DATA.tasks.find(tk => tk.dp_id === SEL.id && /aktivacij/i.test(tk.aktivnost));
@@ -2679,7 +2693,7 @@ function renderDrawerStats() {
           style="transition:stroke-dasharray .6s cubic-bezier(.2,.8,.25,1)"/>
         <text x="24" y="28" text-anchor="middle" font-size="11" font-weight="700" fill="#34d399">${pct}%</text>
       </svg>
-      <div class="drs-info"><i>${t("napredak")}</i><b>${done} / ${segs.length} ${t("gotovo")}</b>
+      <div class="drs-info"><i>${t("napredak")}</i><b>${done} / ${total} ${t("gotovo")}</b>
         ${lateN ? `<em class="drs-late">${lateN} ${t("kasniChip")}</em>` : ""}</div>
     </div>${rokHtml}`;
   $("#drShift").innerHTML = segs.length ? `
@@ -3274,6 +3288,11 @@ function applyLang() {
   $$("[data-i18n-ph]").forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
   $$("[data-i18n-title]").forEach(el => { el.title = t(el.dataset.i18nTitle); });
   $$("#langToggle button").forEach(b => b.classList.toggle("on", b.dataset.lang === LANG));
+  /* flatpickr alt-polja: Datum Od/Do placeholder mora pratiti jezik (altInput ne prevodi sam) */
+  if (typeof FP !== "undefined") {
+    if (FP.fDateOd && FP.fDateOd.altInput) FP.fDateOd.altInput.placeholder = t("odPh");
+    if (FP.fDateDo && FP.fDateDo.altInput) FP.fDateDo.altInput.placeholder = t("doPh");
+  }
 }
 function setLang(l) {
   LANG = l;

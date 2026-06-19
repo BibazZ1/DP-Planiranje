@@ -1073,6 +1073,72 @@ function ok(name, cond, extra = "") {
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(200);
 
+  // ---------- 16r. "Novi DP" dijalog stane u ekran — 'Sačuvaj' UVIJEK vidljiv (sticky footer) ----------
+  await page.setViewportSize({ width: 1280, height: 600 });   // nizak ekran: prije je footer ispadao van vidnog polja
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#btnAddDp", { timeout: 10000 });
+  await page.click("#btnAddDp");
+  await page.waitForSelector("#dlgDp[open]", { timeout: 5000 });
+  await page.evaluate(() => document.querySelector("#dpRfaRow")?.classList.remove("hidden"));   // najviši slučaj: novi POP -> RFA red
+  await page.waitForTimeout(200);
+  const dfit = await page.evaluate(() => {
+    const dlg = document.querySelector("#dlgDp");
+    const ok = dlg.querySelector("menu button[value=ok]");
+    const body = dlg.querySelector(".dlg-body");
+    const head = dlg.querySelector(".dlg-h");
+    const ob = ok.getBoundingClientRect();
+    const hit = document.elementFromPoint(ob.left + ob.width / 2, ob.top + ob.height / 2);
+    return {
+      vh: window.innerHeight,
+      dlgH: Math.round(dlg.getBoundingClientRect().height),
+      headTop: Math.round(head.getBoundingClientRect().top),
+      okBottom: Math.round(ob.bottom),
+      okClickable: hit === ok || ok.contains(hit) || !!(hit && hit.closest("menu")),
+      bodyScrolls: body.scrollHeight > body.clientHeight + 1,
+    };
+  });
+  ok("Novi DP: dijalog stane u ekran (≤ 92vh)", dfit.dlgH <= dfit.vh * 0.92 + 2, `(h=${dfit.dlgH} vh=${dfit.vh})`);
+  ok("Novi DP: zaglavlje nije odsječeno gore", dfit.headTop >= -1, `(top=${dfit.headTop})`);
+  ok("Novi DP: 'Sačuvaj' vidljiv u ekranu (sticky footer)", dfit.okBottom <= dfit.vh + 1, `(ok=${dfit.okBottom} vh=${dfit.vh})`);
+  ok("Novi DP: 'Sačuvaj' klikabilan (nije prekriven)", dfit.okClickable === true);
+  ok("Novi DP: tijelo skrola kad je sadržaj visok", dfit.bodyScrolls === true);
+  await page.click("#dlgDp .dlg-x").catch(() => {});
+  await page.setViewportSize({ width: 1600, height: 950 });   // vrati standardni viewport
+  await page.waitForTimeout(150);
+
+  // ---------- 16s. napredak po AKTIVNOSTI (ne po traci) + Datum placeholder prijevod ----------
+  const projPg = "[NORD CLUSTER 1] WANDLITZ [IP]";
+  await page.request.post(BASE + "/api/pops", { data: { projekt: projPg, naziv: "POP PG-TEST", rfa: "2027-06-01" } });
+  await page.request.post(BASE + "/api/dps", { data: { pop: "POP PG-TEST", projekt: projPg, naziv: "DP PG-1", hp: 5, ha: 3 } });
+  const dPg = await (await page.request.get(BASE + "/api/data")).json();
+  const pgDp = dPg.dps.find(x => x.naziv === "DP PG-1");
+  const pgTasks = dPg.tasks.filter(t => t.dp_id === pgDp.id);
+  ok("napredak: novi DP ima 8 aktivnosti (preduslov)", pgTasks.length === 8, `(${pgTasks.length})`);
+  const dz = pgTasks.find(t => t.aktivnost === "Dozvole");
+  await page.request.post(BASE + "/api/segments", { data: { task_id: dz.id, datum_od: "2026-09-01", datum_do: "2026-09-05", status: "završeno" } });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(400);
+  const pgPct = ((await page.locator(`.tl-row.group[data-dp="${pgDp.id}"] .pct`).innerText().catch(() => "")) || "").trim();
+  ok("napredak: 1 od 8 aktivnosti gotovo -> 13% (NIJE 100%)", pgPct === "13%", `(${pgPct})`);
+  await page.locator(`#tlScroll .cell[data-fdp="${pgDp.id}"]`).first().click();
+  await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  ok("napredak: panel pokazuje 1 / 8 gotovo", /1 \/ 8/.test(await page.locator("#drStats").innerText()));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  await page.locator('#langToggle button[data-lang="de"]').click();
+  await page.waitForTimeout(300);
+  const phDe = await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.altInput.placeholder);
+  ok("jezik: Datum placeholder preveden na DE (Von)", phDe === "Von", `(${phDe})`);
+  await page.locator('#langToggle button[data-lang="bs"]').click();
+  await page.waitForTimeout(300);
+  const phBs = await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.altInput.placeholder);
+  ok("jezik: Datum placeholder vraćen na BS (Od)", phBs === "Od", `(${phBs})`);
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(200);
+
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
   ok("nema JS grešaka u konzoli", realErrors.length === 0, JSON.stringify(realErrors.slice(0, 3)));
