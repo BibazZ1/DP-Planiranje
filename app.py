@@ -619,8 +619,15 @@ def add_dp():
     blk = _require_project_edit(projekt)
     if blk:
         return blk
-    naziv = j.get("naziv", "")
+    naziv = (j.get("naziv") or "").strip()
     hp, ha = _int(j.get("hp")), _int(j.get("ha"))
+    # spriječi dvostruko kreiranje DP-a istog imena u istom POP-u
+    dup = d.execute(
+        "SELECT id FROM dps WHERE pop_id IS NOT DISTINCT FROM %s "
+        "AND LOWER(TRIM(naziv))=LOWER(%s)", (pop_id, naziv)).fetchone()
+    if dup:
+        return jsonify({"error": "DP s tim imenom već postoji u ovom POP-u",
+                        "id": dup["id"]}), 409
     cur = d.execute(
         "INSERT INTO dps(pop,naziv,lokacija,voditelj,hp,ha,projekt,pop_id) "
         "VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
@@ -721,12 +728,8 @@ def add_segment():
     blk = _require_project_edit(_task_projekt(j["task_id"]))
     if blk:
         return blk
-    # jedna aktivnost = JEDNA traka: drugi termin na istom redu nije dozvoljen
-    ex = db().execute("SELECT id FROM segments WHERE task_id=%s",
-                      (j["task_id"],)).fetchone()
-    if ex:
-        return jsonify({"error": "termin već postoji za ovu aktivnost",
-                        "id": ex["id"]}), 409
+    # aktivnost može imati VIŠE traka (prekid pa nastavak); aktivnost je gotova tek
+    # kad je i zadnja traka završena -> nema više ograničenja "jedna traka po aktivnosti"
     if _late_reason_missing(j.get("status", "otvoreno"),
                             j.get("datum_do", ""), j.get("kasni_razlog", "")):
         return jsonify({"error": "razlog produženja je obavezan — termin završava prije danas"}), 400

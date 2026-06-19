@@ -175,10 +175,7 @@ function ok(name, cond, extra = "") {
   await page.request.post(BASE + "/api/segments", { data: {
     task_id: tasks.find(t => t.aktivnost === "Dozvole").id,
     datum_od: "2026-07-06", datum_do: "2026-07-19", status: "završeno" } });
-  // jedna aktivnost = JEDNA traka: drugi termin na istom redu mora biti odbijen
-  const dup = await page.request.post(BASE + "/api/segments", { data: {
-    task_id: tIskop.id, datum_od: "2026-08-03", datum_do: "2026-08-09", status: "otvoreno" } });
-  ok("jedna traka po aktivnosti (409 na drugu)", dup.status() === 409);
+  // (više traka po aktivnosti je sada dozvoljeno — testira se zasebno u sekciji 16n)
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector(".seg", { timeout: 10000 });
   // refiltriranje nakon reload-a (filteri se ne pamte) — ponovo izaberi projekat
@@ -960,6 +957,47 @@ function ok(name, cond, extra = "") {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
   }
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(200);
+
+  // ---------- 16n. više traka po aktivnosti (prekid pa nastavak) ----------
+  const projMB = "[NORD CLUSTER 1] WANDLITZ [IP]";
+  await page.request.post(BASE + "/api/pops", { data: { projekt: projMB, naziv: "POP MB-TEST", rfa: "2027-06-01" } });
+  await page.request.post(BASE + "/api/dps", { data: { pop: "POP MB-TEST", projekt: projMB, naziv: "DP MB-1", hp: 5, ha: 5 } });
+  const dMB = await (await page.request.get(BASE + "/api/data")).json();
+  const mbDp = dMB.dps.find(x => x.naziv === "DP MB-1");
+  const mbTask = mbDp && dMB.tasks.find(t => t.dp_id === mbDp.id && /iskop/i.test(t.aktivnost));
+  ok("multi-traka: DP + aktivnost (preduslov)", !!mbTask);
+  if (mbTask) {
+    const b1 = await page.request.post(BASE + "/api/segments", { data: {
+      task_id: mbTask.id, datum_od: "2026-09-01", datum_do: "2026-09-10", status: "završeno" } });
+    const b2 = await page.request.post(BASE + "/api/segments", { data: {
+      task_id: mbTask.id, datum_od: "2026-10-01", datum_do: "2026-10-10", status: "otvoreno" } });
+    ok("multi-traka: druga traka dozvoljena (201, nema 409)", b1.status() === 201 && b2.status() === 201);
+    const segsMB = (await (await page.request.get(BASE + "/api/data")).json()).segments.filter(s => s.task_id === mbTask.id);
+    ok("multi-traka: aktivnost ima 2 trake", segsMB.length === 2, `(${segsMB.length})`);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(400);
+    ok("multi-traka: obje trake vidljive na redu aktivnosti",
+      (await page.locator(`.tl-row[data-task="${mbTask.id}"] .seg`).count()) === 2);
+    // gotova tek kad je i zadnja traka završena (sad 1 od 2)
+    ok("multi-traka: nije sve završeno dok zadnja traka nije gotova (1/2)",
+      segsMB.filter(s => s.status === "završeno").length === 1);
+  }
+
+  // ---------- 16o. zabrana duplog imena DP-a u istom POP-u ----------
+  const projDup = "[NORD CLUSTER 1] WANDLITZ [IP]";
+  await page.request.post(BASE + "/api/pops", { data: { projekt: projDup, naziv: "POP DUP-TEST", rfa: "2027-06-01" } });
+  const dupA = await page.request.post(BASE + "/api/dps", { data: { pop: "POP DUP-TEST", projekt: projDup, naziv: "DP UNIK", hp: 1, ha: 1 } });
+  ok("dup DP: prvi DP kreiran (201)", dupA.status() === 201);
+  const dupB = await page.request.post(BASE + "/api/dps", { data: { pop: "POP DUP-TEST", projekt: projDup, naziv: "DP UNIK", hp: 1, ha: 1 } });
+  ok("dup DP: isti naziv u istom POP-u odbijen (409)", dupB.status() === 409);
+  const dupC = await page.request.post(BASE + "/api/dps", { data: { pop: "POP DUP-TEST", projekt: projDup, naziv: " dp unik ", hp: 1, ha: 1 } });
+  ok("dup DP: trim + case-insensitive duplikat odbijen (409)", dupC.status() === 409, `(${dupC.status()})`);
+  const dupD = await page.request.post(BASE + "/api/dps", { data: { pop: "POP DUP-TEST", projekt: projDup, naziv: "DP UNIK 2", hp: 1, ha: 1 } });
+  ok("dup DP: drugačiji naziv prolazi (201)", dupD.status() === 201);
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(200);
 

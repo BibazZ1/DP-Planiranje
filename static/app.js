@@ -111,6 +111,7 @@ const I18N = {
     confDelPop: "Obrisati POP {0} i {1} DP-ova (sa svim aktivnostima)?",
     renameTo: "Novi naziv:",
     popPostoji: "POP s tim nazivom već postoji pod ovim projektom.",
+    dpPostoji: "DP s tim imenom već postoji u ovom POP-u.",
     dpHistTip: "klik = historija DP-a",
     drRenameTip: "preimenuj", drDelTip: "obriši",
   },
@@ -218,6 +219,7 @@ const I18N = {
     confDelPop: "Delete POP {0} and {1} DPs (with all activities)?",
     renameTo: "New name:",
     popPostoji: "A POP with that name already exists under this project.",
+    dpPostoji: "A DP with that name already exists under this POP.",
     dpHistTip: "click = DP history",
     drRenameTip: "rename", drDelTip: "delete",
   },
@@ -325,6 +327,7 @@ const I18N = {
     confDelPop: "POP {0} und {1} DPs (mit allen Aktivitäten) löschen?",
     renameTo: "Neuer Name:",
     popPostoji: "Ein POP mit diesem Namen existiert bereits in diesem Projekt.",
+    dpPostoji: "Ein DP mit diesem Namen existiert bereits in diesem POP.",
     dpHistTip: "Klick = DP-Verlauf",
     drRenameTip: "umbenennen", drDelTip: "löschen",
   },
@@ -1338,9 +1341,9 @@ function bindTimeline() {
       const taskId = +track.closest(".tl-row").dataset.task;
       /* zaključan projekat -> ne crtaj (samo vlasnik/admin) */
       if (!canEditProjekt(taskProjekt(taskId))) { lockToast(taskProjekt(taskId)); return; }
-      /* jedna aktivnost = JEDNA traka: ako termin postoji, zasvijetli ga umjesto crtanja */
-      const existing = DATA.segments.find(s => s.task_id === taskId);
-      if (existing) { flashSegs(s => s.id === existing.id); return; }
+      /* aktivnost može imati VIŠE traka (prekid pa nastavak): prazan dio reda = nova
+         traka; klik direktno na postojeću traku = interakcija s njom (ne crtaj preko) */
+      if (e.target.closest(".seg")) return;
       drag = { taskId, track, d0: trackDay(e, track), d1: trackDay(e, track), moved: false };
       ghost();
       const [a, b] = snapRange(drag.d0, drag.d1);
@@ -3093,7 +3096,16 @@ $("#frmDp").addEventListener("submit", async e => {
       body.rfa = rfa;
     }
   }
-  const created = await api("/api/dps", "POST", body);
+  /* spriječi dvostruko kreiranje DP-a istog imena u istom POP-u (instant + prevedeno) */
+  const tgtPopId = popId ? +popId
+    : (DATA.pops.find(p => p.naziv === body.pop && p.projekt === body.projekt) || {}).id;
+  if (tgtPopId && DATA.dps.some(d => d.pop_id === tgtPopId &&
+        (d.naziv || "").trim().toLowerCase() === naziv.toLowerCase())) {
+    uiAlert(t("dpPostoji"), "warning"); $("#frmDp [name=naziv]").focus(); return;
+  }
+  let created;
+  try { created = await api("/api/dps", "POST", body); }
+  catch (err) { return handleApiErr(err); }   // 409 (duplikat) i ostalo -> jasna poruka
   $("#dlgDp").close();
   await load();
   if (created && created.id) {   // filtriraj tabelu samo na novi DP
