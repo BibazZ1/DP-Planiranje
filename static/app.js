@@ -79,7 +79,8 @@ const I18N = {
     aktivniFilteri: "aktivni filteri",
     aktivni: "Aktivni", ocistiSve: "Očisti sve", traziPh: "Pretraži…",
     statusLbl: "Status", odjelLbl: "Odjel",
-    datumOd: "Datum od", datumDo: "Datum do", nemaRez: "nema rezultata", da: "Da",
+    datumOd: "Datum od", datumDo: "Datum do", datum: "Datum", odPh: "Od", doPh: "Do",
+    nemaRez: "nema rezultata", da: "Da",
     kasniChip: "kasni", kasniTip: "rok prošao, a termin nije završen", dana: "dana",
     napredak: "napredak", gotovo: "gotovo", aktTitle: "Aktivnosti",
     planTitle: "Raspodjela plana", planAuto: "auto", planRucno: "ručno",
@@ -100,6 +101,7 @@ const I18N = {
     rfaWarnTitle: "Aktivacija prije RFA",
     rfaRowTip: "Aktivacija počinje prije RFA ({0})",
     rfaConfLine: "{0}: aktivacija {1} (RFA {2})",
+    rfaDpNew: "(novi POP)", rfaDpNote: "Novi POP se kreira s ovim RFA datumom.",
     tlEmpty: "Nema DP-ova za izabrane filtere.<br>Očisti filtere, ili kreiraj <b>＋ Novi POP</b> pa <b>＋ Novi DP</b> pod izabranim projektom.",
     drDpCount: "DP-ova", histTitle: "Historija",
     histEmpty: "još nema zabilježenih aktivnosti", histEmptyAkt: "nema promjena za ovu aktivnost", histLoad: "učitavam…",
@@ -184,7 +186,8 @@ const I18N = {
     aktivniFilteri: "active filters",
     aktivni: "Active", ocistiSve: "Clear all", traziPh: "Search…",
     statusLbl: "Status", odjelLbl: "Department",
-    datumOd: "Date from", datumDo: "Date to", nemaRez: "no results", da: "Yes",
+    datumOd: "Date from", datumDo: "Date to", datum: "Date", odPh: "From", doPh: "To",
+    nemaRez: "no results", da: "Yes",
     kasniChip: "late", kasniTip: "past due date and not finished", dana: "days",
     napredak: "progress", gotovo: "done", aktTitle: "Activities",
     planTitle: "Plan allocation", planAuto: "auto", planRucno: "manual",
@@ -205,6 +208,7 @@ const I18N = {
     rfaWarnTitle: "Activation before RFA",
     rfaRowTip: "Activation starts before RFA ({0})",
     rfaConfLine: "{0}: activation {1} (RFA {2})",
+    rfaDpNew: "(new POP)", rfaDpNote: "The new POP is created with this RFA date.",
     tlEmpty: "No DPs match the selected filters.<br>Clear the filters, or create <b>＋ New POP</b> then <b>＋ New DP</b> under the selected project.",
     drDpCount: "DPs", histTitle: "History",
     histEmpty: "no recorded activity yet", histEmptyAkt: "no changes for this activity", histLoad: "loading…",
@@ -289,7 +293,8 @@ const I18N = {
     aktivniFilteri: "aktive Filter",
     aktivni: "Aktiv", ocistiSve: "Alle leeren", traziPh: "Suchen…",
     statusLbl: "Status", odjelLbl: "Abteilung",
-    datumOd: "Datum von", datumDo: "Datum bis", nemaRez: "keine Treffer", da: "Ja",
+    datumOd: "Datum von", datumDo: "Datum bis", datum: "Datum", odPh: "Von", doPh: "Bis",
+    nemaRez: "keine Treffer", da: "Ja",
     kasniChip: "verspätet", kasniTip: "Frist überschritten, nicht abgeschlossen", dana: "Tage",
     napredak: "Fortschritt", gotovo: "fertig", aktTitle: "Aktivitäten",
     planTitle: "Planverteilung", planAuto: "auto", planRucno: "manuell",
@@ -310,6 +315,7 @@ const I18N = {
     rfaWarnTitle: "Aktivierung vor RFA",
     rfaRowTip: "Aktivierung beginnt vor RFA ({0})",
     rfaConfLine: "{0}: Aktivierung {1} (RFA {2})",
+    rfaDpNew: "(neuer POP)", rfaDpNote: "Der neue POP wird mit diesem RFA-Termin angelegt.",
     tlEmpty: "Keine DPs für die gewählten Filter.<br>Filter leeren, oder <b>＋ Neuer POP</b> und dann <b>＋ Neuer DP</b> unter dem gewählten Projekt anlegen.",
     drDpCount: "DPs", histTitle: "Verlauf",
     histEmpty: "noch keine Aktivitäten erfasst", histEmptyAkt: "keine Änderungen für diese Tätigkeit", histLoad: "lädt…",
@@ -388,7 +394,8 @@ let segResize = null;             // {id, side:'l'|'r', segEl, track, a, b, curA
 let eskDrag = null;               // {id, segEl, grip, part, track, a, b, cur} — povlačenje početka eskalacije
 let popCtx = null;                // {mode:'new'|'edit', taskId, segId, status}
 const F = { dp: new Set(), pop: new Set(), st: new Set(), odj: new Set(), esk: false,
-            kasni: false, dOd: "", dDo: "" };
+            kasni: false, dOd: "", dDo: "",
+            hpMin: "", hpMax: "", haMin: "", haMax: "" };   // HP/HA raspon (od–do) po DP-u
 let SEL = null;                   // {type:'pop'|'dp', id} — otvorena historija u draweru
 
 /* monohromne SVG ikone (bez emojija) — nasljeđuju boju teksta (currentColor) */
@@ -508,6 +515,8 @@ async function api(url, method = "GET", body = null) {
 
 /* ---------- claim / vlasništvo projekta ---------- */
 function projOwner(projekt) { return (DATA.claims && DATA.claims[projekt]) || null; }
+/* "Projektleiter" = vlasnik (claim) projekta -> prikazno ime za filter/čip */
+function ownerNameOf(projekt) { const o = projOwner(projekt); return o ? (o.name || o.email || "") : ""; }
 function myEmail() { return ((window.AUTH && window.AUTH.email) || "").toLowerCase(); }
 function canEditProjekt(projekt) {
   if (window.AUTH && window.AUTH.is_admin) return true;
@@ -664,8 +673,12 @@ function segMatch(s) {
 /* kaskada: Kunde -> Projekat -> DP/POP. Kad je projekt-filter aktivan,
    svuda se vide samo DP-ovi koji pripadaju izabranim projektima. */
 function projNameSet() {
-  if (!(PROJ.kunde || PROJ.code || PROJ.name)) return null;
-  return new Set(projFiltered().map(p => p.projektname));
+  if (!(PROJ.kunde || PROJ.code || PROJ.name || PROJ.pm)) return null;
+  const names = new Set(projFiltered().map(p => p.projektname));
+  /* PM kao jedini filter: uključi i projekte koji postoje samo kao claim (siročići van Azure liste) */
+  if (PROJ.pm && !(PROJ.kunde || PROJ.code || PROJ.name))
+    Object.keys(DATA.claims || {}).forEach(n => { if (ownerNameOf(n) === PROJ.pm) names.add(n); });
+  return names;
 }
 function dpInProj(d, ns) { return !ns || (d && d.projekt && ns.has(d.projekt)); }
 function scopedDps() {
@@ -673,10 +686,23 @@ function scopedDps() {
   return ns ? DATA.dps.filter(d => dpInProj(d, ns)) : DATA.dps;
 }
 /* POP/DP filter (autocomplete pickeri) */
+function numInRange(v, min, max) {
+  v = +v || 0;
+  return (min === "" || v >= +min) && (max === "" || v <= +max);
+}
+function dpNumActive() {
+  return F.hpMin !== "" || F.hpMax !== "" || F.haMin !== "" || F.haMax !== "";
+}
+function rangeTxt(min, max) {
+  return min !== "" && max !== "" ? `${min}–${max}` : min !== "" ? `≥ ${min}` : `≤ ${max}`;
+}
+function setNum(id, v) { const el = $("#" + id); if (el) el.value = v; }
 function dpFilterOk(d) {
   if (!d) return false;
   if (F.pop.size && !F.pop.has(d.pop)) return false;
   if (F.dp.size && !F.dp.has(d.id)) return false;
+  if (!numInRange(d.hp, F.hpMin, F.hpMax)) return false;   // HP raspon
+  if (!numInRange(d.ha, F.haMin, F.haMax)) return false;   // HA raspon
   return true;
 }
 function visibleSegs() {
@@ -919,9 +945,10 @@ function renderSlicers() {
   const dpLbl = d => `${d.pop} · ${d.naziv}`;
 
   /* broj aktivnih filtera -> crvena značka na "Filteri" dugmetu (kao ULAZNE-FAKTURE) */
-  const nProj = (PROJ.kunde ? 1 : 0) + (PROJ.code ? 1 : 0) + (PROJ.name ? 1 : 0);
+  const nProj = (PROJ.kunde ? 1 : 0) + (PROJ.code ? 1 : 0) + (PROJ.name ? 1 : 0) + (PROJ.pm ? 1 : 0);
+  const nNum = (F.hpMin !== "" || F.hpMax !== "" ? 1 : 0) + (F.haMin !== "" || F.haMax !== "" ? 1 : 0);
   const nAct = F.pop.size + F.dp.size + F.st.size + F.odj.size + (F.esk ? 1 : 0) + nProj
-    + (F.kasni ? 1 : 0) + (F.dOd ? 1 : 0) + (F.dDo ? 1 : 0);
+    + (F.kasni ? 1 : 0) + (F.dOd ? 1 : 0) + (F.dDo ? 1 : 0) + nNum;
   const badge = $("#fltBadge");
   if (badge) { badge.textContent = nAct; badge.classList.toggle("hidden", !nAct); }
   /* ✕ na POP/DP combo poljima vidljiv samo kad ima izbora */
@@ -936,6 +963,7 @@ function renderSlicers() {
   if (PROJ.kunde) act.push(fchip(`${esc(PROJ.kunde)}`, `data-xkunde="1"`));
   if (PROJ.name) act.push(fchip(`${esc(PROJ.name)}`, `data-xproj="1"`));
   if (PROJ.code) act.push(fchip(`# ${esc(PROJ.code)}`, `data-xcode="1"`));
+  if (PROJ.pm) act.push(fchip(`${esc(t("voditelj"))}: ${esc(PROJ.pm)}`, `data-xpm="1"`));
   [...F.pop].forEach(p => act.push(fchip(`${esc(p)}`, `data-xpop="${esc(p)}"`)));
   [...F.dp].forEach(id => {
     const d = DATA.dps.find(x => x.id === id);
@@ -947,21 +975,28 @@ function renderSlicers() {
   if (F.kasni) act.push(fchip(`${t("kasniChip")}`, `data-xlate="1"`));
   if (F.dOd) act.push(fchip(`≥ ${fmt(F.dOd)}`, `data-xdod="1"`));
   if (F.dDo) act.push(fchip(`≤ ${fmt(F.dDo)}`, `data-xddo="1"`));
+  if (F.hpMin !== "" || F.hpMax !== "") act.push(fchip(`HP ${rangeTxt(F.hpMin, F.hpMax)}`, `data-xhp="1"`));
+  if (F.haMin !== "" || F.haMax !== "") act.push(fchip(`HA ${rangeTxt(F.haMin, F.haMax)}`, `data-xha="1"`));
   const ab = $("#activeBar");
   if (ab) {
     ab.innerHTML = act.length
       ? `<span class="factive-lbl">${t("aktivni")}:</span> ${act.join("")}
          <button class="fchip clearall" data-clearall="1">${ICON.trash} ${t("ocistiSve")}</button>` : "";
     $$("#activeBar .fchip").forEach(ch => ch.addEventListener("click", () => {
-      const clearedProj = ch.dataset.clearall || ch.dataset.xkunde || ch.dataset.xproj || ch.dataset.xcode;
+      const clearedProj = ch.dataset.clearall || ch.dataset.xkunde || ch.dataset.xproj || ch.dataset.xcode || ch.dataset.xpm;
       if (ch.dataset.clearall) {
         F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false; F.kasni = false;
         F.dOd = F.dDo = ""; clearDate("fDateOd"); clearDate("fDateDo");
-        PROJ.kunde = PROJ.code = PROJ.name = "";
+        F.hpMin = F.hpMax = F.haMin = F.haMax = "";
+        ["fHpMin", "fHpMax", "fHaMin", "fHaMax"].forEach(id => setNum(id, ""));
+        PROJ.kunde = PROJ.code = PROJ.name = PROJ.pm = "";
       }
+      else if (ch.dataset.xhp) { F.hpMin = F.hpMax = ""; setNum("fHpMin", ""); setNum("fHpMax", ""); }
+      else if (ch.dataset.xha) { F.haMin = F.haMax = ""; setNum("fHaMin", ""); setNum("fHaMax", ""); }
       else if (ch.dataset.xkunde) PROJ.kunde = "";
       else if (ch.dataset.xproj) PROJ.name = "";
       else if (ch.dataset.xcode) PROJ.code = "";
+      else if (ch.dataset.xpm) PROJ.pm = "";
       else if (ch.dataset.xpop) F.pop.delete(ch.dataset.xpop);
       else if (ch.dataset.xdp) F.dp.delete(+ch.dataset.xdp);
       else if (ch.dataset.xst) F.st.delete(ch.dataset.xst);
@@ -1242,7 +1277,7 @@ function renderTimeline(keepScroll) {
   /* POP bez ijednog DP-a -> "čeka DP" red: vidljiv ODMAH po kreiranju POP-a,
      i bez ijednog filtera. Sakriva se samo kad je aktivan filter koji POP bez
      termina ne može zadovoljiti (status/kasni/datum/odjel ili konkretan DP). */
-  if (!segFilterOn && !F.odj.size && !F.dp.size) {
+  if (!segFilterOn && !F.odj.size && !F.dp.size && !dpNumActive()) {
     const dpPopIds = new Set(DATA.dps.map(d => d.pop_id).filter(Boolean));
     const ns = projNameSet();
     for (const p of DATA.pops.filter(pp => !dpPopIds.has(pp.id))) {
@@ -2166,7 +2201,7 @@ function renderStats() {
 /* ---------- projekat (Daily, Azure) — filteri + statistika + DP-ovi ---------- */
 /* dateTotals: Σ po projektu suženo na Datum od/do (učita se s /api/projects/totals);
    dateKey: ključ raspona za keš (da ne dohvaćamo isto dvaput) */
-const PROJ = { rows: [], sync: null, kunde: "", code: "", name: "", dateTotals: null, dateKey: "" };
+const PROJ = { rows: [], sync: null, kunde: "", code: "", name: "", pm: "", dateTotals: null, dateKey: "" };
 const ZERO_TOT = { hp: 0, trasa_m: 0, ha_m: 0, ha_stck: 0, montaza: 0, datum_od: "", datum_do: "" };
 function fmtNum(v) {
   return (v || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 });
@@ -2192,6 +2227,9 @@ async function refreshDateTotals() {
     if (od) qs.set("od", od);
     if (do_) qs.set("do", do_);
     const d = await api("/api/projects/totals?" + qs.toString());
+    /* anti-race: ako se raspon promijenio dok je upit bio u letu (npr. brzo
+       biranje od pa do), odbaci zastarjeli odgovor — vrijedi samo trenutni */
+    if (F.dOd !== od || F.dDo !== do_) return;
     const m = new Map();
     for (const r of d.totals) m.set(r.projektname, r);
     PROJ.dateTotals = m; PROJ.dateKey = key;
@@ -2201,7 +2239,8 @@ function projFiltered() {
   return PROJ.rows.filter(p =>
     (!PROJ.kunde || p.kunde === PROJ.kunde) &&
     (!PROJ.code || p.projectcode === PROJ.code) &&
-    (!PROJ.name || p.projektname === PROJ.name));
+    (!PROJ.name || p.projektname === PROJ.name) &&
+    (!PROJ.pm || ownerNameOf(p.projektname) === PROJ.pm));
 }
 function fillSelect(sel, values, current, allLabel) {
   sel.innerHTML = `<option value="">${allLabel}</option>` +
@@ -2212,6 +2251,7 @@ function renderProj() {
   syncCombo("pfKunde", PROJ.kunde);
   syncCombo("pfCode", PROJ.code);
   syncCombo("pfProj", PROJ.name);
+  syncCombo("pfPm", PROJ.pm);
 
   const s = PROJ.sync || {};
   $("#projMeta").textContent =
@@ -2450,10 +2490,23 @@ function initDialogPickers() {
     DPK.pop.options(() => popOptions(DPK.projekt.get())); DPK.pop.set("");
     const f = refreshCascade(DP_CFG);
     if (f && f !== DPK.projekt) f.focus();
+    dpRfaSync();
   } });
   DPK.pop = makePicker($("#dpPop"), { allowNew: true, placeholder: t("popNovPh"), onPick() {
-    refreshCascade(DP_CFG);
+    refreshCascade(DP_CFG); dpRfaSync();
   } });
+}
+
+/* RFA polje u DP dijalogu se prikazuje samo kad se kuca NOVI POP naziv
+   (postojeći POP već ima svoj RFA; pod-POP kontekst je zaključan) */
+function dpRfaSync() {
+  const row = $("#dpRfaRow");
+  if (!row) return;
+  const underExisting = !!$("#dpPopId").value;
+  const proj = DPK.projekt.get();
+  const popName = (DPK.pop.get() || "").trim();
+  const exists = popName && DATA.pops.some(p => p.naziv === popName && p.projekt === proj);
+  row.classList.toggle("hidden", underExisting || !popName || exists);
 }
 
 /* "+ Novi POP" — uvijek dostupan; Kunde/Projekat predloženi iz filtera */
@@ -2505,7 +2558,7 @@ function focusNew({ dpId, popNaziv, projekt }) {
   F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear();
   F.esk = false; F.kasni = false; F.dOd = F.dDo = "";
   clearDate("fDateOd"); clearDate("fDateDo");
-  PROJ.name = PROJ.kunde = PROJ.code = "";
+  PROJ.name = PROJ.kunde = PROJ.code = PROJ.pm = "";
   if (projekt) fillProjFilter(projekt);
   if (dpId) F.dp.add(dpId);
   else if (popNaziv) F.pop.add(popNaziv);
@@ -2987,6 +3040,7 @@ function openDpDialog(popId) {
     DPK.pop.set(selPop && DATA.pops.some(x => x.naziv === selPop && x.projekt === DPK.projekt.get())
       ? selPop : "");
   }
+  dpRfaSync();
   $("#dlgDp").showModal();
   if (!p) {
     const f = refreshCascade(DP_CFG);
@@ -3029,6 +3083,14 @@ $("#frmDp").addEventListener("submit", async e => {
     body.projekt = DPK.projekt.get();
     body.pop = DPK.pop.get();
     if (!DPK.kunde.get() || !body.projekt || !body.pop) { refreshCascade(DP_CFG); return; }
+    // novi POP naziv -> RFA datum je obavezan (kreira se novi POP)
+    const newPop = !DATA.pops.some(p => p.naziv === body.pop && p.projekt === body.projekt);
+    if (newPop) {
+      dpRfaSync();
+      const rfa = $("#frmDp [name=rfa]").value;
+      if (!rfa) { uiAlert(t("rfaReq"), "warning"); $("#frmDp [name=rfa]").focus(); return; }
+      body.rfa = rfa;
+    }
   }
   const created = await api("/api/dps", "POST", body);
   $("#dlgDp").close();
@@ -3054,6 +3116,8 @@ $$("#dlgDp, #dlgPop").forEach(d => d.addEventListener("cancel", e => {
 
 /* ---------- ULAZNE-style autocomplete: kucaš -> padajuće sugestije ---------- */
 function comboOpts(id) {
+  if (id === "pfPm")   // Projektleiter = vlasnici (claim) projekata
+    return [...new Set(Object.values(DATA.claims || {}).map(o => o.name || o.email).filter(Boolean))].sort(cmpStr);
   if (id === "fPop")
     return [...new Set(scopedDps().map(d => d.pop).filter(Boolean))].sort(cmpStr);
   if (id === "fDp")
@@ -3071,7 +3135,8 @@ function comboOpts(id) {
 }
 function comboGet(id) {
   if (id === "fPop" || id === "fDp") return ""; // multi-izbor: polje ostaje prazno
-  return id === "pfKunde" ? PROJ.kunde : id === "pfCode" ? PROJ.code : PROJ.name;
+  return id === "pfKunde" ? PROJ.kunde : id === "pfCode" ? PROJ.code
+    : id === "pfPm" ? PROJ.pm : PROJ.name;
 }
 function comboSet(id, v) {
   /* POP/DP: svaki odabir se DODAJE u filter (čip u AKTIVNI redu); ✕ briše sve */
@@ -3086,6 +3151,7 @@ function comboSet(id, v) {
   }
   if (id === "pfKunde") PROJ.kunde = v;
   else if (id === "pfCode") PROJ.code = v;
+  else if (id === "pfPm") PROJ.pm = v;
   else PROJ.name = v;
   projFilterChanged();
 }
@@ -3137,7 +3203,7 @@ function initCombo(id) {
   });
   if (x) x.addEventListener("click", () => comboSet(id, ""));
 }
-["pfKunde", "pfProj", "pfCode", "fPop", "fDp"].forEach(initCombo);
+["pfKunde", "pfProj", "pfCode", "pfPm", "fPop", "fDp"].forEach(initCombo);
 
 /* ---------- datumski filter — Flatpickr (isti picker kao ULAZNE-FAKTURE) ---------- */
 const FP = {};
@@ -3160,11 +3226,20 @@ function clearDate(id) {
   else { const el = $("#" + id); if (el) el.value = ""; }
 }
 
+/* ---------- HP/HA brojčani raspon (od–do) ---------- */
+[["fHpMin", "hpMin"], ["fHpMax", "hpMax"], ["fHaMin", "haMin"], ["fHaMax", "haMax"]].forEach(([id, key]) => {
+  const el = $("#" + id);
+  if (!el) return;
+  el.addEventListener("input", () => { F[key] = el.value.trim(); renderAll(); });
+});
+
 /* ✕ Očisti = poništi SVE filtere odjednom */
 $("#pfClear").addEventListener("click", () => {
-  PROJ.kunde = PROJ.code = PROJ.name = "";
+  PROJ.kunde = PROJ.code = PROJ.name = PROJ.pm = "";
   F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false; F.kasni = false;
   F.dOd = F.dDo = ""; clearDate("fDateOd"); clearDate("fDateDo");
+  F.hpMin = F.hpMax = F.haMin = F.haMax = "";
+  ["fHpMin", "fHpMax", "fHaMin", "fHaMax"].forEach(id => setNum(id, ""));
   projFilterChanged();
 });
 /* sync iz Azure radi server automatski svakih 30 min — frontend samo

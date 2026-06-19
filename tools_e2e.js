@@ -118,6 +118,9 @@ function ok(name, cond, extra = "") {
   await page.fill('#frmPop input[name="naziv"]', "POP TEST-1");
   ok("POP dijalog: nema HP/HA polja (vodi se na DP-u)",
     (await page.locator('#frmPop input[name="hp"], #frmPop input[name="ha"]').count()) === 0);
+  // RFA datum je novo OBAVEZNO polje POP-a -> bez njega se POP ne kreira
+  ok("POP dijalog: RFA datum polje obavezno", await page.locator('#frmPop input[name="rfa"]').evaluate(e => e.required));
+  await page.fill('#frmPop input[name="rfa"]', "2026-08-01");
   await page.click('#frmPop button[value="ok"]');
   await page.waitForTimeout(800);
   ok("POP kreiran (bez greške)", !(await page.locator("#dlgPop[open]").isVisible().catch(() => false)));
@@ -668,7 +671,7 @@ function ok(name, cond, extra = "") {
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(300);
   await page.request.post(BASE + "/api/pops", { data: {
-    projekt: "[NORD CLUSTER 1] BRIESEN [IP]", naziv: "POP CEKA-DP", hp: 50, ha: 10 } });
+    projekt: "[NORD CLUSTER 1] BRIESEN [IP]", naziv: "POP CEKA-DP", hp: 50, ha: 10, rfa: "2026-08-01" } });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
   await page.click("#pfClear").catch(() => {});
@@ -835,6 +838,70 @@ function ok(name, cond, extra = "") {
   await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-12-31", true));
   await page.waitForTimeout(700);
   ok("plan: HP/HA označene kao procjena (.est) uz Datum raspon", (await page.locator("#kpis .kpi.purple.est").count()) >= 1);
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(300);
+
+  // ---------- 16j. Projektleiter (PM) filter — po vlasniku (claim) projekta ----------
+  const dPm = await (await page.request.get(BASE + "/api/data")).json();
+  const pmDp = dPm.dps[0];
+  ok("PM: postoji DP (preduslov)", !!pmDp);
+  if (pmDp) {
+    await page.request.post(BASE + "/api/claims", { data: { projekt: pmDp.projekt } });
+    const owner = (await (await page.request.get(BASE + "/api/data")).json()).claims[pmDp.projekt];
+    const ownerName = owner ? (owner.name || owner.email) : "";
+    ok("PM: claim postavljen (preduslov)", !!ownerName, `(${ownerName})`);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(300);
+    ok("PM: Projektleiter combo postoji", (await page.locator("#pfPm").count()) === 1);
+    await page.click("#pfPm");
+    await page.waitForSelector(".combo:has(#pfPm) .combo-list:not([hidden]) .combo-opt", { timeout: 5000 });
+    ok("PM: combo nudi vlasnike (claim owner)", (await page.locator(".combo:has(#pfPm) .combo-list .combo-opt").count()) >= 1);
+    await page.fill("#pfPm", ownerName);
+    await page.waitForTimeout(250);
+    await page.locator(".combo:has(#pfPm) .combo-list .combo-opt").first().click();
+    await page.waitForTimeout(400);
+    ok("PM: izbor -> AKTIVNI čip (data-xpm)", await chipX("data-xpm").isVisible());
+    // tabela suzena: svi prikazani DP-ovi pripadaju projektu tog vlasnika
+    const fresh = await (await page.request.get(BASE + "/api/data")).json();
+    const byId = new Map(fresh.dps.map(d => [d.id, d]));
+    const shownIds = await page.locator(".tl-row.group[data-dp]").evaluateAll(els => els.map(e => +e.dataset.dp));
+    ok("PM: prikazani su samo DP-ovi projekta tog vlasnika",
+      shownIds.length >= 1 && shownIds.every(id => byId.get(id) && byId.get(id).projekt === pmDp.projekt), `(${shownIds.length})`);
+    await chipX("data-xpm").click();
+    await page.waitForTimeout(400);
+    ok("PM: uklanjanje čipa skida filter", !(await chipX("data-xpm").isVisible().catch(() => false)));
+    await page.request.delete(BASE + "/api/claims?projekt=" + encodeURIComponent(pmDp.projekt));
+  }
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(300);
+
+  // ---------- 16k. HP/HA brojčani raspon (od–do) filter ----------
+  const dHp = await (await page.request.get(BASE + "/api/data")).json();
+  const maxHp = Math.max(0, ...dHp.dps.map(d => d.hp || 0));
+  ok("HP filter: ima DP-ova (preduslov)", dHp.dps.length >= 1);
+  ok("HP/HA raspon: Min/Max polja postoje",
+    (await page.locator("#fHpMin").count()) === 1 && (await page.locator("#fHpMax").count()) === 1 &&
+    (await page.locator("#fHaMin").count()) === 1 && (await page.locator("#fHaMax").count()) === 1);
+  if (maxHp > 0) {
+    await page.fill("#fHpMin", String(maxHp));
+    await page.waitForTimeout(400);
+    ok("HP raspon -> AKTIVNI čip (data-xhp)", await chipX("data-xhp").isVisible());
+    const fresh = await (await page.request.get(BASE + "/api/data")).json();
+    const byId = new Map(fresh.dps.map(d => [d.id, d]));
+    const shownIds = await page.locator(".tl-row.group[data-dp]").evaluateAll(els => els.map(e => +e.dataset.dp));
+    ok("HP raspon: prikazani DP-ovi imaju hp >= Min",
+      shownIds.length >= 1 && shownIds.every(id => (byId.get(id) ? byId.get(id).hp || 0 : 0) >= maxHp), `(${shownIds.length}, min=${maxHp})`);
+    // nemoguć raspon (Min > svih) -> nijedan DP
+    await page.fill("#fHpMin", String(maxHp + 1000));
+    await page.waitForTimeout(400);
+    ok("HP raspon: previsok Min -> nijedan DP", (await page.locator(".tl-row.group[data-dp]").count()) === 0);
+    await chipX("data-xhp").click();
+    await page.waitForTimeout(400);
+    ok("HP raspon: uklanjanje čipa skida filter", !(await chipX("data-xhp").isVisible().catch(() => false)));
+    ok("HP raspon: Min polje ispražnjeno", (await page.locator("#fHpMin").inputValue()) === "");
+  } else { ok("HP raspon: (preskočeno — nema hp>0)", true); }
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(300);
 

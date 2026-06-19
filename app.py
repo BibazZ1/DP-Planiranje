@@ -600,13 +600,17 @@ def add_dp():
         prow = d.execute("SELECT * FROM pops WHERE naziv=%s AND projekt=%s",
                          (pop_name, projekt)).fetchone()
         if prow is None:
-            # POP upisan kao novi naziv -> automatski se kreira pod projektom
+            # POP upisan kao novi naziv -> automatski se kreira pod projektom;
+            # RFA datum je obavezan i za ovaj (auto) put kreiranja POP-a
+            rfa = (j.get("rfa") or "").strip()
+            if not rfa:
+                return jsonify({"error": "RFA datum je obavezan za novi POP"}), 400
             cur = d.execute(
-                "INSERT INTO pops(projekt,naziv,created_at,created_by) "
-                "VALUES(%s,%s,%s,%s) RETURNING id",
-                (projekt, pop_name, now_iso(), req_user()))
+                "INSERT INTO pops(projekt,naziv,rfa,created_at,created_by) "
+                "VALUES(%s,%s,%s,%s,%s) RETURNING id",
+                (projekt, pop_name, rfa, now_iso(), req_user()))
             new_pop_id = cur.fetchone()["id"]
-            audit("pop", new_pop_id, "kreirano", label=pop_name)
+            audit("pop", new_pop_id, "kreirano", novo=f"RFA {rfa}", label=pop_name)
             prow = d.execute("SELECT * FROM pops WHERE id=%s",
                              (new_pop_id,)).fetchone()
     if prow is not None:

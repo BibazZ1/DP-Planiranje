@@ -488,6 +488,17 @@ table.mini .empty{color:var(--mut2);font-style:italic}
   background:var(--field);color:var(--txt);padding:4px 8px;font-size:11.5px;min-width:120px}
 .pf select:focus,.pf input:focus{outline:none;border-color:var(--teal);
   box-shadow:0 0 0 1px var(--teal)}
+/* ikonice uz labele filtera (kao ULAZNE-FAKTURE) */
+.pf-ic{width:11px;height:11px;margin-right:4px;vertical-align:-2px;opacity:.55;flex:none}
+/* raspon (od–do): dva polja u jednoj ćeliji — HP / HA / Datum */
+.pf-range{display:flex;gap:5px}
+.pf-range input{flex:1 1 0;min-width:0;width:auto}
+.pf-range input[type=number]::-webkit-inner-spin-button,
+.pf-range input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.pf-range input[type=number]{-moz-appearance:textfield}
+/* Očisti dugme: ikonica + tekst, suptilno crveno */
+.flt-clear{display:inline-flex;align-items:center;gap:5px}
+.flt-clear:hover{border-color:rgba(239,68,68,.4);color:#f87171;background:rgba(239,68,68,.1)}
 .proj-bar .hint{align-self:center;margin-left:auto}
 
 /* jeziÄŤki toggle (BS / EN / DE) */
