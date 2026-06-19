@@ -1197,7 +1197,8 @@ function renderTimeline(keepScroll) {
         `${ICON.comment} ${esc(txt.slice(0, 90))}${txt.length > 90 ? "…" : ""}</span>`;
     }
     strip += `</div>`;
-    html += `<div class="tl-row group" data-dp="${dp.id}">
+    const dpSel = SEL && ((SEL.type === "dp" && SEL.id === dp.id) || (SEL.type === "pop" && SEL.id === dp.pop_id));
+    html += `<div class="tl-row group${dpSel ? " sel" : ""}" data-dp="${dp.id}">
       <div class="tl-label">
         <div class="gr-info" title="${t("dpHistTip")}">
           <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(dp.pop)}</span><b>${esc(dp.naziv)}</b>
@@ -1291,7 +1292,7 @@ function renderTimeline(keepScroll) {
       if (ns && !(p.projekt && ns.has(p.projekt))) continue;   // opseg projekta
       if (F.pop.size && !F.pop.has(p.naziv)) continue;          // POP filter (po nazivu)
       anyRow = true;
-      html += `<div class="tl-row group popwait" data-popwait="${p.id}">
+      html += `<div class="tl-row group popwait${SEL && SEL.type === "pop" && SEL.id === p.id ? " sel" : ""}" data-popwait="${p.id}">
         <div class="tl-label">
           <div class="pw-info" title="${t("cekaDpTip")}">
             <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(p.naziv)}</span>
@@ -2540,18 +2541,17 @@ function projFilterChanged() {
   renderAll();
 }
 
-/* ---------- izbor POP/DP -> filter + drawer s historijom ---------- */
+/* ---------- izbor POP/DP -> drawer s historijom (BEZ sužavanja tabele) ----------
+   Klik/zakazivanje SAMO otvori panel i istakne red; tabela se NE filtrira na taj
+   POP/DP (prije se filtrirala pa "odfiltrirala" pri zatvaranju -> skok na prvi DP).
+   Projekat+Kunde kontekst se postavi (ostaje i po zatvaranju, ne uzrokuje skok). */
 function selectPop(popId) {
   const p = DATA.pops.find(x => x.id === popId);
   if (!p) return;
-  if (SEL && SEL.type === "pop" && SEL.id === popId) {
-    SEL = null; F.pop.delete(p.naziv); closeDrawer();
-  } else {
-    SEL = { type: "pop", id: popId };
-    F.pop.add(p.naziv);
-    fillProjFilter(p.projekt);
-    openDrawer();
-  }
+  if (SEL && SEL.type === "pop" && SEL.id === popId) { deselect(); return; }   // ponovni klik = zatvori
+  SEL = { type: "pop", id: popId };
+  fillProjFilter(p.projekt);
+  openDrawer();
   renderAll();
 }
 /* klik na DP/POP popunjava i Projekat + Kunde filter iz pripadnosti */
@@ -2574,55 +2574,21 @@ function focusNew({ dpId, popNaziv, projekt }) {
   renderAll();
 }
 function selectDp(dpId) {
-  if (SEL && SEL.type === "dp" && SEL.id === dpId) {
-    SEL = null; F.dp.delete(dpId); closeDrawer();
-  } else {
-    SEL = { type: "dp", id: dpId };
-    F.dp.add(dpId);
-    const d = DATA.dps.find(x => x.id === dpId);
-    fillProjFilter(d && d.projekt);
-    openDrawer();
-  }
-  renderAll();
+  if (SEL && SEL.type === "dp" && SEL.id === dpId) { deselect(); return; }   // ponovni klik = zatvori
+  SEL = { type: "dp", id: dpId };
+  const d = DATA.dps.find(x => x.id === dpId);
+  fillProjFilter(d && d.projekt);
+  openDrawer();
+  renderAll();   // istakni izabrani DP (.sel), bez sužavanja tabele na samo njega
 }
 function closeDrawer() { $("#drawer").classList.remove("open"); }
-/* CSS selektor reda koji panel prikazuje (DP grupa ili — za POP — prvi prikazani
-   DP te POP grupe, a ako POP nema DP-a, "čeka DP" red). Služi kao sidro za skrol. */
-function panelRowSel(sel) {
-  if (!sel) return null;
-  if (sel.type === "dp") return `.tl-row.group[data-dp="${sel.id}"]`;
-  const sc = $("#tlScroll");
-  for (const d of DATA.dps.filter(x => x.pop_id === sel.id)) {
-    const s = `.tl-row.group[data-dp="${d.id}"]`;
-    if (sc.querySelector(s)) return s;
-  }
-  return `.tl-row[data-popwait="${sel.id}"]`;
-}
-/* zatvaranje panela (Esc/✕): skini DP/POP filter, ali OSTAVI projekat + kunde.
-   Skidanje filtera vrati SVE redove pa bi skrol inače skočio na prvi DP — zato
-   usidrimo isti red na njegovu vertikalnu poziciju prije i poslije re-rendera. */
+/* zatvaranje panela (Esc/✕): SAMO zatvori panel i skini isticanje reda.
+   Ne dira filtere ni skrol -> tabela ostaje gdje jest (nema skoka na prvi DP).
+   (Projekat/Kunde i eventualni ručni filteri ostaju netaknuti.) */
 function deselect() {
-  const sc = $("#tlScroll");
-  const anchorSel = panelRowSel(SEL);
-  let anchorTop = null;
-  if (anchorSel) {
-    const el = sc.querySelector(anchorSel);
-    if (el) anchorTop = el.getBoundingClientRect().top - sc.getBoundingClientRect().top;
-  }
-  if (SEL) {
-    if (SEL.type === "dp") F.dp.delete(SEL.id);
-    else {
-      const p = DATA.pops.find(x => x.id === SEL.id);
-      if (p) F.pop.delete(p.naziv);
-    }
-  }
   SEL = null;
   closeDrawer();
   renderAll();
-  if (anchorSel && anchorTop != null) {
-    const el = sc.querySelector(anchorSel);
-    if (el) sc.scrollTop += (el.getBoundingClientRect().top - sc.getBoundingClientRect().top) - anchorTop;
-  }
 }
 /* rad unutar DP-a (crtanje/uređivanje termina) automatski otvara njegov panel */
 function ensureDpSelected(taskId) {

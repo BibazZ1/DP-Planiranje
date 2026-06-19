@@ -900,6 +900,11 @@ span.flatpickr-weekday{color:#64748b!important}
 /* red DP grupe: jasnije odvojen od aktivnosti */
 .tl-row.group>.tl-label{background:linear-gradient(90deg,rgba(16,185,129,.10),rgba(30,41,59,.4))}
 .tl-row.group{border-top:1px solid rgba(16,185,129,.22)}
+/* izabrana grupa (otvoren panel): istaknut red da se vidi na šta se panel odnosi */
+.tl-row.group.sel>.tl-label{background:linear-gradient(90deg,rgba(56,189,248,.22),rgba(30,41,59,.5));
+  box-shadow:inset 3px 0 0 #38bdf8}
+.tl-row.group.sel{border-top-color:rgba(56,189,248,.55)}
+.tl-row.group.sel .tl-track{background:rgba(56,189,248,.06)}
 /* komentar na traci: mala žuta tačka (bez emojija) + tekst */
 .seg .kombadge{width:7px;height:7px;border-radius:50%;margin-right:4px;flex:none;
   background:#fbbf24;box-shadow:0 0 5px rgba(245,158,11,.9)}

@@ -255,14 +255,15 @@ function ok(name, cond, extra = "") {
   ok("Očisti: badge sakriven", await badge().isHidden());
   ok("Očisti: nema AKTIVNI čipova", (await page.locator("#activeBar .fchip").count()) === 0);
 
-  // ---------- 12b. klik na DP ćeliju: puni projekat+kunde + otvara bočni panel ----------
+  // ---------- 12b. klik na DP ćeliju: puni projekat+kunde + otvara bočni panel (BEZ sužavanja) ----------
   await page.locator('.cell[data-fdp]').first().click();
   // panel klizi 0.38s (transform+visibility) — čekaj da se stvarno otvori, ne fiksni timeout
   await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
   await page.waitForTimeout(450);
   ok("klik na DP -> projekat popunjen", await chipX("data-xproj").isVisible());
   ok("klik na DP -> kunde popunjen", await chipX("data-xkunde").isVisible());
-  ok("klik na DP -> DP čip", await chipX("data-xdp").isVisible());
+  ok("klik na DP -> NE filtrira na taj DP (nema DP čipa)", !(await chipX("data-xdp").isVisible().catch(() => false)));
+  ok("klik na DP -> izabrani red istaknut (.group.sel)", (await page.locator("#tlScroll .tl-row.group.sel").count()) === 1);
   ok("klik na DP -> bočni panel (HP/HA + historija)", await page.locator("#drawer.open").isVisible());
 
   // ---------- 12c. komandni centar u panelu ----------
@@ -311,7 +312,8 @@ function ok(name, cond, extra = "") {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   ok("Esc: panel zatvoren", !(await page.locator("#drawer.open").isVisible().catch(() => false)));
-  ok("Esc: DP filter skinut", !(await chipX("data-xdp").isVisible().catch(() => false)));
+  ok("Esc: isticanje reda skinuto (.group.sel)", (await page.locator("#tlScroll .tl-row.group.sel").count()) === 0);
+  ok("Esc: nema DP filtera (klik ne sužava)", !(await chipX("data-xdp").isVisible().catch(() => false)));
   ok("Esc: projekat OSTAJE", await chipX("data-xproj").isVisible());
   ok("Esc: kunde OSTAJE", await chipX("data-xkunde").isVisible());
 
@@ -1004,7 +1006,7 @@ function ok(name, cond, extra = "") {
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(200);
 
-  // ---------- 16p. zatvaranje panela ne skače na prvi DP (ostaje na otvorenom) ----------
+  // ---------- 16p. klik/zakazivanje NE sužava tabelu na taj DP; zatvaranje ne skače ----------
   {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
@@ -1014,41 +1016,30 @@ function ok(name, cond, extra = "") {
     const byProj = {};
     for (const d of allD.dps) (byProj[d.projekt] ||= []).push(d);
     const proj = Object.keys(byProj).find(p => byProj[p].length >= 2);
-    ok("scroll-stay: projekat s ≥2 DP postoji (preduslov)", !!proj, `(${proj})`);
+    ok("no-collapse: projekat s ≥2 DP postoji (preduslov)", !!proj, `(${proj})`);
     if (proj) {
-      // otvori bilo koji DP tog projekta pa zatvori -> ostaje SAMO projekat filter (cijela lista)
+      // klik na DP -> panel se otvori, ali tabela OSTAJE (sve grupe projekta vidljive, ne samo taj DP)
       await page.locator(`#tlScroll .cell[data-fdp="${byProj[proj][0].id}"]`).first().click();
       await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+      await page.waitForTimeout(300);
+      const groupsOpen = await page.locator("#tlScroll .tl-row.group").count();
+      ok("klik na DP NE sužava tabelu (sve grupe projekta ostaju, ne samo taj DP)", groupsOpen >= 2, `(grupa=${groupsOpen})`);
+      ok("klik na DP: tačno jedan red istaknut (.group.sel)", (await page.locator("#tlScroll .tl-row.group.sel").count()) === 1);
+      ok("klik na DP: bez DP filter čipa (data-xdp)", !(await chipX("data-xdp").isVisible().catch(() => false)));
+      // otvori DRUGI DP, zabilježi redove+skrol, zatvori -> ništa se ne mijenja (nema skoka na prvi DP)
+      await page.evaluate(() => { document.querySelector("#tlScroll").scrollTop = 90; });
+      await page.locator(`#tlScroll .cell[data-fdp="${byProj[proj][1].id}"]`).first().click();
+      await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+      await page.waitForTimeout(200);
+      const scrollOpen = await page.evaluate(() => document.querySelector("#tlScroll").scrollTop);
+      const groupsBeforeClose = await page.locator("#tlScroll .tl-row.group").count();
       await page.keyboard.press("Escape");
       await page.waitForTimeout(400);
-      const order = await page.$$eval("#tlScroll .tl-row.group[data-dp]", els => els.map(e => +e.dataset.dp));
-      const scrollable = await page.evaluate(() => {
-        const sc = document.querySelector("#tlScroll");
-        return sc.scrollHeight > sc.clientHeight + 60;
-      });
-      ok("scroll-stay: projekt-prikaz ima ≥2 DP reda i skrol", order.length >= 2 && scrollable,
-        `(rows=${order.length} scroll=${scrollable})`);
-      if (order.length >= 2 && scrollable) {
-        const firstDp = order[0], targetDp = order[1];   // DRUGI DP (ne prvi) — da skok bude vidljiv
-        const topOf = id => page.evaluate(sel => {
-          const sc = document.querySelector("#tlScroll");
-          const el = sc.querySelector(sel);
-          return el ? el.getBoundingClientRect().top - sc.getBoundingClientRect().top : null;
-        }, `.tl-row.group[data-dp="${id}"]`);
-        // postavi vrh na prvi DP (stanje koje je prije izazivalo skok), pa otvori DRUGI DP
-        await page.evaluate(() => { document.querySelector("#tlScroll").scrollTop = 0; });
-        await page.locator(`#tlScroll .cell[data-fdp="${targetDp}"]`).first().click();
-        await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
-        await page.evaluate(() => { document.querySelector("#tlScroll").scrollTop = 0; });
-        await page.waitForTimeout(150);
-        const beforeTop = await topOf(targetDp);   // pozicija otvorenog DP-a (filter = samo on)
-        await page.keyboard.press("Escape");        // zatvori -> skida DP filter, vraća cijelu listu
-        await page.waitForTimeout(400);
-        const afterTop = await topOf(targetDp);
-        ok("zatvaranje panela: otvoreni DP ostaje na istoj poziciji (ne skače na prvi)",
-          beforeTop != null && afterTop != null && Math.abs(afterTop - beforeTop) <= 8 && targetDp !== firstDp,
-          `(before=${beforeTop && Math.round(beforeTop)} after=${afterTop && Math.round(afterTop)} t=${targetDp} f=${firstDp})`);
-      }
+      const scrollClosed = await page.evaluate(() => document.querySelector("#tlScroll").scrollTop);
+      const groupsAfterClose = await page.locator("#tlScroll .tl-row.group").count();
+      ok("zatvaranje panela: tabela i skrol ostaju (bez skoka na prvi DP)",
+        groupsAfterClose === groupsBeforeClose && Math.abs(scrollClosed - scrollOpen) <= 4,
+        `(grupa ${groupsBeforeClose}->${groupsAfterClose} skrol ${scrollOpen}->${scrollClosed})`);
     }
     await page.keyboard.press("Escape").catch(() => {});
     await page.click("#pfClear").catch(() => {});
