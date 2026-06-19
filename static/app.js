@@ -112,6 +112,7 @@ const I18N = {
     renameTo: "Novi naziv:",
     popPostoji: "POP s tim nazivom već postoji pod ovim projektom.",
     dpPostoji: "DP s tim imenom već postoji u ovom POP-u.",
+    hpHaReq: "HP i HA moraju biti veći od 0.",
     dpHistTip: "klik = historija DP-a",
     drRenameTip: "preimenuj", drDelTip: "obriši",
   },
@@ -220,6 +221,7 @@ const I18N = {
     renameTo: "New name:",
     popPostoji: "A POP with that name already exists under this project.",
     dpPostoji: "A DP with that name already exists under this POP.",
+    hpHaReq: "HP and HA must be greater than 0.",
     dpHistTip: "click = DP history",
     drRenameTip: "rename", drDelTip: "delete",
   },
@@ -328,6 +330,7 @@ const I18N = {
     renameTo: "Neuer Name:",
     popPostoji: "Ein POP mit diesem Namen existiert bereits in diesem Projekt.",
     dpPostoji: "Ein DP mit diesem Namen existiert bereits in diesem POP.",
+    hpHaReq: "HP und HA müssen größer als 0 sein.",
     dpHistTip: "Klick = DP-Verlauf",
     drRenameTip: "umbenennen", drDelTip: "löschen",
   },
@@ -2289,10 +2292,12 @@ function renderProj() {
     const planHA = dateOn ? dpsOf.reduce((a, d) => a + plannedInWindow(d.id, true, F.dOd, F.dDo), 0)
                           : dpsOf.reduce((a, d) => a + (d.ha || 0), 0);
     const pvBar = (lbl, act, plan) => {
-      const p = plan ? Math.min(100, Math.round(act / plan * 100)) : 0;
+      const pct = plan ? Math.round(act / plan * 100) : 0;   // stvarni % (može biti >100)
+      const w = Math.min(100, pct);                          // traka ne prelazi punu širinu
+      const over = pct > 100;                                // izvedeno > plan -> plan je podcijenjen (npr. DP-ovi bez HP/HA)
       return `<div class="pv-row"><span class="pv-lbl">${lbl}</span>
-        <span class="pv-bar"><i style="width:${plan ? p : 0}%"></i></span>
-        <span class="pv-num">${fmtNum(act)} / ${fmtNum(plan)} <b>${plan ? p + "%" : "—"}</b></span></div>`;
+        <span class="pv-bar${over ? " over" : ""}"><i style="width:${plan ? w : 0}%"></i></span>
+        <span class="pv-num">${fmtNum(act)} / ${fmtNum(plan)} <b${over ? ' class="pv-over"' : ""}>${plan ? pct + "%" : "—"}</b></span></div>`;
     };
     pv = `<div class="pv-wrap"><h4>${t("planVs")}</h4>
       ${pvBar("HP", tot(f[0]).hp || 0, planHP)}
@@ -2581,8 +2586,29 @@ function selectDp(dpId) {
   renderAll();
 }
 function closeDrawer() { $("#drawer").classList.remove("open"); }
-/* zatvaranje panela (Esc/✕): skini DP/POP filter, ali OSTAVI projekat + kunde */
+/* CSS selektor reda koji panel prikazuje (DP grupa ili — za POP — prvi prikazani
+   DP te POP grupe, a ako POP nema DP-a, "čeka DP" red). Služi kao sidro za skrol. */
+function panelRowSel(sel) {
+  if (!sel) return null;
+  if (sel.type === "dp") return `.tl-row.group[data-dp="${sel.id}"]`;
+  const sc = $("#tlScroll");
+  for (const d of DATA.dps.filter(x => x.pop_id === sel.id)) {
+    const s = `.tl-row.group[data-dp="${d.id}"]`;
+    if (sc.querySelector(s)) return s;
+  }
+  return `.tl-row[data-popwait="${sel.id}"]`;
+}
+/* zatvaranje panela (Esc/✕): skini DP/POP filter, ali OSTAVI projekat + kunde.
+   Skidanje filtera vrati SVE redove pa bi skrol inače skočio na prvi DP — zato
+   usidrimo isti red na njegovu vertikalnu poziciju prije i poslije re-rendera. */
 function deselect() {
+  const sc = $("#tlScroll");
+  const anchorSel = panelRowSel(SEL);
+  let anchorTop = null;
+  if (anchorSel) {
+    const el = sc.querySelector(anchorSel);
+    if (el) anchorTop = el.getBoundingClientRect().top - sc.getBoundingClientRect().top;
+  }
   if (SEL) {
     if (SEL.type === "dp") F.dp.delete(SEL.id);
     else {
@@ -2593,6 +2619,10 @@ function deselect() {
   SEL = null;
   closeDrawer();
   renderAll();
+  if (anchorSel && anchorTop != null) {
+    const el = sc.querySelector(anchorSel);
+    if (el) sc.scrollTop += (el.getBoundingClientRect().top - sc.getBoundingClientRect().top) - anchorTop;
+  }
 }
 /* rad unutar DP-a (crtanje/uređivanje termina) automatski otvara njegov panel */
 function ensureDpSelected(taskId) {
@@ -2941,13 +2971,15 @@ function evRow(e) {
 /* drawer akcije: HP/HA upis, preimenovanje, brisanje */
 async function drNum(k) {
   if (!SEL) return;
-  const v = Math.max(0, Math.round(+$(k === "hp" ? "#drHp" : "#drHa").value || 0));
+  const inp = $(k === "hp" ? "#drHp" : "#drHa");
+  const v = Math.round(+inp.value || 0);
+  const cur = SEL.type === "pop" ? DATA.pops.find(p => p.id === SEL.id) : DATA.dps.find(d => d.id === SEL.id);
+  /* HP/HA se nikad ne snimaju kao 0 -> odbij i vrati staru vrijednost u polje */
+  if (v <= 0) { uiAlert(t("hpHaReq"), "warning"); if (cur) inp.value = cur[k]; return; }
   const url = SEL.type === "pop" ? `/api/pops/${SEL.id}` : `/api/dps/${SEL.id}`;
   try { await api(url, "PATCH", { [k]: v }); }
   catch (e) { await load(); return handleApiErr(e); }
-  const obj = SEL.type === "pop" ? DATA.pops.find(p => p.id === SEL.id)
-                                 : DATA.dps.find(d => d.id === SEL.id);
-  if (obj) obj[k] = v;
+  if (cur) cur[k] = v;
   renderAll();
   renderDrawerPlan();    // novi DP total -> ponovo rasporedi auto dio po terminima
   histDirty();
@@ -3079,7 +3111,15 @@ $("#frmDp").addEventListener("submit", async e => {
   if (e.submitter && e.submitter.value === "cancel") { $("#dlgDp").close(); return; }
   const naziv = $("#frmDp [name=naziv]").value.trim();
   if (!naziv) { $("#frmDp [name=naziv]").focus(); return; }
-  const body = { naziv, hp: $("#frmDp [name=hp]").value, ha: $("#frmDp [name=ha]").value };
+  /* HP i HA se nikad ne snimaju kao 0 */
+  const hpV = Math.round(+$("#frmDp [name=hp]").value || 0);
+  const haV = Math.round(+$("#frmDp [name=ha]").value || 0);
+  if (hpV <= 0 || haV <= 0) {
+    uiAlert(t("hpHaReq"), "warning");
+    $("#frmDp [name=" + (hpV <= 0 ? "hp" : "ha") + "]").focus();
+    return;
+  }
+  const body = { naziv, hp: hpV, ha: haV };
   const popId = $("#dpPopId").value;
   if (popId) {
     body.pop_id = popId;

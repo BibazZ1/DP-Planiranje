@@ -134,6 +134,7 @@ function ok(name, cond, extra = "") {
   await pick("dpPop", "POP TEST-1");
   await page.fill('#frmDp input[name="naziv"]', "DP T1");
   await page.fill('#frmDp input[name="hp"]', "10");
+  await page.fill('#frmDp input[name="ha"]', "5");   // HP i HA su obavezni (> 0)
   await page.click('#frmDp button[value="ok"]');
   await page.waitForTimeout(1000);
   const rows = await page.locator(".tl-row[data-task]").count();
@@ -682,6 +683,8 @@ function ok(name, cond, extra = "") {
   ok("čeka DP: '+ DP' otvara DP dijalog", (await page.locator("#dlgDp[open]").count()) === 1);
   ok("čeka DP: POP preselektovan u dijalogu", (await page.locator("#dpUnder").innerText()).includes("POP CEKA-DP"));
   await page.fill("#frmDp [name=naziv]", "DP CEKA-1");
+  await page.fill("#frmDp [name=hp]", "8");
+  await page.fill("#frmDp [name=ha]", "4");
   await page.click('#frmDp button[value="ok"]');
   await page.waitForTimeout(900);
   ok("čeka DP: nakon kreiranja DP-a nestaje 'čeka' red",
@@ -998,6 +1001,84 @@ function ok(name, cond, extra = "") {
   ok("dup DP: trim + case-insensitive duplikat odbijen (409)", dupC.status() === 409, `(${dupC.status()})`);
   const dupD = await page.request.post(BASE + "/api/dps", { data: { pop: "POP DUP-TEST", projekt: projDup, naziv: "DP UNIK 2", hp: 1, ha: 1 } });
   ok("dup DP: drugačiji naziv prolazi (201)", dupD.status() === 201);
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(200);
+
+  // ---------- 16p. zatvaranje panela ne skače na prvi DP (ostaje na otvorenom) ----------
+  {
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(300);
+    const allD = await (await page.request.get(BASE + "/api/data")).json();
+    const byProj = {};
+    for (const d of allD.dps) (byProj[d.projekt] ||= []).push(d);
+    const proj = Object.keys(byProj).find(p => byProj[p].length >= 2);
+    ok("scroll-stay: projekat s ≥2 DP postoji (preduslov)", !!proj, `(${proj})`);
+    if (proj) {
+      // otvori bilo koji DP tog projekta pa zatvori -> ostaje SAMO projekat filter (cijela lista)
+      await page.locator(`#tlScroll .cell[data-fdp="${byProj[proj][0].id}"]`).first().click();
+      await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(400);
+      const order = await page.$$eval("#tlScroll .tl-row.group[data-dp]", els => els.map(e => +e.dataset.dp));
+      const scrollable = await page.evaluate(() => {
+        const sc = document.querySelector("#tlScroll");
+        return sc.scrollHeight > sc.clientHeight + 60;
+      });
+      ok("scroll-stay: projekt-prikaz ima ≥2 DP reda i skrol", order.length >= 2 && scrollable,
+        `(rows=${order.length} scroll=${scrollable})`);
+      if (order.length >= 2 && scrollable) {
+        const firstDp = order[0], targetDp = order[1];   // DRUGI DP (ne prvi) — da skok bude vidljiv
+        const topOf = id => page.evaluate(sel => {
+          const sc = document.querySelector("#tlScroll");
+          const el = sc.querySelector(sel);
+          return el ? el.getBoundingClientRect().top - sc.getBoundingClientRect().top : null;
+        }, `.tl-row.group[data-dp="${id}"]`);
+        // postavi vrh na prvi DP (stanje koje je prije izazivalo skok), pa otvori DRUGI DP
+        await page.evaluate(() => { document.querySelector("#tlScroll").scrollTop = 0; });
+        await page.locator(`#tlScroll .cell[data-fdp="${targetDp}"]`).first().click();
+        await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+        await page.evaluate(() => { document.querySelector("#tlScroll").scrollTop = 0; });
+        await page.waitForTimeout(150);
+        const beforeTop = await topOf(targetDp);   // pozicija otvorenog DP-a (filter = samo on)
+        await page.keyboard.press("Escape");        // zatvori -> skida DP filter, vraća cijelu listu
+        await page.waitForTimeout(400);
+        const afterTop = await topOf(targetDp);
+        ok("zatvaranje panela: otvoreni DP ostaje na istoj poziciji (ne skače na prvi)",
+          beforeTop != null && afterTop != null && Math.abs(afterTop - beforeTop) <= 8 && targetDp !== firstDp,
+          `(before=${beforeTop && Math.round(beforeTop)} after=${afterTop && Math.round(afterTop)} t=${targetDp} f=${firstDp})`);
+      }
+    }
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(200);
+  }
+
+  // ---------- 16q. HP/HA se nikad ne snimaju kao 0 ----------
+  const projHH = "[NORD CLUSTER 1] WANDLITZ [IP]";
+  await page.request.post(BASE + "/api/pops", { data: { projekt: projHH, naziv: "POP HH-TEST", rfa: "2027-06-01" } });
+  const z1 = await page.request.post(BASE + "/api/dps", { data: { pop: "POP HH-TEST", projekt: projHH, naziv: "DP HH-A", hp: 0, ha: 5 } });
+  ok("HP/HA: DP s HP=0 odbijen (400)", z1.status() === 400, `(${z1.status()})`);
+  const z2 = await page.request.post(BASE + "/api/dps", { data: { pop: "POP HH-TEST", projekt: projHH, naziv: "DP HH-B", hp: 5, ha: 0 } });
+  ok("HP/HA: DP s HA=0 odbijen (400)", z2.status() === 400, `(${z2.status()})`);
+  const z3 = await page.request.post(BASE + "/api/dps", { data: { pop: "POP HH-TEST", projekt: projHH, naziv: "DP HH-OK", hp: 5, ha: 3 } });
+  ok("HP/HA: DP s HP>0 i HA>0 prolazi (201)", z3.status() === 201);
+  const z3d = (await (await page.request.get(BASE + "/api/data")).json()).dps.find(d => d.naziv === "DP HH-OK");
+  const z4 = await page.request.patch(BASE + "/api/dps/" + z3d.id, { data: { hp: 0 } });
+  ok("HP/HA: PATCH HP=0 odbijen (400)", z4.status() === 400, `(${z4.status()})`);
+  const z5 = await page.request.patch(BASE + "/api/dps/" + z3d.id, { data: { ha: 7 } });
+  ok("HP/HA: PATCH HA>0 prolazi (200)", z5.ok());
+
+  // plan-vs: izvedeno (Azure) > plan (Σ DP) -> stvarni % NIJE kapiran na 100 (amber .pv-over)
+  await page.click("#pfProj");
+  await page.waitForSelector(".combo:has(#pfProj) .combo-list:not([hidden]) .combo-opt", { timeout: 5000 });
+  await page.fill("#pfProj", "WANDLITZ");
+  await page.waitForTimeout(250);
+  await page.locator(".combo:has(#pfProj) .combo-list .combo-opt").first().click();
+  await page.waitForTimeout(500);
+  ok("plan-vs: % nije kapiran na 100 (izvedeno > plan -> >100%, .pv-over)",
+    (await page.locator("#projKpis .pv-num b.pv-over").count()) >= 1);
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(200);
 

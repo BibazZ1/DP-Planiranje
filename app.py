@@ -621,6 +621,9 @@ def add_dp():
         return blk
     naziv = (j.get("naziv") or "").strip()
     hp, ha = _int(j.get("hp")), _int(j.get("ha"))
+    # HP i HA se nikad ne smiju snimiti kao 0 (plan mora biti stvaran)
+    if hp <= 0 or ha <= 0:
+        return jsonify({"error": "HP i HA moraju biti veći od 0"}), 400
     # spriječi dvostruko kreiranje DP-a istog imena u istom POP-u
     dup = d.execute(
         "SELECT id FROM dps WHERE pop_id IS NOT DISTINCT FROM %s "
@@ -659,6 +662,10 @@ def edit_dp(dp_id):
         return "", 204
     j = request.get_json(force=True)
     sets = {k: j[k] for k in DP_FIELDS if k in j}
+    # HP/HA se nikad ne smiju snimiti kao 0
+    for k in ("hp", "ha"):
+        if k in sets and _int(sets[k]) <= 0:
+            return jsonify({"error": "HP i HA moraju biti veći od 0"}), 400
     if sets:
         q = ", ".join(f"{k}=%s" for k in sets)
         db().execute(f"UPDATE dps SET {q} WHERE id=%s", (*sets.values(), dp_id))

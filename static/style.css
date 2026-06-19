@@ -1011,6 +1011,9 @@ span.flatpickr-weekday{color:#64748b!important}
   border-radius:9999px;transition:width .6s cubic-bezier(.2,.8,.25,1)}
 .pv-num{font:600 11px var(--mono);color:var(--mut)}
 .pv-num b{color:#34d399}
+/* izvedeno > plan -> % preko 100 (plan podcijenjen): amber umjesto zelene */
+.pv-num b.pv-over{color:#fbbf24}
+.pv-bar.over i{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
 .pv-wrap .hint{font-size:10px}
 
 
