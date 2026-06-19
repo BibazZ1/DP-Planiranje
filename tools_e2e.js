@@ -905,6 +905,45 @@ function ok(name, cond, extra = "") {
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(300);
 
+  // ---------- 16l. RFA upozorenje: aktivacija planirana PRIJE RFA datuma POP-a ----------
+  const rfaProjekt = "[NORD CLUSTER 1] WANDLITZ [IP]";
+  await page.request.post(BASE + "/api/pops", { data: { projekt: rfaProjekt, naziv: "POP RFA-TEST", rfa: "2027-01-01" } });
+  const rfaPop = (await (await page.request.get(BASE + "/api/data")).json()).pops.find(p => p.naziv === "POP RFA-TEST");
+  ok("RFA: POP s RFA datumom kreiran", !!rfaPop && rfaPop.rfa === "2027-01-01", `(${rfaPop && rfaPop.rfa})`);
+  await page.request.post(BASE + "/api/dps", { data: { pop: "POP RFA-TEST", projekt: rfaProjekt, naziv: "DP RFA-1", hp: 5, ha: 5 } });
+  const dataR = await (await page.request.get(BASE + "/api/data")).json();
+  const rfaDp = dataR.dps.find(d => d.naziv === "DP RFA-1");
+  const aktTask = rfaDp && dataR.tasks.find(t => t.dp_id === rfaDp.id && /aktivacij/i.test(t.aktivnost));
+  ok("RFA: DP + Aktivacije aktivnost postoje", !!rfaDp && !!aktTask);
+  if (rfaDp && aktTask) {
+    // aktivacija 2026-09-01 (budućnost) je PRIJE RFA 2027-01-01 -> mora upaliti upozorenje
+    await page.request.post(BASE + "/api/segments", { data: {
+      task_id: aktTask.id, datum_od: "2026-09-01", datum_do: "2026-09-14", status: "otvoreno" } });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(400);
+    ok("RFA upozorenje: badge na redu DP-a (.rfa-bad)",
+      (await page.locator(`.tl-row.group[data-dp="${rfaDp.id}"] .rfa-bad`).count()) === 1);
+    await page.locator(`#tlScroll .cell[data-fdp="${rfaDp.id}"]`).first().click();
+    await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+    await page.waitForTimeout(450);
+    ok("RFA upozorenje: warning box vidljiv u panelu (#drWarn)", await page.locator("#drWarn:not(.hidden)").isVisible());
+    ok("RFA upozorenje: poruka spominje DP", ((await page.locator("#drWarn .drw-row").innerText().catch(() => "")) || "").includes("DP RFA-1"));
+    // kontrola: pomjeri aktivaciju POSLIJE RFA -> upozorenje nestaje
+    const aktSeg = (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.task_id === aktTask.id);
+    await page.request.patch(BASE + "/api/segments/" + aktSeg.id, { data: { datum_od: "2027-02-01", datum_do: "2027-02-14" } });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(400);
+    ok("RFA upozorenje: nema badge-a kad je aktivacija POSLIJE RFA",
+      (await page.locator(`.tl-row.group[data-dp="${rfaDp.id}"] .rfa-bad`).count()) === 0);
+  }
+  await page.keyboard.press("Escape");
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(300);
+
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
   ok("nema JS grešaka u konzoli", realErrors.length === 0, JSON.stringify(realErrors.slice(0, 3)));

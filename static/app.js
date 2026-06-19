@@ -403,6 +403,7 @@ const ICON = {
   lock: '<svg class="i-ic" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
   trash: '<svg class="i-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   comment: '<svg class="i-ic" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L3 21l2.3-6.5A8 8 0 1 1 21 11.5z"/></svg>',
+  warn: '<svg class="i-ic" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.3v.01"/></svg>',
 };
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -1195,7 +1196,7 @@ function renderTimeline(keepScroll) {
         <div class="gr-info" title="${t("dpHistTip")}">
           <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(dp.pop)}</span><b>${esc(dp.naziv)}</b>
             ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}
-            ${rfaBreach ? `<span class="rokb rfa-bad" title="${esc(tf("rfaRowTip", fmt(popRfaOf(dp.pop_id))))}">⚠ RFA</span>` : ""}</div>
+            ${rfaBreach ? `<span class="rokb rfa-bad" title="${esc(tf("rfaRowTip", fmt(popRfaOf(dp.pop_id))))}">${ICON.warn} RFA</span>` : ""}</div>
           <span class="meta">${dp.lokacija ? esc(dp.lokacija) + " · " : ""}HP ${dp.hp} · HA ${dp.ha}</span></div>
         <div class="gr-side"><span class="pbar"><i style="width:${pct}%"></i></span>
           <span class="pct">${pct}%</span>
@@ -2699,7 +2700,7 @@ function renderDrawerStats() {
       if (st) { conf = [{ dp: dp.naziv, datum: st }]; rfa = popRfaOf(dp.pop_id); }
     }
     if (conf.length) {
-      warnBox.innerHTML = `<div class="drw-h">⚠ ${t("rfaWarnTitle")}</div>` +
+      warnBox.innerHTML = `<div class="drw-h">${ICON.warn} ${t("rfaWarnTitle")}</div>` +
         conf.map(c => `<div class="drw-row">${esc(tf("rfaConfLine", c.dp, fmt(c.datum), fmt(rfa)))}</div>`).join("");
       warnBox.classList.remove("hidden");
     } else { warnBox.innerHTML = ""; warnBox.classList.add("hidden"); }
