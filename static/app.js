@@ -58,7 +58,7 @@ const I18N = {
     noEsk: "Nema aktivnih eskalacija",
     kasni: "KASNI", kasniDoDanas: "produženo do danas",
     razlogProd: "razlog produženja", razlogNijeUpisan: "nije upisan — dupli klik!",
-    hist: "Historija", noHist: "nema zabilježenih promjena", hcEdit: "dupli klik = uredi",
+    hist: "Historija", noHist: "nema zabilježenih promjena", histMore: "još u bočnom panelu", hcEdit: "dupli klik = uredi",
     drawAskTitle: "Otvoren ili završen termin?",
     hcLateTip: "PROBIJEN ROK · dupli klik = produži rok + razlog · povuci rub = pomjeri kraj",
     hKreirano: "kreirano", hStatus: "status", hPocetak: "početak", hKraj: "kraj",
@@ -88,6 +88,7 @@ const I18N = {
     forecastTitle: "Prognoza", fcProvProj: "Provajder / Projekat", fcHausbeg: "Pregledi",
     fcAkt: "Aktivacije", fcTotal: "UKUPNO", fcAll: "ukupan plan (bez raspona)",
     fcNoData: "nema planiranih količina za izabrani raspon", fcHint: "planirano u rasponu Datum od/do (procjena po planu)",
+    fcByProvider: "Provajder", fcByProject: "Projekat", fcDrillTip: "klik = filtriraj na ovo (i spusti nivo)",
     aktKlikTip: "klik = promijeni status / nacrtaj termin",
     bezTermina: "bez termina — klik crta", pomjeriSve: "Pomjeri sve",
     shiftPitanje: "Pomjeriti i sve sljedeće aktivnosti ovog DP-a?",
@@ -170,7 +171,7 @@ const I18N = {
     noEsk: "No active escalations",
     kasni: "LATE", kasniDoDanas: "extended to today",
     razlogProd: "extension reason", razlogNijeUpisan: "not entered — double-click!",
-    hist: "History", noHist: "no recorded changes", hcEdit: "double-click = edit",
+    hist: "History", noHist: "no recorded changes", histMore: "more in side panel", hcEdit: "double-click = edit",
     drawAskTitle: "Open or completed slot?",
     hcLateTip: "OVERDUE · double-click = extend + reason · drag edge = move end",
     hKreirano: "created", hStatus: "status", hPocetak: "start", hKraj: "end",
@@ -200,6 +201,7 @@ const I18N = {
     forecastTitle: "Forecast", fcProvProj: "Provider / Project", fcHausbeg: "Home visits",
     fcAkt: "Activations", fcTotal: "TOTAL", fcAll: "total plan (no range)",
     fcNoData: "no planned quantities for the selected range", fcHint: "planned within the Date from/to range (plan-based estimate)",
+    fcByProvider: "Provider", fcByProject: "Project", fcDrillTip: "click = filter to this (drill down)",
     aktKlikTip: "click = toggle status / draw dates",
     bezTermina: "no dates — click to draw", pomjeriSve: "Shift all",
     shiftPitanje: "Also shift all later activities of this DP?",
@@ -282,7 +284,7 @@ const I18N = {
     noEsk: "Keine aktiven Eskalationen",
     kasni: "VERSPÄTET", kasniDoDanas: "bis heute verlängert",
     razlogProd: "Verlängerungsgrund", razlogNijeUpisan: "nicht eingetragen — Doppelklick!",
-    hist: "Verlauf", noHist: "keine Änderungen erfasst", hcEdit: "Doppelklick = bearbeiten",
+    hist: "Verlauf", noHist: "keine Änderungen erfasst", histMore: "mehr im Seitenpanel", hcEdit: "Doppelklick = bearbeiten",
     drawAskTitle: "Offen oder abgeschlossen?",
     hcLateTip: "ÜBERFÄLLIG · Doppelklick = verlängern + Grund · Rand ziehen = Ende verschieben",
     hKreirano: "erstellt", hStatus: "Status", hPocetak: "Beginn", hKraj: "Ende",
@@ -312,6 +314,7 @@ const I18N = {
     forecastTitle: "Prognose", fcProvProj: "Provider / Projekt", fcHausbeg: "Hausbegehungen",
     fcAkt: "Aktivierungen", fcTotal: "GESAMT", fcAll: "Gesamtplan (ohne Zeitraum)",
     fcNoData: "keine geplanten Mengen für den gewählten Zeitraum", fcHint: "geplant im Zeitraum Datum von/bis (Schätzung nach Plan)",
+    fcByProvider: "Provider", fcByProject: "Projekt", fcDrillTip: "Klick = darauf filtern (Ebene tiefer)",
     aktKlikTip: "Klick = Status wechseln / Termin zeichnen",
     bezTermina: "kein Termin — Klick zeichnet", pomjeriSve: "Alle verschieben",
     shiftPitanje: "Auch alle späteren Aktivitäten dieses DP verschieben?",
@@ -495,7 +498,12 @@ function iso(d) {
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
          "-" + String(d.getDate()).padStart(2, "0");
 }
-function fmt(s) { if (!s) return ""; const [y, m, d] = s.split("-"); return `${d}.${m}.${y}`; }
+function fmt(s) { if (!s) return ""; const [y, m, d] = s.split("-"); return `${d}/${m}/${y}`; }
+/* kompaktni datum dd/mm (graf, oblačići, badge) */
+function fmtShort(s) { if (!s) return ""; const [, m, d] = s.split("-"); return `${d}/${m}`; }
+/* prepiši SVE ISO datume (YYYY-MM-DD) unutar proizvoljnog stringa u dd/mm/yyyy
+   (historija: "2026-04-24 → 2026-05-01" -> "24/04/2026 → 01/05/2026") */
+function fmtDatesIn(s) { return String(s ?? "").replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3/$2/$1"); }
 function yearStart() { return new Date(YEAR, 0, 1); }
 function daysInYear() { return Math.round((new Date(YEAR + 1, 0, 1) - yearStart()) / 864e5); }
 function dayIdx(s) { return Math.round((pd(s) - yearStart()) / 864e5); }
@@ -788,7 +796,7 @@ function openLateModal(dpId) {
     return `<button class="lm-row" data-seg="${s.id}">
       <span class="lm-d">+${lateDays(s)}d</span>
       <span class="lm-b"><b>${esc(dp.pop || "")} · ${esc(dp.naziv || "")}</b>
-        <i>${esc(aktOf(s))} · ${fmt(s.datum_od).slice(0, 6)}–${fmt(s.datum_do).slice(0, 6)}</i></span>
+        <i>${esc(aktOf(s))} · ${fmtShort(s.datum_od)}–${fmtShort(s.datum_do)}</i></span>
       <span class="lm-go">${t("produzi") || "Produži"} →</span>
     </button>`;
   }).join("") : `<div class="dr-h empty">${t("nemaKasnih")}</div>`;
@@ -875,20 +883,28 @@ function countUp(el, target) {
    HP "ide" na termine gradnje (sve osim Montaže/Aktivacije), HA na Montažu/Aktivaciju.
    Ručno upisan plan_qty na terminu ima prednost; ostatak DP-ovog totala se LINEARNO
    (po dužini termina) raspoređuje na termine te faze bez ručne vrijednosti. */
-function segIsHa(s) {
-  const tk = DATA.tasks.find(t => t.id === s.task_id);
+/* opcioni keš `fc` (kad sumiramo MNOGO DP-ova, npr. prognoza) izbjegava skeniranje
+   svih DATA.tasks/segments po svakom DP-u; bez keša radi kao prije (jedan DP) */
+function segIsHa(s, fc) {
+  const tk = fc ? fc.taskById.get(s.task_id) : DATA.tasks.find(t => t.id === s.task_id);
   return /montaž|aktiv/i.test(`${tk ? tk.aktivnost : ""} ${tk ? tk.odjel : ""}`);
 }
-function dpPhaseSegs(dpId, ha) {
+function dpPhaseSegs(dpId, ha, fc) {
+  if (fc) {
+    const out = [];
+    for (const t of (fc.tasksByDp.get(dpId) || []))
+      for (const s of (fc.segsByTask.get(t.id) || [])) if (segIsHa(s, fc) === ha) out.push(s);
+    return out;
+  }
   const ids = new Set(DATA.tasks.filter(t => t.dp_id === dpId).map(t => t.id));
   return DATA.segments.filter(s => ids.has(s.task_id) && segIsHa(s) === ha);
 }
 function hasManual(s) { return s.plan_qty != null && s.plan_qty !== ""; }
 /* Map seg.id -> planirana količina (ručna ili auto-ostatak) za DP + fazu (ha=true -> HA) */
-function planAlloc(dpId, ha) {
-  const dp = DATA.dps.find(d => d.id === dpId);
+function planAlloc(dpId, ha, fc) {
+  const dp = fc ? fc.dpById.get(dpId) : DATA.dps.find(d => d.id === dpId);
   const total = dp ? (+dp[ha ? "ha" : "hp"] || 0) : 0;
-  const segs = dpPhaseSegs(dpId, ha);
+  const segs = dpPhaseSegs(dpId, ha, fc);
   const out = new Map();
   if (!segs.length) return out;
   let manualSum = 0;
@@ -908,61 +924,120 @@ function overlapFrac(s, od, do_) {
   return durDays(a, b) / durDays(s.datum_od, s.datum_do);
 }
 /* planirano (HP ili HA) za DP u prozoru Datum od/do */
-function plannedInWindow(dpId, ha, od, do_) {
+function plannedInWindow(dpId, ha, od, do_, fc) {
   let sum = 0;
-  for (const [segId, qty] of planAlloc(dpId, ha)) {
-    const s = DATA.segments.find(x => x.id === segId);
+  for (const [segId, qty] of planAlloc(dpId, ha, fc)) {
+    const s = fc ? fc.segById.get(segId) : DATA.segments.find(x => x.id === segId);
     if (s) sum += qty * overlapFrac(s, od, do_);
   }
   return sum;
 }
 /* "home visit" = Hausbegehung = aktivnost "Pregled objekata"; planirana u prozoru ako joj
    bar jedna traka pada u [od,do] */
-function dpSurveyInWindow(dpId, od, do_) {
+function dpSurveyInWindow(dpId, od, do_, fc) {
+  if (fc) {
+    if (!fc.surveyDpIds.has(dpId)) return false;
+    return (fc.tasksByDp.get(dpId) || []).some(t => /pregled|begehung/i.test(t.aktivnost) &&
+      (fc.segsByTask.get(t.id) || []).some(s => overlapFrac(s, od, do_) > 0));
+  }
   const ids = new Set(DATA.tasks.filter(t => t.dp_id === dpId && /pregled|begehung/i.test(t.aktivnost)).map(t => t.id));
   if (!ids.size) return false;
   return DATA.segments.some(s => ids.has(s.task_id) && overlapFrac(s, od, do_) > 0);
 }
-/* ---------- Prognoza: planirano (Hausbegehungen / HP / Aktivacije) u rasponu Datum od/do,
-   razloženo po provajderu (Kunde), projektu i ukupno ---------- */
+/* ---------- Prognoza: planirano (Hausbegehungen / HP / Aktivacije) u rasponu Datum od/do.
+   Grupiranje po provajderu / projektu / POP-u; sortiranje; klik na red = drill-down filter
+   (provajder -> njegovi projekti -> njegovi POP-ovi). Poštuje OPSEŽNE filtere
+   (Kunde/Projekt/PM/POP/DP + HP/HA raspon) i Datum prozor; ne ovisi o statusu/odjelu
+   (prognoza je o PLANU, ne o trenutnom statusu termina). ---------- */
+const FCAST = { by: "provider", sortBy: "hp", dir: -1 };   // by: provider | projekt | pop
+function fcReset() { FCAST.by = "provider"; FCAST.sortBy = "hp"; FCAST.dir = -1; }
+function fcGroupKey(d) {
+  return FCAST.by === "provider" ? (kundeOf(d.projekt) || "—")
+    : FCAST.by === "pop" ? (d.pop || "—") : (d.projekt || "—");
+}
+/* klik na red = filtriraj na njega i spusti se nivo niže (provajder->projekti->POP);
+   čisti zaostalo stanje (PM/POP/DP) da se opseg ne "zaglavi" */
+function fcDrill(key) {
+  if (!key || key === "—") return;
+  F.pop.clear(); F.dp.clear();
+  if (FCAST.by === "provider") { PROJ.kunde = key; PROJ.name = PROJ.code = PROJ.pm = ""; FCAST.by = "projekt"; projFilterChanged(); }
+  else if (FCAST.by === "projekt") {
+    if (!PROJ.rows.some(p => p.projektname === key)) return;   // siroče (van Azure liste) -> ne filtriraj naslijepo
+    PROJ.name = key; FCAST.by = "pop"; projFilterChanged();
+  } else { F.pop.add(key); renderAll(); }
+}
 function renderForecast() {
   const box = $("#forecastBody");
   if (!box) return;
   const od = F.dOd, do_ = F.dDo;
   const meta = $("#fcMeta");
   if (meta) meta.textContent = (od || do_) ? `${fmt(od) || "…"} – ${fmt(do_) || "…"}` : t("fcAll");
-  const byProv = new Map();
-  let tHp = 0, tHa = 0, tSv = 0;
-  for (const d of scopedDps()) {
-    const hp = Math.round(plannedInWindow(d.id, false, od, do_));
-    const ha = Math.round(plannedInWindow(d.id, true, od, do_));
-    const sv = dpSurveyInWindow(d.id, od, do_) ? 1 : 0;
-    if (!hp && !ha && !sv) continue;
-    const kunde = kundeOf(d.projekt) || "—";
-    let pv = byProv.get(kunde);
-    if (!pv) { pv = { hp: 0, ha: 0, sv: 0, projects: new Map() }; byProv.set(kunde, pv); }
-    pv.hp += hp; pv.ha += ha; pv.sv += sv;
-    let pr = pv.projects.get(d.projekt);
-    if (!pr) { pr = { hp: 0, ha: 0, sv: 0 }; pv.projects.set(d.projekt, pr); }
-    pr.hp += hp; pr.ha += ha; pr.sv += sv;
-    tHp += hp; tHa += ha; tSv += sv;
+  const card = $("#forecastCard");
+  if (card && card.classList.contains("collapsed")) return;   // ne računaj dok je panel sklopljen
+  /* keš: izgradi mape jednom -> O(D+T+S) umjesto skeniranja DATA.tasks/segments po svakom DP-u */
+  const fc = { dpById: new Map(DATA.dps.map(d => [d.id, d])), taskById: new Map(DATA.tasks.map(t => [t.id, t])),
+    tasksByDp: new Map(), segsByTask: new Map(), segById: new Map(DATA.segments.map(s => [s.id, s])), surveyDpIds: new Set() };
+  for (const tk of DATA.tasks) {
+    let a = fc.tasksByDp.get(tk.dp_id); if (!a) fc.tasksByDp.set(tk.dp_id, a = []); a.push(tk);
+    if (/pregled|begehung/i.test(tk.aktivnost)) fc.surveyDpIds.add(tk.dp_id);
   }
-  if (!byProv.size) { box.innerHTML = `<div class="fc-empty">${t("fcNoData")}</div>`; return; }
-  const cell = o => `<td>${fmtNum(o.sv)}</td><td>${fmtNum(o.hp)}</td><td>${fmtNum(o.ha)}</td>`;
-  let rows = "";
-  [...byProv.entries()].sort((a, b) => cmpStr(a[0], b[0])).forEach(([kunde, pv]) => {
-    rows += `<tr class="fc-prov"><td><b>${esc(kunde)}</b></td>${cell(pv)}</tr>`;
-    [...pv.projects.entries()].sort((a, b) => cmpStr(a[0], b[0])).forEach(([proj, pr]) => {
-      rows += `<tr class="fc-projrow"><td><span class="fc-proj">${esc(proj)}</span></td>${cell(pr)}</tr>`;
+  for (const s of DATA.segments) { let a = fc.segsByTask.get(s.task_id); if (!a) fc.segsByTask.set(s.task_id, a = []); a.push(s); }
+  const groups = new Map();
+  let tSv = 0, tHp = 0, tHa = 0, tNdp = 0;
+  for (const d of scopedDps().filter(dpFilterOk)) {   // poštuje i POP/DP/HP-HA filtere (kao timeline)
+    const hp = Math.round(plannedInWindow(d.id, false, od, do_, fc));
+    const ha = Math.round(plannedInWindow(d.id, true, od, do_, fc));
+    const sv = dpSurveyInWindow(d.id, od, do_, fc) ? 1 : 0;
+    if (!hp && !ha && !sv) continue;
+    const key = fcGroupKey(d);
+    let g = groups.get(key);
+    if (!g) { g = { key, sv: 0, hp: 0, ha: 0, ndp: 0 }; groups.set(key, g); }
+    g.sv += sv; g.hp += hp; g.ha += ha; g.ndp += 1;
+    tSv += sv; tHp += hp; tHa += ha; tNdp += 1;
+  }
+  const byBtn = (k, lbl) => `<button class="fc-by${FCAST.by === k ? " on" : ""}" data-by="${k}">${lbl}</button>`;
+  const toolbar = `<div class="fc-top">
+    <div class="fc-seg">${byBtn("provider", t("fcByProvider"))}${byBtn("projekt", t("fcByProject"))}${byBtn("pop", "POP")}</div>
+    <div class="fc-sum">
+      <span class="fc-s sv"><b>${fmtNum(tSv)}</b>${t("fcHausbeg")}</span>
+      <span class="fc-s hp"><b>${fmtNum(tHp)}</b>HP</span>
+      <span class="fc-s ha"><b>${fmtNum(tHa)}</b>${t("fcAkt")}</span>
+    </div></div>`;
+  const wire = () => {
+    box.querySelectorAll(".fc-by").forEach(b => b.addEventListener("click", () => { FCAST.by = b.dataset.by; renderForecast(); }));
+    box.querySelectorAll(".fc-tbl th[data-sort]").forEach(h => h.addEventListener("click", () => {
+      const c = h.dataset.sort;
+      if (FCAST.sortBy === c) FCAST.dir = -FCAST.dir; else { FCAST.sortBy = c; FCAST.dir = c === "name" ? 1 : -1; }
+      renderForecast();
+    }));
+    box.querySelectorAll(".fc-row[data-drill]").forEach(r => {
+      r.addEventListener("click", () => fcDrill(r.dataset.drill));
+      r.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fcDrill(r.dataset.drill); } });
     });
-  });
-  box.innerHTML = `<div class="fc-hint">${t("fcHint")}</div>
-    <table class="fc-tbl">
-      <thead><tr><th>${t("fcProvProj")}</th><th>${t("fcHausbeg")}</th><th>HP</th><th>${t("fcAkt")}</th></tr></thead>
-      <tbody>${rows}
-        <tr class="fc-total"><td>${t("fcTotal")}</td>${cell({ sv: tSv, hp: tHp, ha: tHa })}</tr>
+  };
+  if (!groups.size) { box.innerHTML = toolbar + `<div class="fc-empty">${t("fcNoData")}</div>`; wire(); return; }
+  const rows = [...groups.values()].sort((a, b) =>
+    (FCAST.sortBy === "name" ? FCAST.dir * cmpStr(a.key, b.key)
+      : FCAST.dir * ((a[FCAST.sortBy] || 0) - (b[FCAST.sortBy] || 0))) || cmpStr(a.key, b.key));
+  const arrow = c => FCAST.sortBy === c ? ` <i class="fc-arr${FCAST.dir < 0 ? "" : " up"}">▾</i>` : "";
+  const th = (c, lbl, cls = "") => `<th class="fc-sortable ${cls}" data-sort="${c}">${lbl}${arrow(c)}</th>`;
+  const levelLbl = FCAST.by === "provider" ? t("fcByProvider") : FCAST.by === "pop" ? "POP" : t("fcByProject");
+  const drillable = g => g.key !== "—" && (FCAST.by !== "projekt" || PROJ.rows.some(p => p.projektname === g.key));
+  const body = rows.map(g => {
+    const dr = drillable(g);
+    return `<tr class="fc-row${dr ? " fc-clickable" : ""}"${dr ? ` data-drill="${esc(g.key)}" tabindex="0" title="${t("fcDrillTip")}"` : ""}>
+      <td><span class="fc-name">${esc(g.key)}</span> <i class="fc-ndp">${g.ndp} DP</i>${dr ? '<i class="fc-go">→</i>' : ""}</td>
+      <td>${fmtNum(g.sv)}</td><td>${fmtNum(g.hp)}</td><td>${fmtNum(g.ha)}</td></tr>`;
+  }).join("");
+  box.innerHTML = toolbar + `<div class="fc-hint">${t("fcHint")}</div>
+    <div class="fc-scroll"><table class="fc-tbl">
+      <thead><tr>${th("name", levelLbl)}${th("sv", t("fcHausbeg"), "num")}${th("hp", "HP", "num")}${th("ha", t("fcAkt"), "num")}</tr></thead>
+      <tbody>${body}
+        <tr class="fc-total"><td>${t("fcTotal")} <i class="fc-ndp">${tNdp} DP</i></td>
+          <td>${fmtNum(tSv)}</td><td>${fmtNum(tHp)}</td><td>${fmtNum(tHa)}</td></tr>
       </tbody>
-    </table>`;
+    </table></div>`;
+  wire();
 }
 function renderKpis() {
   const segs = visibleSegs();
@@ -1063,6 +1138,7 @@ function renderSlicers() {
         F.hpMin = F.hpMax = F.haMin = F.haMax = "";
         ["fHpMin", "fHpMax", "fHaMin", "fHaMax"].forEach(id => setNum(id, ""));
         PROJ.kunde = PROJ.code = PROJ.name = PROJ.pm = "";
+        fcReset();   // prognoza: nazad na grupiranje po provajderu
       }
       else if (ch.dataset.xhp) { F.hpMin = F.hpMax = ""; setNum("fHpMin", ""); setNum("fHpMax", ""); }
       else if (ch.dataset.xha) { F.haMin = F.haMax = ""; setNum("fHaMin", ""); setNum("fHaMax", ""); }
@@ -1209,7 +1285,7 @@ function renderTimeline(keepScroll) {
   const segsByTask = {};
   for (const s of DATA.segments) (segsByTask[s.task_id] ||= []).push(s);
   /* prevodi unaprijed: unutar petlje "for (const t of rows)" t je TASK, ne i18n! */
-  const txtKasni = t("kasniTip"), txtDep = t("depTip"), txtOrig = t("origLbl"), txtEskGrip = t("eskGripTip");
+  const txtKasni = t("kasniTip"), txtDep = t("depTip"), txtEskGrip = t("eskGripTip");
 
   let html = headerBands(totalW);
   let anyRow = false;
@@ -1269,7 +1345,7 @@ function renderTimeline(keepScroll) {
       <div class="tl-label">
         <div class="gr-info" title="${t("dpHistTip")}">
           <div class="gr-top"><span class="pop-badge" title="POP / FCP ID">${esc(dp.pop)}</span><b>${esc(dp.naziv)}</b>
-            ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">${t("rokLbl")} ${fmt(rok).slice(0, 5)} · KW${isoWeekOf(rok)}</span>` : ""}
+            ${rok ? `<span class="rokb${rokLate ? " late" : ""}" title="${t("rokTip")}">${t("rokLbl")} ${fmtShort(rok)} · KW${isoWeekOf(rok)}</span>` : ""}
             ${rfaBreach ? `<span class="rokb rfa-bad" title="${esc(tf("rfaRowTip", fmt(popRfaOf(dp.pop_id))))}">${ICON.warn} RFA</span>` : ""}</div>
           <span class="meta">${dp.lokacija ? esc(dp.lokacija) + " · " : ""}HP ${dp.hp} · HA ${dp.ha}</span></div>
         <div class="gr-side"><span class="pbar"><i style="width:${pct}%"></i></span>
@@ -1302,13 +1378,8 @@ function renderTimeline(keepScroll) {
         const x = a * PX, w = Math.max(PX, (b - a + 1) * PX);
         const dim = !segMatch(s);
         const cls = s.status === "završeno" ? "st-zavrseno" : "st-otvoreno";
-        /* originalna pozicija — ostaje vidljiva kad se termin pomjeri (svi vide) */
-        if (s.orig_od && s.orig_do && (s.orig_od !== s.datum_od || s.orig_do !== s.datum_do)) {
-          const ga = Math.max(0, dayIdx(s.orig_od)), gb = Math.min(n - 1, dayIdx(s.orig_do));
-          if (gb >= 0 && ga <= n - 1)
-            segs += `<i class="movedghost" title="${txtOrig}: ${fmt(s.orig_od)} – ${fmt(s.orig_do)}" ` +
-              `style="left:${ga * PX}px;width:${Math.max(PX, (gb - ga + 1) * PX)}px"></i>`;
-        }
+        /* originalna pozicija termina se VIŠE ne crta kao "duh" traka u tabeli (zatrpavala je
+           prikaz) — sad se vidi u hover-kartici (red "Original") i u historiji termina. */
         /* zakašnjeli (auto-produženi) dio: od planiranog kraja do danas
            - s razlogom: ljubičasta šrafura · bez razloga: crveno-bijela, traži unos */
         let overlays = "";
@@ -1330,7 +1401,7 @@ function renderTimeline(keepScroll) {
           `<i class="rs l" title="povuci rub = pomjeri početak"></i><i class="rs r" title="povuci rub = pomjeri kraj"></i>` +
           (late && w > 95 ? `<span class="latebadge" title="${txtKasni}">+${lateDays(s)}d</span>` : "") +
           (depFrom && w > 40 ? `<span class="depwarn" title="${txtDep}: ${esc(depFrom)}"></span>` : "") +
-          (w > 60 ? `<span>${fmt(s.datum_od).slice(0, 5)}–${fmt(s.datum_do).slice(0, 5)}</span>` : "") +
+          (w > 60 ? `<span>${fmtShort(s.datum_od)}–${fmtShort(s.datum_do)}</span>` : "") +
           (s.komentar && w > 30 ? `<span class="kombadge" title="${esc(s.komentar)}"></span>` : "") +
           (s.komentar && w > 150 ? `<span class="kom">${esc(s.komentar)}</span>` : "") +
           `</div>`;
@@ -1595,8 +1666,8 @@ document.body.appendChild(dragTip);
 function dragTipShow(e, a, b) {
   const nd = b - a + 1;
   dragTip.innerHTML =
-    `<b>${fmt(iso(dateOfIdx(a))).slice(0, 6)}</b><span class="dt-arr">→</span>` +
-    `<b>${fmt(iso(dateOfIdx(b))).slice(0, 6)}</b>` +
+    `<b>${fmtShort(iso(dateOfIdx(a)))}</b><span class="dt-arr">→</span>` +
+    `<b>${fmtShort(iso(dateOfIdx(b)))}</b>` +
     `<span class="dt-n">${nd}d · KW${isoWeekOf(dateOfIdx(b))}</span>`;
   dragTip.classList.remove("hidden");
   dragTip.style.left = Math.min(e.clientX + 16, innerWidth - 200) + "px";
@@ -1705,7 +1776,7 @@ document.addEventListener("mousemove", e => {
   eskDrag.grip.style.left = off + "px";
   if (eskDrag.part) { eskDrag.part.style.left = off + "px"; eskDrag.part.style.width = (eskDrag.b - k + 1) * PX + "px"; }
   if (popCtx && popCtx.mode === "edit" && popCtx.segId === eskDrag.id) $("#popEskDat").value = iso(dateOfIdx(k));
-  dragTip.innerHTML = `<b>⚑ ${fmt(iso(dateOfIdx(k))).slice(0, 6)}</b><span class="dt-n">KW${isoWeekOf(dateOfIdx(k))}</span>`;
+  dragTip.innerHTML = `<b>⚑ ${fmtShort(iso(dateOfIdx(k)))}</b><span class="dt-n">KW${isoWeekOf(dateOfIdx(k))}</span>`;
   dragTip.classList.remove("hidden");
   dragTip.style.left = Math.min(e.clientX + 16, innerWidth - 200) + "px";
   dragTip.style.top = Math.max(8, e.clientY - 46) + "px";
@@ -1851,7 +1922,7 @@ async function offerShiftFollowing(segId, fromOd, delta) {
 function popDurUpd() {
   const od = $("#popOd").value, do_ = $("#popDo").value;
   $("#popWhenDisp").innerHTML = od && do_ && do_ >= od
-    ? `<b>${fmt(od).slice(0, 6)}</b><i class="pw-arr">→</i><b>${fmt(do_).slice(0, 6)}</b>` +
+    ? `<b>${fmtShort(od)}</b><i class="pw-arr">→</i><b>${fmtShort(do_)}</b>` +
       `<span class="pw-n">${durDays(od, do_)} ${t("dana")} · KW${isoWeekOf(od)}–KW${isoWeekOf(do_)}</span>` +
       `<i class="pw-pen"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5l4 4M4 20l4.5-1 9-9-4-4-9 9L4 20z"/></svg></i>`
     : `—`;
@@ -2065,6 +2136,8 @@ function hcShow(el, ev) {
   const hist = (DATA.history || []).filter(h => h.seg_id === s.id);
   const stCls = s.status === "završeno" ? "teal" : "red";
   const nd = durDays(s.datum_od, s.datum_do);
+  /* termin je pomjeran? originalnu poziciju pokazujemo OVDJE (umjesto "duh" trake u tabeli) */
+  const moved = s.orig_od && s.orig_do && (s.orig_od !== s.datum_od || s.orig_do !== s.datum_do);
   /* HP/HA iz DP-a + koja je veličina "mjerodavna" za ovu aktivnost (Montaža/Aktivacija -> HA, ostalo -> HP) */
   const haRel = /montaž|aktiv/i.test(`${tk.aktivnost || ""} ${tk.odjel || ""}`);
   /* ne re-renderuj isti sadržaj na svaki mousemove — samo pomjeri */
@@ -2082,6 +2155,7 @@ function hcShow(el, ev) {
       <span class="hc-d"><i>${t("do")}</i><b>${fmt(s.datum_do)}</b><em>KW${isoWeekOf(s.datum_do)}</em></span>
       <span class="hc-dur">${nd}d</span>
     </div>
+    ${moved ? `<div class="hc-row gray"><span>${t("origLbl")}</span>${fmt(s.orig_od)} <i class="arr">→</i> ${fmt(s.orig_do)}</div>` : ""}
     <div class="hc-qty">
       <span class="hc-q${haRel ? "" : " rel"}">HP <b>${fmtNum(dp.hp || 0)}</b></span>
       <span class="hc-q${haRel ? " rel" : ""}">HA <b>${fmtNum(dp.ha || 0)}</b></span>
@@ -2092,11 +2166,12 @@ function hcShow(el, ev) {
       ? esc(s.kasni_razlog) : t("razlogNijeUpisan")}</div>` : ""}
     ${s.eskalacija ? `<div class="hc-row orange"><span>${t("hEskalacija")}${s.esk_datum
       ? " · " + fmt(s.esk_datum) : ""}</span>${esc(s.esk_razlog || "—")}</div>` : ""}
-    <div class="hc-hist"><h4>${t("hist")}</h4>${hist.length
-      ? hist.slice(0, 4).map(h => `<div class="hc-h"><i>${fmtTs(h.ts)}</i>
-          <em>${hcLbl(h.polje)}</em><span>${esc(h.vrijednost)}</span>${h.user
+    <div class="hc-hist"><h4>${t("hist")}</h4><div class="hc-hist-list">${hist.length
+      ? hist.slice(0, 6).map(h => `<div class="hc-h"><i>${fmtTs(h.ts)}</i>
+          <em>${hcLbl(h.polje)}</em><span>${escD(h.vrijednost)}</span>${h.user
             ? `<b class="hc-u">${esc(h.user)}</b>` : ""}</div>`).join("")
-      : `<div class="hc-h empty">${t("noHist")}</div>`}</div>
+      : `<div class="hc-h empty">${t("noHist")}</div>`}${hist.length > 6
+      ? `<div class="hc-h more">+${hist.length - 6} ${t("histMore")}</div>` : ""}</div></div>
     <div class="hc-tip${late ? " late" : ""}">${late ? t("hcLateTip") : t("hcEdit")}</div>`;
     hcEl.classList.remove("hidden");
   }
@@ -2800,7 +2875,7 @@ function renderDrawerPlan() {
       return `<label class="dpp-row${man ? " man" : ""}">
         <span class="dpp-dot" style="background:${aktColor(tk.aktivnost)}"></span>
         <span class="dpp-akt">${esc(tAkt(tk.aktivnost || ""))}</span>
-        <span class="dpp-dt">${fmt(s.datum_od).slice(0, 5)}–${fmt(s.datum_do).slice(0, 5)}</span>
+        <span class="dpp-dt">${fmtShort(s.datum_od)}–${fmtShort(s.datum_do)}</span>
         <input class="dpp-in" type="number" min="0" step="1" data-seg="${s.id}"
           placeholder="${autoVal}" value="${man ? Math.round(+s.plan_qty || 0) : ""}"${editable ? "" : " disabled"}>
       </label>`;
@@ -2940,28 +3015,30 @@ async function loadDrawerHist() {
 }
 function fmtTs(ts) {
   const [d, tm] = String(ts).split("T");
-  return fmt(d).slice(0, 6) + " " + (tm || "").slice(0, 5);
+  return fmtShort(d) + " " + (tm || "").slice(0, 5);
 }
+/* esc + datumi (ISO -> dd/mm/yyyy) za vrijednosti historije */
+function escD(s) { return esc(fmtDatesIn(s)); }
 function evText(e) {
   if (e.kind === "seg")
-    return `<em>${esc(tAkt(e.aktivnost))}</em> · ${hcLbl(e.polje)}: ${esc(e.vrijednost)}`;
+    return `<em>${esc(tAkt(e.aktivnost))}</em> · ${hcLbl(e.polje)}: ${escD(e.vrijednost)}`;
   const FL = { naziv: t("fNaziv"), lokacija: t("lokacija"), voditelj: t("voditelj"),
     hp: "HP", ha: "HA", pop: "POP", projekt: t("projekat"),
     aktivnost: t("aktivnost"), odjel: t("fOdjel") };
   switch (e.action) {
-    case "kreirano": return `${t("aKreirano")}${e.novo ? ` · ${esc(e.novo)}` : ""}`;
-    case "obrisano": return `${ICON.trash} ${t("aObrisano")}${e.staro ? ` · ${esc(e.staro)}` : ""}`;
+    case "kreirano": return `${t("aKreirano")}${e.novo ? ` · ${escD(e.novo)}` : ""}`;
+    case "obrisano": return `${ICON.trash} ${t("aObrisano")}${e.staro ? ` · ${escD(e.staro)}` : ""}`;
     case "termin obrisan":
-      return `${ICON.trash} ${t("aTerminObrisan")} · <em>${esc(e.polje)}</em> ${esc(e.staro)}`;
+      return `${ICON.trash} ${t("aTerminObrisan")} · <em>${esc(e.polje)}</em> ${escD(e.staro)}`;
     case "aktivnost dodana": return `${t("aAktDodana")} · <em>${esc(e.novo)}</em>`;
     case "aktivnost obrisana": return `${ICON.trash} ${t("aAktObrisana")} · <em>${esc(e.staro)}</em>`;
     default:
-      return `${FL[e.polje] || esc(e.polje)}: ${esc(e.staro ?? "")} <i class="arr">→</i> ${esc(e.novo ?? "")}`;
+      return `${FL[e.polje] || esc(e.polje)}: ${escD(e.staro ?? "")} <i class="arr">→</i> ${escD(e.novo ?? "")}`;
   }
 }
 function fmtTsParts(ts) {
   const [d, tm] = String(ts).split("T");
-  return [fmt(d).slice(0, 6), (tm || "").slice(0, 5)];
+  return [fmtShort(d), (tm || "").slice(0, 5)];
 }
 /* zbijen datum: dd/mm hh:mm za tekuću godinu, dd/mm/yy za ranije */
 function evWhen(ts) {
@@ -2991,6 +3068,14 @@ function evColor(e) {
   if (/eskalac/.test(p)) return "ev-orange";
   return "ev-gray";
 }
+/* aktivnost (task) na koju se događaj odnosi — za "hover historije = duh na grafu" */
+function evTaskId(e) {
+  if (e.kind !== "seg" || !e.aktivnost) return null;
+  const dpId = SEL && SEL.type === "dp" ? SEL.id
+    : (DATA.dps.find(d => d.naziv === e.dp_naziv) || {}).id;
+  const tk = dpId && DATA.tasks.find(t => t.dp_id === dpId && t.aktivnost === e.aktivnost);
+  return tk ? tk.id : null;
+}
 function evRow(e) {
   /* u POP pogledu označi događaje koji pripadaju pojedinom DP-u */
   const child = SEL && SEL.type === "pop" && (e.kind === "seg" || e.entity === "dp");
@@ -2999,13 +3084,47 @@ function evRow(e) {
   const detail = evText(e);
   /* jedan red: tačka · vrijeme · šta · ko — boja po akciji */
   const plain = `${shortUser(e.user)} · ${detail.replace(/<[^>]+>/g, "")}`;
-  return `<div class="dr-h ${evColor(e)}" title="${esc(plain)}">` +
+  /* datumi iz događaja -> hover reda historije iscrta "duh" termina kako je tad bio */
+  const isoDates = String(e.kind === "seg" ? e.vrijednost : `${e.staro ?? ""} ${e.novo ?? ""}`)
+    .match(/\d{4}-\d{2}-\d{2}/g) || [];
+  const tid = evTaskId(e);
+  const hov = tid && isoDates.length ? ` data-task="${tid}" data-dates="${isoDates.join(",")}"` : "";
+  return `<div class="dr-h ${evColor(e)}${hov ? " hoverable" : ""}" title="${esc(plain)}"${hov}>` +
     `<i class="ev-dot"></i>` +
     `<span class="evt">${evWhen(e.ts)}</span>` +
     `<span class="evx">${pre}${detail}</span>` +
     `<span class="evu">${esc(shortUser(e.user))}</span>` +
     `</div>`;
 }
+/* duh termina na grafu dok prelaziš mišem preko reda historije (kako je tad bio) */
+function clearHistGhost() {
+  $$("#tlScroll .histghost").forEach(g => g.remove());
+  $$("#tlScroll .tl-row.hist-hl").forEach(r => r.classList.remove("hist-hl"));
+}
+function histGhost(row) {
+  clearHistGhost();
+  const tid = +row.dataset.task;
+  const dates = (row.dataset.dates || "").split(",").filter(Boolean).sort();
+  if (!tid || !dates.length) return;
+  const trRow = document.querySelector(`#tlScroll .tl-row[data-task="${tid}"]`);
+  const track = trRow && trRow.querySelector(".tl-track");
+  if (!track) return;
+  const n = daysInYear();
+  const ga = Math.max(0, dayIdx(dates[0])), gb = Math.min(n - 1, dayIdx(dates[dates.length - 1]));
+  if (gb < 0 || ga > n - 1) return;
+  const g = document.createElement("i");
+  g.className = "histghost";
+  g.style.left = ga * PX + "px";
+  g.style.width = Math.max(PX, (gb - ga + 1) * PX) + "px";
+  track.appendChild(g);
+  trRow.classList.add("hist-hl");
+  trRow.scrollIntoView({ block: "nearest" });
+}
+$("#drHist")?.addEventListener("mouseover", e => {
+  const row = e.target.closest(".dr-h.hoverable");
+  if (row) histGhost(row);
+});
+$("#drHist")?.addEventListener("mouseleave", clearHistGhost);
 /* drawer akcije: HP/HA upis, preimenovanje, brisanje */
 async function drNum(k) {
   if (!SEL) return;
@@ -3331,6 +3450,7 @@ $("#pfClear").addEventListener("click", () => {
   F.dOd = F.dDo = ""; clearDate("fDateOd"); clearDate("fDateDo");
   F.hpMin = F.hpMax = F.haMin = F.haMax = "";
   ["fHpMin", "fHpMax", "fHaMin", "fHaMax"].forEach(id => setNum(id, ""));
+  fcReset();   // prognoza: nazad na grupiranje po provajderu
   projFilterChanged();
 });
 /* sync iz Azure radi server automatski svakih 30 min — frontend samo
@@ -3374,8 +3494,11 @@ function initFolds() {
       const collapsed = fold.classList.toggle("collapsed");
       localStorage.setItem(key, collapsed ? "1" : "0");
       /* grafovi kreirani dok je sekcija skrivena imaju 0 dimenzija —
-         preračunaj ih kad se Analitika otvori */
-      if (!collapsed) for (const k in charts) charts[k].resize();
+         preračunaj ih kad se Analitika otvori; prognoza se ne računa dok je sklopljena */
+      if (!collapsed) {
+        for (const k in charts) charts[k].resize();
+        if (h.dataset.fold === "prognoza") renderForecast();
+      }
     });
   });
 }

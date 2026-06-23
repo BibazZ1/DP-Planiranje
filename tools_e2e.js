@@ -344,7 +344,7 @@ function ok(name, cond, extra = "") {
   await page.mouse.move(bA.x + 380, yA, { steps: 4 });
   ok("crtanje: živi brojač datuma vidljiv", await page.locator(".dragtip:not(.hidden)").isVisible());
   const tipTxt = await page.locator(".dragtip").textContent();
-  ok("brojač: datumi + trajanje + KW", /\d{2}\.\d{2}\./.test(tipTxt) && /d · KW/.test(tipTxt), `(${tipTxt})`);
+  ok("brojač: datumi + trajanje + KW", /\d{2}\/\d{2}/.test(tipTxt) && /d · KW/.test(tipTxt), `(${tipTxt})`);
   const cntBefore = await segCount();
   await page.mouse.up();
   await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
@@ -665,7 +665,38 @@ function ok(name, cond, extra = "") {
   const movedNow = dMoved.segments.find(s => s.id === moveSeg.id);
   ok("moved-ghost: orig_od ostao netaknut nakon pomjeranja",
     movedNow && movedNow.orig_od === moveSeg.orig_od && movedNow.orig_od !== movedNow.datum_od);
-  ok("moved-ghost: original (👻) vidljiv u tabeli", (await page.locator(".movedghost").count()) >= 1);
+  // "duh" traka VIŠE nije u tabeli (declutter) — originalna pozicija se sad vidi u hover-kartici
+  ok("declutter: 'duh' traka uklonjena iz tabele", (await page.locator(".movedghost").count()) === 0);
+  const movedEl = page.locator(`.seg[data-seg="${moveSeg.id}"]`).first();
+  await movedEl.scrollIntoViewIfNeeded().catch(() => {});
+  await movedEl.hover();
+  await page.waitForSelector(".hovercard:not(.hidden)", { timeout: 3000 }).catch(() => {});
+  ok("moved: hover-kartica pokazuje 'Original' (gdje je termin bio)",
+    await page.locator(".hovercard:not(.hidden) .hc-row.gray").isVisible().catch(() => false));
+  const origTxt = (await page.locator(".hovercard .hc-row.gray").innerText().catch(() => "")) || "";
+  ok("moved: originalni datum u formatu dd/mm/yyyy", /\d{2}\/\d{2}\/\d{4}/.test(origTxt), `(${origTxt.replace(/\s+/g, " ")})`);
+
+  // ---------- 16c2. hover reda historije -> "duh" termina na grafu + dd/mm/yyyy u historiji ----------
+  const mvTask = dMoved.tasks.find(t => t.id === movedNow.task_id);
+  const mvDp = mvTask && dMoved.dps.find(d => d.id === mvTask.dp_id);
+  if (mvDp) {
+    await page.locator(`#tlScroll .cell[data-fdp="${mvDp.id}"]`).first().click();
+    await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+    await page.waitForTimeout(500);
+    ok("historija: ima red s datumima (hoverable)", (await page.locator("#drHist .dr-h.hoverable").count()) >= 1);
+    const histTxt = (await page.locator("#drHist").innerText().catch(() => "")) || "";
+    ok("historija: datumi u dd/mm/yyyy", /\d{2}\/\d{2}\/\d{4}/.test(histTxt), `(${histTxt.slice(0, 90).replace(/\s+/g, " ")})`);
+    await page.locator("#drHist .dr-h.hoverable").first().hover();
+    await page.waitForTimeout(300);
+    ok("hover historije -> 'duh' termina na grafu (.histghost)", (await page.locator("#tlScroll .histghost").count()) >= 1);
+    await page.mouse.move(5, 5);   // skloni miš -> duh nestaje
+    await page.waitForTimeout(250);
+    ok("hover van historije -> 'duh' uklonjen", (await page.locator("#tlScroll .histghost").count()) === 0);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+  }
+  await page.click("#pfClear").catch(() => {});
+  await page.waitForTimeout(200);
 
   // ---------- 16d. POP bez DP -> "čeka DP" red + "+ DP" konverzija ----------
   await page.click("#pfClear").catch(() => {});
@@ -1151,12 +1182,24 @@ function ok(name, cond, extra = "") {
   await fcMk(fcTk(/pregled/i), "2026-06-20", "2026-06-25");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForSelector("#forecastBody .fc-tbl", { timeout: 10000 });
-  ok("prognoza: panel + tablica vidljivi", (await page.locator("#forecastBody .fc-tbl").count()) === 1);
-  ok("prognoza: ima UKUPNO + provajder + projekt redove",
+  ok("prognoza: panel + tablica + UKUPNO + group-by + summary",
+    (await page.locator("#forecastBody .fc-tbl").count()) === 1 &&
     (await page.locator("#forecastBody .fc-total").count()) === 1 &&
-    (await page.locator("#forecastBody .fc-prov").count()) >= 1 &&
-    (await page.locator("#forecastBody .fc-projrow").count()) >= 1);
-  // reaguje na Datum prozor: uži prozor smanji planirani HP
+    (await page.locator("#forecastBody .fc-by").count()) === 3 &&
+    (await page.locator("#forecastBody .fc-sum .fc-s").count()) === 3);
+  ok("prognoza: default grupiranje = Provider (aktivno)", await page.locator('#forecastBody .fc-by[data-by="provider"].on').isVisible());
+  ok("prognoza: ima redove (provajder)", (await page.locator("#forecastBody .fc-row").count()) >= 1);
+  // group-by toggle -> Projekt
+  await page.locator('#forecastBody .fc-by[data-by="projekt"]').click();
+  await page.waitForTimeout(300);
+  ok("prognoza: prebacivanje na Projekt grupiranje", await page.locator('#forecastBody .fc-by[data-by="projekt"].on').isVisible());
+  await page.locator('#forecastBody .fc-by[data-by="provider"]').click();
+  await page.waitForTimeout(300);
+  // sortiranje: klik na HP header (strelica = .fc-arr, ne emoji)
+  await page.locator('#forecastBody th[data-sort="hp"]').click();
+  await page.waitForTimeout(200);
+  ok("prognoza: HP kolona sortabilna (strelica)", (await page.locator('#forecastBody th[data-sort="hp"] .fc-arr').count()) === 1);
+  // reaguje na Datum prozor: uži prozor smanji planirani HP (UKUPNO HP = 3. ćelija)
   await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.setDate("2026-06-01", true));
   await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-07-01", true));
   await page.waitForTimeout(500);
@@ -1165,8 +1208,21 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(500);
   const fcNarrow = +((await page.locator("#forecastBody .fc-total td").nth(2).innerText()) || "0").replace(/\D/g, "");
   ok("prognoza: uži Datum prozor smanji planirani HP", fcWide > 0 && fcNarrow < fcWide, `(wide=${fcWide} narrow=${fcNarrow})`);
+  // drill-down: klik na red provajdera -> filtrira na njega (čip Kunde) i spušta nivo na Projekt
+  await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-07-01", true));
+  await page.waitForTimeout(400);
+  await page.locator("#forecastBody .fc-row.fc-clickable").first().click();
+  await page.waitForTimeout(500);
+  ok("prognoza: drill-down na red postavlja Kunde filter", await chipX("data-xkunde").isVisible());
+  ok("prognoza: drill-down spustio grupiranje na Projekt", await page.locator('#forecastBody .fc-by[data-by="projekt"].on').isVisible());
+  // dalji drill: Projekt red -> spušta na POP (lanac provajder -> projekt -> POP)
+  await page.locator("#forecastBody .fc-row.fc-clickable").first().click();
+  await page.waitForTimeout(500);
+  ok("prognoza: drill-down Projekt -> grupiranje POP", await page.locator('#forecastBody .fc-by[data-by="pop"].on').isVisible());
+  // Očisti vraća prognozu na default (fcReset -> Provider)
   await page.click("#pfClear").catch(() => {});
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(300);
+  ok("prognoza: Očisti vraća grupiranje na Provider", await page.locator('#forecastBody .fc-by[data-by="provider"].on').isVisible());
 
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
