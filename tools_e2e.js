@@ -1199,14 +1199,18 @@ function ok(name, cond, extra = "") {
   await page.locator('#forecastBody th[data-sort="hp"]').click();
   await page.waitForTimeout(200);
   ok("prognoza: HP kolona sortabilna (strelica)", (await page.locator('#forecastBody th[data-sort="hp"] .fc-arr').count()) === 1);
-  // reaguje na Datum prozor: uži prozor smanji planirani HP (UKUPNO HP = 3. ćelija)
+  // reaguje na Datum prozor: uži prozor smanji planirani HP (UKUPNO HP = 3. ćelija).
+  // prazan prozor -> renderForecast prikaže prazno stanje (nema .fc-total) -> čitaj kao 0 (ne ruši test)
+  const fcTotalHp = async () => (await page.locator("#forecastBody .fc-total td").count())
+    ? +((await page.locator("#forecastBody .fc-total td").nth(2).innerText()) || "0").replace(/\D/g, "")
+    : 0;
   await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.setDate("2026-06-01", true));
   await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-07-01", true));
   await page.waitForTimeout(500);
-  const fcWide = +((await page.locator("#forecastBody .fc-total td").nth(2).innerText()) || "0").replace(/\D/g, "");
+  const fcWide = await fcTotalHp();
   await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-06-05", true));
   await page.waitForTimeout(500);
-  const fcNarrow = +((await page.locator("#forecastBody .fc-total td").nth(2).innerText()) || "0").replace(/\D/g, "");
+  const fcNarrow = await fcTotalHp();
   ok("prognoza: uži Datum prozor smanji planirani HP", fcWide > 0 && fcNarrow < fcWide, `(wide=${fcWide} narrow=${fcNarrow})`);
   // drill-down: klik na red provajdera -> filtrira na njega (čip Kunde) i spušta nivo na Projekt
   await page.evaluate(() => document.querySelector("#fDateDo")._flatpickr.setDate("2026-07-01", true));
