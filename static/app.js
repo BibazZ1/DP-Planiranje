@@ -39,7 +39,7 @@ const I18N = {
     obrisi: "Obriši", otkazi: "Otkaži", sacuvaj: "Sačuvaj", odustani: "Odustani",
     noviDpH: "Novi DP", projDaily: "Projekat (Daily)", nazivDp: "Naziv DP",
     lokacija: "Lokacija / dionica", voditelj: "Voditelj projekta",
-    brojHp: "Broj HP", brojHa: "Broj HA",
+    brojHp: "Broj HP", brojHa: "Broj HA", plShare: "Planirano za aktivnost",
     dlgHint: "Automatski se kreira 8 standardnih aktivnosti.",
     noviTermin: "Novi termin", urediTermin: "Uredi termin",
     opcionalno: "(opcionalno)", izmijeniDatume: "klik = ručno izmijeni datume",
@@ -155,7 +155,7 @@ const I18N = {
     obrisi: "Delete", otkazi: "Cancel", sacuvaj: "Save", odustani: "Cancel",
     noviDpH: "New DP", projDaily: "Project (Daily)", nazivDp: "DP name",
     lokacija: "Location / section", voditelj: "Project manager",
-    brojHp: "HP count", brojHa: "HA count",
+    brojHp: "HP count", brojHa: "HA count", plShare: "Planned for activity",
     dlgHint: "8 standard activities are created automatically.",
     noviTermin: "New slot", urediTermin: "Edit slot",
     opcionalno: "(optional)", izmijeniDatume: "click = edit dates manually",
@@ -271,7 +271,7 @@ const I18N = {
     obrisi: "Löschen", otkazi: "Abbrechen", sacuvaj: "Speichern", odustani: "Abbrechen",
     noviDpH: "Neuer DP", projDaily: "Projekt (Daily)", nazivDp: "DP-Name",
     lokacija: "Lage / Abschnitt", voditelj: "Projektleiter",
-    brojHp: "Anzahl HP", brojHa: "Anzahl HA",
+    brojHp: "Anzahl HP", brojHa: "Anzahl HA", plShare: "Geplant für Aktivität",
     dlgHint: "8 Standardaktivitäten werden automatisch angelegt.",
     noviTermin: "Neuer Termin", urediTermin: "Termin bearbeiten",
     opcionalno: "(optional)", izmijeniDatume: "Klick = Daten manuell ändern",
@@ -1563,11 +1563,14 @@ function bindTimeline() {
       segEl.classList.add("eskdragging");
     });
   });
-  /* hover nad aktivnošću -> historija u panelu se fokusira na tu aktivnost (privremeno) */
+  /* hover nad aktivnošću -> historija + HP/HA u panelu se fokusiraju na tu aktivnost (privremeno) */
   $$("#tlScroll .tl-row[data-task]").forEach(row => {
     const tid = +row.dataset.task;
     row.addEventListener("mouseenter", () => drHoverTask(tid));
   });
+  /* hover nad DP grupnim redom (= sam DP) -> natrag na UKUPNO DP */
+  $$("#tlScroll .tl-row.group[data-dp]").forEach(row =>
+    row.addEventListener("mouseenter", drHoverClear));
   const tlBody = $("#tlScroll");
   if (tlBody && !tlBody.dataset.hovBound) {
     tlBody.dataset.hovBound = "1";
@@ -2230,6 +2233,7 @@ function hcShow(el, ev) {
   hcEl.style.top = top + "px";
 }
 $("#tlScroll").addEventListener("mousemove", e => {
+  drSuppressHover = false;   // stvarni pomak miša -> dopusti hover-prikaz HP/HA aktivnosti
   if (drag || segResize || popCtx) return hcHide();
   const el = e.target.closest(".seg");
   el ? hcShow(el, e) : hcHide();
@@ -2737,6 +2741,7 @@ function selectPop(popId) {
   if (!p) return;
   if (SEL && SEL.type === "pop" && SEL.id === popId) { deselect(); return; }   // ponovni klik = zatvori
   SEL = { type: "pop", id: popId };
+  drFocusTask = null; drFocusLock = false; drSuppressHover = true;   // novi izbor -> HP/HA = UKUPNO DP dok miš stvarno ne pređe preko aktivnosti
   fillProjFilter(p.projekt);
   openDrawer();
   renderAll();
@@ -2763,6 +2768,7 @@ function focusNew({ dpId, popNaziv, projekt }) {
 function selectDp(dpId) {
   if (SEL && SEL.type === "dp" && SEL.id === dpId) { deselect(); return; }   // ponovni klik = zatvori
   SEL = { type: "dp", id: dpId };
+  drFocusTask = null; drFocusLock = false; drSuppressHover = true;   // novi izbor -> HP/HA = UKUPNO DP dok miš stvarno ne pređe preko aktivnosti
   const d = DATA.dps.find(x => x.id === dpId);
   fillProjFilter(d && d.projekt);
   openDrawer();
@@ -2806,8 +2812,12 @@ function openDrawer() {
   $("#drMeta").innerHTML = meta;
   $("#drHp").value = hp ?? 0;
   $("#drHa").value = ha ?? 0;
-  /* HP/HA se vode na DP-u — sakrij editor za POP */
-  const nums = $(".dr-nums"); if (nums) nums.classList.toggle("hidden", SEL.type === "pop");
+  $("#drHp").readOnly = $("#drHa").readOnly = false;
+  const numScope = $("#drNumsScope"); if (numScope) numScope.textContent = "";
+  /* HP/HA se vode na DP-u — sakrij editor za POP; reset prikaza (DP ukupno) */
+  const nums = $(".dr-nums"); if (nums) { nums.classList.remove("act", "ph-hp", "ph-ha"); nums.classList.toggle("hidden", SEL.type === "pop"); }
+  /* ako je aktivnost trenutno fokusirana (hover/editor), zadrži njen HP/HA udio */
+  if (SEL.type === "dp" && drFocusTask != null) drNumsForTask(drFocusTask);
   /* RFA se vodi na POP-u — editor samo na POP panelu */
   const rfaWrap = $("#drRfaWrap");
   if (SEL.type === "pop") {
@@ -3015,6 +3025,10 @@ function histDirty() { if (SEL) loadDrawerHist(); }
 /* fokus historije na pojedinu aktivnost: hover (privremeno) ili klik/editor (zaključano) */
 let DR_EVENTS = [];
 let drFocusTask = null, drFocusLock = false;
+/* poslije izbora DP-a re-render izazove "sintetički" mouseenter na red pod kursorom
+   (nema stvarnog pomaka miša) -> preskoči TAJ jedan da panel ostane na UKUPNO DP;
+   stvarni pomak miša (#tlScroll mousemove) ga očisti pa hover normalno radi. */
+let drSuppressHover = false;
 function paintDrawerHist() {
   const wrap = $("#drHist");
   if (!wrap) return;
@@ -3030,20 +3044,58 @@ function paintDrawerHist() {
     ? evs.map(evRow).join("")
     : `<div class="dr-h empty">${focusAkt ? t("histEmptyAkt") : t("histEmpty")}</div>`;
 }
-/* hover nad aktivnošću -> privremeno fokusiraj njenu historiju; klik/editor -> zaključaj */
+/* planirani udio AKTIVNOSTI = zbir alokacija njenih termina u njenoj fazi
+   (HP-faza -> HP, HA-faza Montaža/Aktivacija -> HA; druga veličina je 0) */
+function taskPlannedShare(taskId) {
+  const tk = DATA.tasks.find(t => t.id === taskId);
+  if (!tk) return { hp: 0, ha: 0, phase: "hp" };
+  const ha = /montaž|aktiv/i.test(`${tk.aktivnost || ""} ${tk.odjel || ""}`);
+  const alloc = planAlloc(tk.dp_id, ha);
+  let sum = 0;
+  for (const s of DATA.segments) if (s.task_id === taskId) sum += alloc.get(s.id) || 0;
+  sum = Math.round(sum);
+  return ha ? { hp: 0, ha: sum, phase: "ha" } : { hp: sum, ha: 0, phase: "hp" };
+}
+/* HP/HA kutije u panelu: prikaži udio AKTIVNOSTI (read-only) dok se ona gleda,
+   a UKUPNO DP-a kad se gleda DP. */
+function drNumsForTask(taskId) {
+  if (!SEL || SEL.type !== "dp") return;
+  const tk = DATA.tasks.find(t => t.id === taskId);
+  if (!tk || tk.dp_id !== SEL.id) return;   // aktivnost mora pripadati otvorenom DP-u (ne stara/tuđa)
+  const hp = $("#drHp"), ha = $("#drHa"), nums = $(".dr-nums"), scope = $("#drNumsScope");
+  if (!hp || !ha || document.activeElement === hp || document.activeElement === ha) return;
+  const sh = taskPlannedShare(taskId);
+  hp.value = sh.hp; ha.value = sh.ha;
+  hp.readOnly = ha.readOnly = true;
+  if (nums) { nums.classList.add("act"); nums.classList.toggle("ph-ha", sh.phase === "ha"); nums.classList.toggle("ph-hp", sh.phase === "hp"); }
+  if (scope) scope.textContent = tk ? `${t("plShare")} · ${tAkt(tk.aktivnost)}` : "";
+}
+function drNumsForDp() {
+  const dp = SEL && SEL.type === "dp" && DATA.dps.find(d => d.id === SEL.id);
+  const hp = $("#drHp"), ha = $("#drHa"), nums = $(".dr-nums"), scope = $("#drNumsScope");
+  if (!hp || !ha || !dp || document.activeElement === hp || document.activeElement === ha) return;
+  hp.value = dp.hp ?? 0; ha.value = dp.ha ?? 0;
+  hp.readOnly = ha.readOnly = false;
+  if (nums) nums.classList.remove("act", "ph-ha", "ph-hp");
+  if (scope) scope.textContent = "";
+}
+/* hover nad aktivnošću -> fokusiraj njenu historiju + prikaži NJEN HP/HA udio; klik/editor -> zaključaj */
 function drHoverTask(taskId) {
   if (drFocusLock || !SEL || SEL.type !== "dp") return;
+  if (drSuppressHover) { drSuppressHover = false; return; }   // preskoči sintetički hover poslije izbora DP-a
+  const tk = DATA.tasks.find(t => t.id === taskId);
+  if (!tk || tk.dp_id !== SEL.id) return;   // samo aktivnosti otvorenog DP-a utiču na panel
   if (drFocusTask === taskId) return;
-  drFocusTask = taskId; paintDrawerHist();
+  drFocusTask = taskId; paintDrawerHist(); drNumsForTask(taskId);
 }
 function drHoverClear() {
   if (drFocusLock || drFocusTask == null) return;
-  drFocusTask = null; paintDrawerHist();
+  drFocusTask = null; paintDrawerHist(); drNumsForDp();
 }
-function drLockTask(taskId) {   // editor otvoren -> historija ostaje na toj aktivnosti
-  drFocusTask = taskId; drFocusLock = true; paintDrawerHist();
+function drLockTask(taskId) {   // editor otvoren -> historija + HP/HA ostaju na toj aktivnosti
+  drFocusTask = taskId; drFocusLock = true; paintDrawerHist(); drNumsForTask(taskId);
 }
-function drUnlock() { drFocusLock = false; drFocusTask = null; paintDrawerHist(); }
+function drUnlock() { drFocusLock = false; drFocusTask = null; paintDrawerHist(); drNumsForDp(); }
 async function loadDrawerHist() {
   if (!SEL) return;
   const key = `${SEL.type}:${SEL.id}`;
@@ -3173,6 +3225,7 @@ $("#drHist")?.addEventListener("mouseleave", clearHistGhost);
 /* drawer akcije: HP/HA upis, preimenovanje, brisanje */
 async function drNum(k) {
   if (!SEL) return;
+  if ($(".dr-nums")?.classList.contains("act")) return;   // prikaz udjela aktivnosti (read-only) -> ne snimaj
   const inp = $(k === "hp" ? "#drHp" : "#drHa");
   const v = Math.round(+inp.value || 0);
   const cur = SEL.type === "pop" ? DATA.pops.find(p => p.id === SEL.id) : DATA.dps.find(d => d.id === SEL.id);

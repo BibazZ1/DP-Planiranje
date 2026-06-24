@@ -597,6 +597,11 @@ function ok(name, cond, extra = "") {
   const hcBox = await page.locator(".hovercard").boundingBox().catch(() => null);
   ok("hovercard (prekoračen rok): cijeli unutar ekrana (ne odsječen)",
     !!hcBox && hcBox.y >= 0 && (hcBox.y + hcBox.height) <= (await page.evaluate(() => innerHeight)) + 1);
+  ok("hovercard: svaki red historije = JEDNA linija (ne lomi se)",
+    await page.evaluate(() => {
+      const rows = [...document.querySelectorAll(".hovercard .hc-hist .hc-h")];
+      return rows.length === 0 || rows.every(r => r.getBoundingClientRect().height <= 22);
+    }));
   ok("hovercard: tip ('dupli klik') vidljiv na dnu", await page.locator(".hovercard .hc-tip").isVisible().catch(() => false));
   // hovercard prikazuje HP/HA količine DP-a (mjerodavna istaknuta)
   ok("hovercard: HP/HA količine prikazane", (await page.locator(".hovercard .hc-qty .hc-q").count()) === 2);
@@ -1310,6 +1315,47 @@ function ok(name, cond, extra = "") {
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(300);
   ok("prognoza: Očisti vraća grupiranje na Provider", await page.locator('#forecastBody .fc-by[data-by="provider"].on').isVisible());
+
+  // ---------- 16t. panel HP/HA: udio AKTIVNOSTI na hover, UKUPNO DP inače ----------
+  {
+    const projSh = "[NORD CLUSTER 1] WANDLITZ [IP]";
+    await page.request.post(BASE + "/api/pops", { data: { projekt: projSh, naziv: "POP SHARE", rfa: "2027-06-01" } });
+    await page.request.post(BASE + "/api/dps", { data: { pop: "POP SHARE", projekt: projSh, naziv: "DP SHARE", hp: 30, ha: 12 } });
+    const dSh = await (await page.request.get(BASE + "/api/data")).json();
+    const shDp = dSh.dps.find(d => d.naziv === "DP SHARE");
+    const asf = shDp && dSh.tasks.find(t => t.dp_id === shDp.id && /asfalt/i.test(t.aktivnost));   // HP-faza
+    const mon = shDp && dSh.tasks.find(t => t.dp_id === shDp.id && /montaž/i.test(t.aktivnost));    // HA-faza
+    ok("HP/HA udio: DP + HP/HA aktivnost (preduslov)", !!asf && !!mon);
+    if (asf && mon) {
+      await page.request.post(BASE + "/api/segments", { data: { task_id: asf.id, datum_od: "2026-07-01", datum_do: "2026-07-20", status: "otvoreno" } });
+      await page.request.post(BASE + "/api/segments", { data: { task_id: mon.id, datum_od: "2026-08-01", datum_do: "2026-08-15", status: "otvoreno" } });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
+      await page.click("#pfClear").catch(() => {});
+      await page.locator(`#tlScroll .cell[data-fdp="${shDp.id}"]`).first().click();
+      await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const read = () => page.evaluate(() => ({ hp: $("#drHp").value, ha: $("#drHa").value,
+        ro: $("#drHp").readOnly, act: $(".dr-nums").classList.contains("act") }));
+      const dpv = await read();   // odmah po otvaranju DP-a: UKUPNO DP (ne udio aktivnosti pod kursorom)
+      ok("HP/HA: DP prikaz = UKUPNO DP, editabilno", dpv.hp === "30" && dpv.ha === "12" && !dpv.ro && !dpv.act, JSON.stringify(dpv));
+      await page.locator(`#tlScroll .tl-row[data-task="${asf.id}"] .act-name`).hover();
+      await page.waitForTimeout(250);
+      const asfv = await read();
+      ok("HP/HA: hover HP-aktivnost -> njen HP udio, HA=0, read-only", asfv.hp === "30" && asfv.ha === "0" && asfv.ro && asfv.act, JSON.stringify(asfv));
+      await page.locator(`#tlScroll .tl-row[data-task="${mon.id}"] .act-name`).hover();
+      await page.waitForTimeout(250);
+      const monv = await read();
+      ok("HP/HA: hover HA-aktivnost -> njen HA udio, HP=0", monv.hp === "0" && monv.ha === "12" && monv.act, JSON.stringify(monv));
+      await page.locator(`#tlScroll .tl-row.group[data-dp="${shDp.id}"] .gr-info`).hover();   // hover DP red -> UKUPNO DP
+      await page.waitForTimeout(250);
+      const backv = await read();
+      ok("HP/HA: hover DP red -> natrag UKUPNO DP (editabilno)", backv.hp === "30" && backv.ha === "12" && !backv.ro && !backv.act, JSON.stringify(backv));
+    }
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(200);
+  }
 
   // ---------- JS greške ----------
   const realErrors = jsErrors.filter(e => !/favicon|net::|Failed to load resource/i.test(e));
