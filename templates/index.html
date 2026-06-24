@@ -157,6 +157,15 @@
       <span class="fold-meta hint" id="fcMeta"></span>
     </button>
     <div class="fold-body">
+      <div class="fc-ctrl" id="fcControls">
+        <span class="fc-cl"><svg class="pf-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg><span data-i18n="fcPeriod">Razdoblje</span></span>
+        <span class="fc-dates">
+          <input type="text" id="fcDateOd" data-i18n-ph="odPh" placeholder="Od" autocomplete="off">
+          <span class="fc-dash">–</span>
+          <input type="text" id="fcDateDo" data-i18n-ph="doPh" placeholder="Do" autocomplete="off">
+        </span>
+        <button type="button" class="fc-clr hidden" id="fcDateClear" data-i18n-title="fcClearPeriod" title="Očisti razdoblje">✕</button>
+      </div>
       <div id="forecastBody"></div>
     </div>
   </section>

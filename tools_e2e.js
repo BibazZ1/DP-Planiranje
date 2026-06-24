@@ -698,6 +698,55 @@ function ok(name, cond, extra = "") {
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(200);
 
+  // ---------- 16c3. produžavanje ZAKAŠNJELOG termina traži razlog (inače se NE lijepi) ----------
+  {
+    const projRz = "[NORD CLUSTER 1] WANDLITZ [IP]";
+    const isoT = d => d.toISOString().slice(0, 10);
+    const past1 = isoT(new Date(Date.now() - 55 * 864e5)), past2 = isoT(new Date(Date.now() - 30 * 864e5));
+    await page.request.post(BASE + "/api/pops", { data: { projekt: projRz, naziv: "POP RESIZE", rfa: "2027-06-01" } });
+    await page.request.post(BASE + "/api/dps", { data: { pop: "POP RESIZE", projekt: projRz, naziv: "DP RESIZE", hp: 8, ha: 4 } });
+    const dRz = await (await page.request.get(BASE + "/api/data")).json();
+    const rzDp = dRz.dps.find(d => d.naziv === "DP RESIZE");
+    const rzTask = rzDp && dRz.tasks.find(t => t.dp_id === rzDp.id && /asfalt/i.test(t.aktivnost));
+    ok("resize-razlog: DP + aktivnost (preduslov)", !!rzTask);
+    if (rzTask) {
+      const cr = await page.request.post(BASE + "/api/segments", { data: {
+        task_id: rzTask.id, datum_od: past1, datum_do: past2, status: "otvoreno", kasni_razlog: "init" } });
+      const rzSeg = (await cr.json()).id;
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForSelector(`#tlScroll .seg[data-seg="${rzSeg}"]`, { timeout: 10000 });
+      await page.click("#pfClear").catch(() => {});
+      // simuliraj "kasni bez razloga" (kao termin koji je prešao rok) + povuci desni rub udesno
+      const dragExtend = id => page.evaluate(segId => {
+        const s = DATA.segments.find(x => x.id === segId); s.kasni_razlog = ""; renderTimeline(true);
+        const seg = document.querySelector(`#tlScroll .seg[data-seg="${segId}"]`); seg.scrollIntoView({ block: "center" });
+        const rs = seg.querySelector(".rs.r"); const rb = rs.getBoundingClientRect();
+        rs.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX: rb.x + 2, clientY: rb.y + 2 }));
+        document.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: rb.x + 160, clientY: rb.y + 2 }));
+        document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, clientX: rb.x + 160, clientY: rb.y + 2 }));
+      }, id);
+      await dragExtend(rzSeg);
+      await page.waitForTimeout(400);
+      ok("produženje kasnog termina: traži razlog (oblačić)", await page.locator("#drawAsk #daReason:not(.hidden)").isVisible());
+      await page.click("#daReasonCancel");
+      await page.waitForTimeout(450);
+      const afterCancel = (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === rzSeg);
+      ok("bez razloga -> promjena se NE lijepi (datum nepromijenjen, ostaje kasni)", afterCancel.datum_do === past2, `(${afterCancel.datum_do})`);
+      await dragExtend(rzSeg);
+      await page.waitForTimeout(400);
+      await page.fill("#daReasonInput", "kasni zbog dozvole");
+      await page.click("#daReasonSave");
+      await page.waitForTimeout(650);
+      const afterSave = (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === rzSeg);
+      ok("s razlogom -> promjena se lijepi (datum produžen + razlog snimljen)",
+        afterSave.datum_do !== past2 && afterSave.kasni_razlog === "kasni zbog dozvole",
+        `(${afterSave.datum_do} / ${afterSave.kasni_razlog})`);
+    }
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(200);
+  }
+
   // ---------- 16d. POP bez DP -> "čeka DP" red + "+ DP" konverzija ----------
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(300);
@@ -1106,6 +1155,9 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(500);
   ok("plan-vs: % nije kapiran na 100 (izvedeno > plan -> >100%, .pv-over)",
     (await page.locator("#projKpis .pv-num b.pv-over").count()) >= 1);
+  const pvTxt = await page.locator("#projKpis .pv-num").first().innerText();
+  ok("plan-vs: oznake Izvedeno/Ist + Plan (manje zabune)", /(Izvedeno|Ist|Actual)/.test(pvTxt) && /Plan/.test(pvTxt), `(${pvTxt})`);
+  ok("plan-vs: pojašnjavajući tooltip (title)", !!(await page.locator("#projKpis .pv-wrap").first().getAttribute("title")));
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(200);
 
@@ -1194,6 +1246,21 @@ function ok(name, cond, extra = "") {
     (await page.locator("#forecastBody .fc-sum .fc-s").count()) === 3);
   ok("prognoza: default grupiranje = Provider (aktivno)", await page.locator('#forecastBody .fc-by[data-by="provider"].on').isVisible());
   ok("prognoza: ima redove (provajder)", (await page.locator("#forecastBody .fc-row").count()) >= 1);
+  // inline period (von/bis) na vrhu prognoze pogoni ISTI globalni Datum filter
+  ok("prognoza: inline period kontrola (von/bis + ✕)",
+    (await page.locator("#fcControls #fcDateOd").count()) === 1 &&
+    (await page.locator("#fcControls #fcDateDo").count()) === 1 &&
+    (await page.locator("#fcControls #fcDateClear").count()) === 1);
+  ok("prognoza: ✕ za raspon skriven dok nema raspona", await page.locator("#fcDateClear").isHidden());
+  await page.evaluate(() => document.querySelector("#fcDateOd")._flatpickr.setDate("2026-06-01", true));
+  await page.evaluate(() => document.querySelector("#fcDateDo")._flatpickr.setDate("2026-06-30", true));
+  await page.waitForTimeout(500);
+  const gOdFromFc = await page.evaluate(() => { const fp = document.querySelector("#fDateOd")._flatpickr; return fp.selectedDates[0] ? fp.formatDate(fp.selectedDates[0], "Y-m-d") : ""; });
+  ok("prognoza: inline period postavlja globalni Datum filter", gOdFromFc === "2026-06-01", `(${gOdFromFc})`);
+  ok("prognoza: ✕ vidljiv kad je raspon postavljen", await page.locator("#fcDateClear").isVisible());
+  await page.locator("#fcDateClear").click();
+  await page.waitForTimeout(400);
+  ok("prognoza: ✕ čisti globalni Datum raspon", (await page.evaluate(() => document.querySelector("#fDateOd")._flatpickr.selectedDates.length)) === 0);
   // prognoza zauzima malo prostora: lista je ograničena (~5 redova) i skrola; zaglavlje+UKUPNO ostaju
   const fcCss = await page.evaluate(() => {
     const sc = document.querySelector("#forecastBody .fc-scroll");

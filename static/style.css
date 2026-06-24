@@ -1029,7 +1029,7 @@ span.flatpickr-weekday{color:#64748b!important}
 .pv-bar{flex:1;height:7px;background:rgba(255,255,255,.07);border-radius:9999px;overflow:hidden}
 .pv-bar i{display:block;height:100%;background:linear-gradient(90deg,#10b981,#34d399);
   border-radius:9999px;transition:width .6s cubic-bezier(.2,.8,.25,1)}
-.pv-num{font:600 11px var(--mono);color:var(--mut)}
+.pv-num{font:600 11px var(--mono);color:var(--mut);white-space:nowrap}
 .pv-num b{color:#34d399}
 /* izvedeno > plan -> % preko 100 (plan podcijenjen): amber umjesto zelene */
 .pv-num b.pv-over{color:#fbbf24}
@@ -1037,36 +1037,52 @@ span.flatpickr-weekday{color:#64748b!important}
 .pv-wrap .hint{font-size:10px}
 
 /* ---------- Prognoza (forecast) ---------- */
-.fc-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:9px}
-.fc-seg{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;flex:none}
-.fc-by{border:0;background:transparent;color:var(--mut);font:700 10.5px 'Inter',sans-serif;
-  padding:6px 13px;cursor:pointer;letter-spacing:.4px;transition:.15s}
+/* inline period (von/bis) na vrhu prognoze — pogoni isti globalni Datum filter */
+.fc-ctrl{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 11px;
+  padding-bottom:10px;border-bottom:1px solid var(--line)}
+.fc-cl{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.6px;color:var(--mut2)}
+.fc-cl .pf-ic{opacity:.6;margin:0}
+.fc-dates{display:inline-flex;align-items:center;gap:7px}
+.fc-dates input{width:108px;border:1px solid var(--line);border-radius:8px;background:var(--field);
+  color:var(--txt);padding:6px 10px;font-size:12px;font-family:var(--mono)}
+.fc-dates input::placeholder{color:var(--mut2)}
+.fc-dates input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.fc-dash{color:var(--mut2)}
+.fc-clr{width:25px;height:25px;border-radius:7px;border:1px solid var(--line2);
+  background:rgba(255,255,255,.04);color:var(--mut);cursor:pointer;font-size:12px;line-height:1;transition:.15s}
+.fc-clr:hover{background:rgba(239,68,68,.16);color:#fca5a5;border-color:rgba(239,68,68,.4)}
+.fc-clr.hidden{display:none}
+.fc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:5px}
+.fc-seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden;flex:none}
+.fc-by{border:0;background:transparent;color:var(--mut);font:700 10px 'Inter',sans-serif;
+  padding:3px 11px;cursor:pointer;letter-spacing:.4px;transition:.15s}
 .fc-by+.fc-by{border-left:1px solid var(--line)}
 .fc-by:hover{color:var(--txt)}
 .fc-by.on{color:#fff;background:#3b82f6}
 .fc-by:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
 .fc-sum{display:flex;gap:8px;flex-wrap:wrap}
-.fc-s{display:inline-flex;align-items:baseline;gap:5px;border:1px solid var(--line);border-radius:9px;
-  padding:5px 11px;font-size:8.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.8px;
+.fc-s{display:inline-flex;align-items:baseline;gap:5px;border:1px solid var(--line);border-radius:8px;
+  padding:2px 9px;font-size:8px;color:var(--mut);text-transform:uppercase;letter-spacing:.8px;
   background:rgba(15,23,42,.4)}
-.fc-s b{font:700 15px var(--mono)}
+.fc-s b{font:700 13px var(--mono)}
 .fc-s.sv b{color:#a5b4fc} .fc-s.hp b{color:var(--purple)} .fc-s.ha b{color:var(--teal)}
-.fc-hint{font-size:10px;color:var(--mut2);margin:0 0 7px;letter-spacing:.2px}
-.fc-empty{font-size:11.5px;color:var(--mut2);padding:8px 2px}
-.fc-tbl{width:100%;border-collapse:collapse;font-size:12px}
-.fc-tbl th{text-align:right;color:var(--mut2);font-weight:600;font-size:9.5px;text-transform:uppercase;
-  letter-spacing:1px;padding:5px 10px;border-bottom:1px solid var(--line);
+.fc-hint{font-size:9px;color:var(--mut2);margin:0 0 3px;letter-spacing:.2px}
+.fc-empty{font-size:11px;color:var(--mut2);padding:6px 2px}
+.fc-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.fc-tbl th{text-align:right;color:var(--mut2);font-weight:600;font-size:9px;text-transform:uppercase;
+  letter-spacing:1px;padding:3px 9px;border-bottom:1px solid var(--line);
   position:sticky;top:0;z-index:3;background:var(--field)}
 .fc-tbl th:first-child{text-align:left}
 .fc-sortable{cursor:pointer;user-select:none;white-space:nowrap}
 .fc-sortable:hover{color:var(--txt)}
 .fc-arr{font-style:normal;font-size:8px;color:var(--teal);display:inline-block;vertical-align:1px}
 .fc-arr.up{transform:rotate(180deg)}
-/* prognoza: max ~5 redova vidljivo, ostalo skrola (ne troši prostor); zaglavlje i UKUPNO ostaju */
-.fc-scroll{overflow:auto;max-height:210px}
-.fc-tbl td{text-align:right;padding:6px 10px;font:600 12px var(--mono);color:var(--txt);
+/* prognoza: kompaktno — max ~5 redova vidljivo, ostalo skrola; zaglavlje i UKUPNO ostaju */
+.fc-scroll{overflow:auto;max-height:158px}
+.fc-tbl td{text-align:right;padding:3px 9px;font:600 11px var(--mono);color:var(--txt);
   border-bottom:1px solid rgba(255,255,255,.04)}
-.fc-tbl td:first-child{text-align:left;font:600 12px 'Inter',sans-serif}
+.fc-tbl td:first-child{text-align:left;font:600 11px 'Inter',sans-serif}
 .fc-clickable{cursor:pointer;transition:.12s}
 .fc-clickable:hover{background:rgba(59,130,246,.10)}
 .fc-clickable:hover .fc-name{color:#bfdbfe}
@@ -1075,9 +1091,9 @@ span.flatpickr-weekday{color:#64748b!important}
 .fc-name{color:#e8eef7}
 .fc-ndp{font-style:normal;font-size:9px;color:var(--mut2);font-family:var(--mono);margin-left:5px}
 .fc-go{font-style:normal;color:#60a5fa;margin-left:5px;opacity:0;transition:.12s}
-.fc-total td{border-top:1px solid var(--line);border-bottom:0;padding-top:8px;color:var(--teal);
+.fc-total td{border-top:1px solid var(--line);border-bottom:0;padding-top:5px;color:var(--teal);
   position:sticky;bottom:0;z-index:3;background:var(--field)}
-.fc-total td:first-child{color:var(--mut);text-transform:uppercase;font-size:10px;letter-spacing:1.2px;font-weight:700}
+.fc-total td:first-child{color:var(--mut);text-transform:uppercase;font-size:9.5px;letter-spacing:1.2px;font-weight:700}
 .fc-total .fc-ndp{color:var(--mut2)}
 /* uske širine: tablica skrola, kontrole se slažu */
 @media (max-width:640px){

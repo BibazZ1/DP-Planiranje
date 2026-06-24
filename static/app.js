@@ -89,6 +89,7 @@ const I18N = {
     fcAkt: "Aktivacije", fcTotal: "UKUPNO", fcAll: "ukupan plan (bez raspona)",
     fcNoData: "nema planiranih količina za izabrani raspon", fcHint: "planirano u rasponu Datum od/do (procjena po planu)",
     fcByProvider: "Provajder", fcByProject: "Projekat", fcDrillTip: "klik = filtriraj na ovo (i spusti nivo)",
+    fcPeriod: "Razdoblje", fcClearPeriod: "Očisti razdoblje (cijeli plan)",
     aktKlikTip: "klik = promijeni status / nacrtaj termin",
     bezTermina: "bez termina — klik crta", pomjeriSve: "Pomjeri sve",
     shiftPitanje: "Pomjeriti i sve sljedeće aktivnosti ovog DP-a?",
@@ -96,7 +97,9 @@ const I18N = {
     nemaKom: "još nema komentara", vrati: "Vrati zadnju promjenu",
     depTip: "počinje prije kraja", rokProsao: "prošao prije", rokZa: "za",
     planVs: "Plan (DP) vs izvedeno (Daily)",
-    planVsHint: "plan = Σ HP/HA unesenih na DP-ovima · izvedeno = Azure Daily",
+    planVsHint: "Plan = Σ HP/HA unesenih na DP-ovima · Izvedeno = Azure Daily · % = Izvedeno ÷ Plan (NIJE napredak gradnje; >100% = na DP-ove još nije unesena sva količina)",
+    vsIst: "Izvedeno", vsPlan: "Plan",
+    planVsTip: "Poredi unos na DP-ovima (Plan) s količinama iz Azure Daily (Izvedeno). % nije \"koliko je izgrađeno\" nego pokrivenost: >100% znači da Azure prijavljuje više nego što je uneseno na DP-ove.",
     rokLbl: "rok", rokTip: "rok DP-a = kraj termina Aktivacija",
     rfaLbl: "RFA datum", rfaReq: "Upiši RFA datum POP-a.",
     rfaDlgNote: "RFA = Ready-for-Activation. Aktivacije planirane prije ovog datuma se upozoravaju.",
@@ -202,6 +205,7 @@ const I18N = {
     fcAkt: "Activations", fcTotal: "TOTAL", fcAll: "total plan (no range)",
     fcNoData: "no planned quantities for the selected range", fcHint: "planned within the Date from/to range (plan-based estimate)",
     fcByProvider: "Provider", fcByProject: "Project", fcDrillTip: "click = filter to this (drill down)",
+    fcPeriod: "Period", fcClearPeriod: "Clear period (whole plan)",
     aktKlikTip: "click = toggle status / draw dates",
     bezTermina: "no dates — click to draw", pomjeriSve: "Shift all",
     shiftPitanje: "Also shift all later activities of this DP?",
@@ -209,7 +213,9 @@ const I18N = {
     nemaKom: "no comments yet", vrati: "Undo last change",
     depTip: "starts before the end of", rokProsao: "overdue by", rokZa: "in",
     planVs: "Plan (DP) vs actual (Daily)",
-    planVsHint: "plan = Σ HP/HA entered on DPs · actual = Azure Daily",
+    planVsHint: "Plan = Σ HP/HA entered on DPs · Actual = Azure Daily · % = Actual ÷ Plan (NOT build progress; >100% = not all quantity entered on DPs yet)",
+    vsIst: "Actual", vsPlan: "Plan",
+    planVsTip: "Compares what's entered on the DPs (Plan) with the quantities from Azure Daily (Actual). The % is not \"how much is built\" but coverage: >100% means Azure reports more than has been entered on the DPs.",
     rokLbl: "due", rokTip: "DP due date = end of Activations",
     rfaLbl: "RFA date", rfaReq: "Enter the POP's RFA date.",
     rfaDlgNote: "RFA = Ready-for-Activation. Activations planned before this date are flagged.",
@@ -315,6 +321,7 @@ const I18N = {
     fcAkt: "Aktivierungen", fcTotal: "GESAMT", fcAll: "Gesamtplan (ohne Zeitraum)",
     fcNoData: "keine geplanten Mengen für den gewählten Zeitraum", fcHint: "geplant im Zeitraum Datum von/bis (Schätzung nach Plan)",
     fcByProvider: "Provider", fcByProject: "Projekt", fcDrillTip: "Klick = darauf filtern (Ebene tiefer)",
+    fcPeriod: "Zeitraum", fcClearPeriod: "Zeitraum löschen (gesamter Plan)",
     aktKlikTip: "Klick = Status wechseln / Termin zeichnen",
     bezTermina: "kein Termin — Klick zeichnet", pomjeriSve: "Alle verschieben",
     shiftPitanje: "Auch alle späteren Aktivitäten dieses DP verschieben?",
@@ -322,7 +329,9 @@ const I18N = {
     nemaKom: "noch keine Kommentare", vrati: "Letzte Änderung rückgängig",
     depTip: "beginnt vor dem Ende von", rokProsao: "überfällig seit", rokZa: "in",
     planVs: "Plan (DP) vs Ist (Daily)",
-    planVsHint: "Plan = Σ HP/HA der DPs · Ist = Azure Daily",
+    planVsHint: "Plan = Σ HP/HA der DPs · Ist = Azure Daily · % = Ist ÷ Plan (KEIN Baufortschritt; >100% = noch nicht die gesamte Menge auf den DPs erfasst)",
+    vsIst: "Ist", vsPlan: "Plan",
+    planVsTip: "Vergleicht die auf den DPs erfasste Menge (Plan) mit den Mengen aus Azure Daily (Ist). Das % ist nicht \"wie viel gebaut ist\", sondern die Abdeckung: >100% bedeutet, Azure meldet mehr, als auf den DPs erfasst wurde.",
     rokLbl: "Frist", rokTip: "DP-Frist = Ende der Aktivierungen",
     rfaLbl: "RFA-Termin", rfaReq: "RFA-Termin des POP eingeben.",
     rfaDlgNote: "RFA = Ready-for-Activation. Vor diesem Datum geplante Aktivierungen werden gewarnt.",
@@ -972,6 +981,11 @@ function renderForecast() {
   const od = F.dOd, do_ = F.dDo;
   const meta = $("#fcMeta");
   if (meta) meta.textContent = (od || do_) ? `${fmt(od) || "…"} – ${fmt(do_) || "…"}` : t("fcAll");
+  /* inline period pickeri (von/bis) prate globalni Datum filter — tiho (bez okidanja onChange);
+     ✕ za čišćenje raspona vidljiv samo kad je raspon postavljen */
+  if (FP.fcDateOd) { if (od) FP.fcDateOd.setDate(od, false); else FP.fcDateOd.clear(false); }
+  if (FP.fcDateDo) { if (do_) FP.fcDateDo.setDate(do_, false); else FP.fcDateDo.clear(false); }
+  const fcClr = $("#fcDateClear"); if (fcClr) fcClr.classList.toggle("hidden", !(od || do_));
   const card = $("#forecastCard");
   if (card && card.classList.contains("collapsed")) return;   // ne računaj dok je panel sklopljen
   /* keš: izgradi mape jednom -> O(D+T+S) umjesto skeniranja DATA.tasks/segments po svakom DP-u */
@@ -1736,6 +1750,24 @@ $("#daReasonCancel").addEventListener("click", () => drawAskTo(null));
 $("#daReasonInput").addEventListener("keydown", e => {
   if (e.key === "Enter") { e.preventDefault(); $("#daReasonSave").click(); }
 });
+/* samo razlog (bez izbora otvoren/završen) — kad se zakašnjeli termin produžava
+   povlačenjem ruba: promjena se NE lijepi dok se ne upiše ŠTA je pošlo po zlu.
+   Vraća {kasni_razlog} ili null (otkazano). */
+function askLateReason(anchorEl) {
+  return new Promise(resolve => {
+    const onScroll = () => placeDrawAsk();
+    drawAskState = { resolve, ghostEl: anchorEl, onScroll, isPast: true };
+    $("#daChoice").classList.add("hidden");
+    $("#daReason").classList.remove("hidden");
+    $("#daReasonInput").value = "";
+    $("#daReasonInput").classList.remove("err");
+    $("#drawAsk").classList.remove("hidden");
+    placeDrawAsk();
+    $("#tlScroll").addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    setTimeout(() => $("#daReasonInput").focus(), 0);
+  });
+}
 
 /* live resize of an existing termin by dragging its edge */
 document.addEventListener("mousemove", e => {
@@ -1757,15 +1789,28 @@ document.addEventListener("mouseup", async () => {
   const a = sr.curA ?? sr.a, b = sr.curB ?? sr.b;
   const od = iso(dateOfIdx(a)), do_ = iso(dateOfIdx(b));
   const s = DATA.segments.find(x => x.id === sr.id);
-  if (s && (s.datum_od !== od || s.datum_do !== do_)) {
-    const old = { od: s.datum_od, do_: s.datum_do };
-    s.datum_od = od; s.datum_do = do_;
-    await api(`/api/segments/${sr.id}`, "PATCH", { datum_od: od, datum_do: do_ });
-    pushUndo({ label: t("urediTermin"), run: async () =>
-      api(`/api/segments/${sr.id}`, "PATCH", { datum_od: old.od, datum_do: old.do_ }) });
-    renderAll();
-    histDirty();
+  if (!s || (s.datum_od === od && s.datum_do === do_)) { renderAll(); return; }   // ništa -> vrati prikaz
+  const old = { od: s.datum_od, do_: s.datum_do };
+  const today = todayIso();
+  /* zakašnjeli termin (otvoren, rok prošao): produžavanje/uređivanje MORA imati razlog.
+     Bez razloga se NE lijepi (vrati se) i ostaje "kasni" — ne smije tiho nestati iz filtera. */
+  const wasLate = s.status !== "završeno" && old.do_ < today;
+  const stillLate = s.status !== "završeno" && do_ < today;
+  const extended = do_ > old.do_;
+  const body = { datum_od: od, datum_do: do_ };
+  if ((stillLate || (wasLate && extended)) && !s.kasni_razlog) {
+    const res = await askLateReason(sr.segEl);
+    if (!res || !res.kasni_razlog) { renderAll(); return; }   // nema razloga -> ne lijepi, ostaje kasni
+    body.kasni_razlog = res.kasni_razlog;
   }
+  s.datum_od = od; s.datum_do = do_;
+  if (body.kasni_razlog) s.kasni_razlog = body.kasni_razlog;
+  try { await api(`/api/segments/${sr.id}`, "PATCH", body); }
+  catch (e) { s.datum_od = old.od; s.datum_do = old.do_; renderAll(); return handleApiErr(e); }
+  pushUndo({ label: t("urediTermin"), run: async () =>
+    api(`/api/segments/${sr.id}`, "PATCH", { datum_od: old.od, datum_do: old.do_ }) });
+  renderAll();
+  histDirty();
 });
 /* live povlačenje POČETKA eskalacije po danima (snap), uz živi datum */
 document.addEventListener("mousemove", e => {
@@ -2440,9 +2485,9 @@ function renderProj() {
       const over = pct > 100;                                // izvedeno > plan -> plan je podcijenjen (npr. DP-ovi bez HP/HA)
       return `<div class="pv-row"><span class="pv-lbl">${lbl}</span>
         <span class="pv-bar${over ? " over" : ""}"><i style="width:${plan ? w : 0}%"></i></span>
-        <span class="pv-num">${fmtNum(act)} / ${fmtNum(plan)} <b${over ? ' class="pv-over"' : ""}>${plan ? pct + "%" : "—"}</b></span></div>`;
+        <span class="pv-num">${t("vsIst")} ${fmtNum(act)} · ${t("vsPlan")} ${fmtNum(plan)} <b${over ? ' class="pv-over"' : ""}>${plan ? pct + "%" : "—"}</b></span></div>`;
     };
-    pv = `<div class="pv-wrap"><h4>${t("planVs")}</h4>
+    pv = `<div class="pv-wrap" title="${esc(t("planVsTip"))}"><h4>${t("planVs")}</h4>
       ${pvBar("HP", tot(f[0]).hp || 0, planHP)}
       ${pvBar("HA", tot(f[0]).ha_stck || 0, planHA)}
       <span class="hint">${t("planVsHint")}</span></div>`;
@@ -3431,6 +3476,32 @@ const FP = {};
     el.addEventListener("change", async e => { set(e.target.value || ""); await refreshDateTotals(); renderAll(); });
   }
 });
+/* Prognoza: inline period (von/bis) — pogoni ISTI globalni Datum filter
+   (forecast picker -> globalni picker.setDate(triggerChange) -> postojeći onChange odradi posao).
+   Sinhronizacija nazad (globalni -> forecast) ide tiho u renderForecast. */
+[["fcDateOd", "fDateOd"], ["fcDateDo", "fDateDo"]].forEach(([fcId, gId]) => {
+  const el = $("#" + fcId);
+  if (!el) return;
+  if (window.flatpickr) {
+    FP[fcId] = flatpickr("#" + fcId, {
+      dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y",
+      monthSelectorType: "static", disableMobile: true, allowInput: true,
+      onChange: (_d, ds) => { if (!FP[gId]) return; if (ds) FP[gId].setDate(ds, true); else FP[gId].clear(true); },
+    });
+  } else {
+    el.type = "date";
+    el.addEventListener("change", e => { const g = $("#" + gId); if (!g) return; g.value = e.target.value; g.dispatchEvent(new Event("change")); });
+  }
+});
+/* ✕ na prognozi = poništi samo Datum raspon (cijeli plan); ostali filteri ostaju */
+{
+  const fcClr = $("#fcDateClear");
+  if (fcClr) fcClr.addEventListener("click", async () => {
+    F.dOd = F.dDo = "";
+    ["fDateOd", "fDateDo", "fcDateOd", "fcDateDo"].forEach(id => { if (FP[id]) FP[id].clear(false); else { const e2 = $("#" + id); if (e2) e2.value = ""; } });
+    await refreshDateTotals(); renderAll();
+  });
+}
 function clearDate(id) {
   if (FP[id]) FP[id].clear();      // clear() okida onChange -> F + renderAll
   else { const el = $("#" + id); if (el) el.value = ""; }
@@ -3470,6 +3541,8 @@ function applyLang() {
   if (typeof FP !== "undefined") {
     if (FP.fDateOd && FP.fDateOd.altInput) FP.fDateOd.altInput.placeholder = t("odPh");
     if (FP.fDateDo && FP.fDateDo.altInput) FP.fDateDo.altInput.placeholder = t("doPh");
+    if (FP.fcDateOd && FP.fcDateOd.altInput) FP.fcDateOd.altInput.placeholder = t("odPh");
+    if (FP.fcDateDo && FP.fcDateDo.altInput) FP.fcDateDo.altInput.placeholder = t("doPh");
   }
 }
 function setLang(l) {
