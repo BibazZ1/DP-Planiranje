@@ -303,12 +303,8 @@ function ok(name, cond, extra = "") {
   // ---------- 12f. plan-vs-stvarnost ----------
   ok("plan-vs-stvarnost (HP/HA trake) prikazan", (await page.locator(".pv-wrap").count()) === 1);
 
-  // ---------- 12g. zbijena historija (1 red, boja po akciji) + Escape skida DP ali OSTAVLJA projekat ----------
-  ok("historija: zbijen red (vrijeme)", (await page.locator("#drHist .dr-h .evt").count()) >= 1);
-  ok("historija: zbijen datum dd/mm[/yy] hh:mm",
-    /\d{2}\/\d{2}(\/\d{2})?\s+\d{2}:\d{2}/.test(await page.locator("#drHist .dr-h .evt").first().textContent().catch(() => "")));
-  ok("historija: boja po akciji",
-    (await page.locator("#drHist .dr-h.ev-green, #drHist .dr-h.ev-teal, #drHist .dr-h.ev-amber, #drHist .dr-h.ev-blue, #drHist .dr-h.ev-red, #drHist .dr-h.ev-purple, #drHist .dr-h.ev-gray").count()) >= 1);
+  // ---------- 12g. Escape skida DP ali OSTAVLJA projekat (historija je sad SAMO u hover-kartici) ----------
+  ok("panel: nema više liste historije (samo hover-kartica)", (await page.locator("#drHist").count()) === 0);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   ok("Esc: panel zatvoren", !(await page.locator("#drawer.open").isVisible().catch(() => false)));
@@ -444,9 +440,6 @@ function ok(name, cond, extra = "") {
   // klik na termin -> vizuelno istaknut na grafu (.sel)
   ok("termin koji se uređuje istaknut (.seg.sel)", (await page.locator(".seg.sel").count()) === 1);
   ok("istaknut je BAŠ taj termin", (await page.locator(`.seg[data-seg="${segM.id}"].sel`).count()) === 1);
-  // panel historija zaključana na tu aktivnost (fokus oznaka prisutna)
-  ok("panel: historija fokusirana na aktivnost (📌)",
-    ((await page.locator("#drHistFoc").textContent().catch(() => "")) || "").trim().length > 0);
   // editor MORA ostati cijeli u ekranu (i kad je visok zbog eskalacije na zadnjem redu) + skrolabilan
   await page.locator("#popEsk").check().catch(() => {});   // proširi -> najviši slučaj (eskalacija polja)
   await page.waitForTimeout(150);
@@ -471,8 +464,6 @@ function ok(name, cond, extra = "") {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
   ok("zatvaranje editora skida isticanje (.seg.sel)", (await page.locator(".seg.sel").count()) === 0);
-  ok("zatvaranje editora čisti fokus historije",
-    (((await page.locator("#drHistFoc").textContent().catch(() => "")) || "").trim()) === "");
 
   // ---------- 12i. eskalacija: ručica na grafu pomjera POČETAK eskalacije ----------
   await page.locator(`.seg[data-seg="${segM.id}"]`).scrollIntoViewIfNeeded().catch(() => {});
@@ -495,9 +486,19 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(700);
   const eskAfter = (await (await page.request.get(BASE + "/api/data")).json()).segments.find(s => s.id === segM.id).esk_datum;
   ok("ručica eskalacije: drag-and-drop pomjerio esk_datum", !!eskAfter && eskAfter !== eskBefore, `(${eskBefore} -> ${eskAfter})`);
+  // hover-kartica označava datum eskalacije (.hc-eskd) i odražava NOVI datum poslije povlačenja
+  await page.keyboard.press("Escape");   // zatvori editor (hover-kartica skrivena dok je editor otvoren)
+  await page.waitForTimeout(250);
+  await page.mouse.move(5, 5); await page.waitForTimeout(120);
+  await page.locator(`.seg[data-seg="${segM.id}"]`).hover();
+  await page.waitForSelector(".hovercard:not(.hidden) .hc-eskd", { timeout: 3000 }).catch(() => {});
+  const eskdTxt = (await page.locator(".hovercard .hc-eskd").innerText().catch(() => "")) || "";
+  ok("hover-kartica: označen datum eskalacije = novi (dd/mm/yyyy)",
+    eskdTxt.includes(eskAfter.split("-").reverse().join("/")), `(${eskdTxt} / ${eskAfter})`);
 
   await page.keyboard.press("Escape");   // zatvori bočni panel (inače prekriva desne filtere/Očisti)
   await page.waitForTimeout(250);
+  await page.mouse.move(5, 5); await page.waitForTimeout(120);
   await page.click("#pfClear");
   await page.waitForTimeout(400);
 
@@ -681,25 +682,11 @@ function ok(name, cond, extra = "") {
   const origTxt = (await page.locator(".hovercard .hc-row.gray").innerText().catch(() => "")) || "";
   ok("moved: originalni datum u formatu dd/mm/yyyy", /\d{2}\/\d{2}\/\d{4}/.test(origTxt), `(${origTxt.replace(/\s+/g, " ")})`);
 
-  // ---------- 16c2. hover reda historije -> "duh" termina na grafu + dd/mm/yyyy u historiji ----------
-  const mvTask = dMoved.tasks.find(t => t.id === movedNow.task_id);
-  const mvDp = mvTask && dMoved.dps.find(d => d.id === mvTask.dp_id);
-  if (mvDp) {
-    await page.locator(`#tlScroll .cell[data-fdp="${mvDp.id}"]`).first().click();
-    await page.locator("#drawer.open").waitFor({ state: "visible", timeout: 6000 }).catch(() => {});
-    await page.waitForTimeout(500);
-    ok("historija: ima red s datumima (hoverable)", (await page.locator("#drHist .dr-h.hoverable").count()) >= 1);
-    const histTxt = (await page.locator("#drHist").innerText().catch(() => "")) || "";
-    ok("historija: datumi u dd/mm/yyyy", /\d{2}\/\d{2}\/\d{4}/.test(histTxt), `(${histTxt.slice(0, 90).replace(/\s+/g, " ")})`);
-    await page.locator("#drHist .dr-h.hoverable").first().hover();
-    await page.waitForTimeout(300);
-    ok("hover historije -> 'duh' termina na grafu (.histghost)", (await page.locator("#tlScroll .histghost").count()) >= 1);
-    await page.mouse.move(5, 5);   // skloni miš -> duh nestaje
-    await page.waitForTimeout(250);
-    ok("hover van historije -> 'duh' uklonjen", (await page.locator("#tlScroll .histghost").count()) === 0);
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(200);
-  }
+  // ---------- 16c2. historija termina je SAMO u hover-kartici (dd/mm/yyyy, red po promjeni) ----------
+  const hcHist = ((await page.locator(".hovercard .hc-hist .hc-h").allInnerTexts().catch(() => [])) || []).join(" | ");
+  ok("hover-kartica: historija u dd/mm/yyyy (red po promjeni)", /\d{2}\/\d{2}\/\d{4}/.test(hcHist), `(${hcHist.slice(0, 90)})`);
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(200);
   await page.click("#pfClear").catch(() => {});
   await page.waitForTimeout(200);
 

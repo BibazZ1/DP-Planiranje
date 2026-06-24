@@ -58,7 +58,7 @@ const I18N = {
     noEsk: "Nema aktivnih eskalacija",
     kasni: "KASNI", kasniDoDanas: "produženo do danas",
     razlogProd: "razlog produženja", razlogNijeUpisan: "nije upisan — dupli klik!",
-    hist: "Historija", noHist: "nema zabilježenih promjena", histMore: "još u bočnom panelu", hcEdit: "dupli klik = uredi",
+    hist: "Historija", noHist: "nema zabilježenih promjena", histMore: "starijih", hcEdit: "dupli klik = uredi",
     drawAskTitle: "Otvoren ili završen termin?",
     hcLateTip: "PROBIJEN ROK · dupli klik = produži rok + razlog · povuci rub = pomjeri kraj",
     hKreirano: "kreirano", hStatus: "status", hPocetak: "početak", hKraj: "kraj",
@@ -174,7 +174,7 @@ const I18N = {
     noEsk: "No active escalations",
     kasni: "LATE", kasniDoDanas: "extended to today",
     razlogProd: "extension reason", razlogNijeUpisan: "not entered — double-click!",
-    hist: "History", noHist: "no recorded changes", histMore: "more in side panel", hcEdit: "double-click = edit",
+    hist: "History", noHist: "no recorded changes", histMore: "older", hcEdit: "double-click = edit",
     drawAskTitle: "Open or completed slot?",
     hcLateTip: "OVERDUE · double-click = extend + reason · drag edge = move end",
     hKreirano: "created", hStatus: "status", hPocetak: "start", hKraj: "end",
@@ -290,7 +290,7 @@ const I18N = {
     noEsk: "Keine aktiven Eskalationen",
     kasni: "VERSPÄTET", kasniDoDanas: "bis heute verlängert",
     razlogProd: "Verlängerungsgrund", razlogNijeUpisan: "nicht eingetragen — Doppelklick!",
-    hist: "Verlauf", noHist: "keine Änderungen erfasst", histMore: "mehr im Seitenpanel", hcEdit: "Doppelklick = bearbeiten",
+    hist: "Verlauf", noHist: "keine Änderungen erfasst", histMore: "ältere", hcEdit: "Doppelklick = bearbeiten",
     drawAskTitle: "Offen oder abgeschlossen?",
     hcLateTip: "ÜBERFÄLLIG · Doppelklick = verlängern + Grund · Rand ziehen = Ende verschieben",
     hKreirano: "erstellt", hStatus: "Status", hPocetak: "Beginn", hKraj: "Ende",
@@ -431,6 +431,7 @@ const ICON = {
   trash: '<svg class="i-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   comment: '<svg class="i-ic" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-11.5 7.2L3 21l2.3-6.5A8 8 0 1 1 21 11.5z"/></svg>',
   warn: '<svg class="i-ic" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.3v.01"/></svg>',
+  flag: '<svg class="i-ic" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
 };
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -1824,6 +1825,9 @@ document.addEventListener("mousemove", e => {
   eskDrag.grip.style.left = off + "px";
   if (eskDrag.part) { eskDrag.part.style.left = off + "px"; eskDrag.part.style.width = (eskDrag.b - k + 1) * PX + "px"; }
   if (popCtx && popCtx.mode === "edit" && popCtx.segId === eskDrag.id) $("#popEskDat").value = iso(dateOfIdx(k));
+  /* hover-kartica istog termina: živo prati datum eskalacije dok ga povlačiš */
+  const eskd = hcEl.querySelector(".hc-eskd");
+  if (eskd && hcEl.dataset.seg === String(eskDrag.id)) eskd.innerHTML = `${ICON.flag} ${fmt(iso(dateOfIdx(k)))}`;
   dragTip.innerHTML = `<b>⚑ ${fmtShort(iso(dateOfIdx(k)))}</b><span class="dt-n">KW${isoWeekOf(dateOfIdx(k))}</span>`;
   dragTip.classList.remove("hidden");
   dragTip.style.left = Math.min(e.clientX + 16, innerWidth - 200) + "px";
@@ -1845,6 +1849,7 @@ document.addEventListener("mouseup", async () => {
       api(`/api/segments/${ed.id}`, "PATCH", { esk_datum: old }) });
     if (popCtx && popCtx.mode === "edit" && popCtx.segId === ed.id) $("#popEskDat").value = newDate;
     renderAll();
+    hcEl.dataset.seg = "";   // invalidiraj keš kartice -> sljedeći hover pokaže svjež datum + novi red historije
     histDirty();
   }
 });
@@ -2212,14 +2217,15 @@ function hcShow(el, ev) {
     ${s.komentar ? `<div class="hc-row amber"><span>${t("komentar")}</span>${esc(s.komentar)}</div>` : ""}
     ${late ? `<div class="hc-row purple"><span>${t("razlogProd")}</span>${s.kasni_razlog
       ? esc(s.kasni_razlog) : t("razlogNijeUpisan")}</div>` : ""}
-    ${s.eskalacija ? `<div class="hc-row orange"><span>${t("hEskalacija")}${s.esk_datum
-      ? " · " + fmt(s.esk_datum) : ""}</span>${esc(s.esk_razlog || "—")}</div>` : ""}
+    ${s.eskalacija ? `<div class="hc-row orange"><span>${t("hEskalacija")}</span>` +
+      `<b class="hc-eskd" title="${t("hEskOd")}">${ICON.flag} ${s.esk_datum ? fmt(s.esk_datum) : "—"}</b>` +
+      `${s.esk_razlog ? ` ${esc(s.esk_razlog)}` : ""}</div>` : ""}
     <div class="hc-hist"><h4>${t("hist")}</h4><div class="hc-hist-list">${hist.length
-      ? hist.slice(0, 6).map(h => `<div class="hc-h"><i>${fmtTs(h.ts)}</i>
+      ? hist.slice(0, 12).map(h => `<div class="hc-h"><i>${fmtTs(h.ts)}</i>
           <em>${hcLbl(h.polje)}</em><span>${escD(h.vrijednost)}</span>${h.user
             ? `<b class="hc-u">${esc(h.user)}</b>` : ""}</div>`).join("")
-      : `<div class="hc-h empty">${t("noHist")}</div>`}${hist.length > 6
-      ? `<div class="hc-h more">+${hist.length - 6} ${t("histMore")}</div>` : ""}</div></div>
+      : `<div class="hc-h empty">${t("noHist")}</div>`}${hist.length > 12
+      ? `<div class="hc-h more">+${hist.length - 12} ${t("histMore")}</div>` : ""}</div></div>
     <div class="hc-tip${late ? " late" : ""}">${late ? t("hcLateTip") : t("hcEdit")}</div>`;
     hcEl.classList.remove("hidden");
   }
@@ -2834,7 +2840,6 @@ function openDrawer() {
   renderDrawerStats();
   renderDrawerPlan();
   loadComments();
-  loadDrawerHist();
 }
 
 /* ---------- komandni centar: napredak + rok + aktivnosti + komentari ---------- */
@@ -3021,7 +3026,8 @@ function drawerSync() {
   if (ok) openDrawer();
   else { SEL = null; closeDrawer(); }
 }
-function histDirty() { if (SEL) loadDrawerHist(); }
+/* historija termina živi SAMO u hover-kartici (DATA.history) — bočni panel je nema više */
+function histDirty() {}
 /* fokus historije na pojedinu aktivnost: hover (privremeno) ili klik/editor (zaključano) */
 let DR_EVENTS = [];
 let drFocusTask = null, drFocusLock = false;
@@ -3086,16 +3092,16 @@ function drHoverTask(taskId) {
   const tk = DATA.tasks.find(t => t.id === taskId);
   if (!tk || tk.dp_id !== SEL.id) return;   // samo aktivnosti otvorenog DP-a utiču na panel
   if (drFocusTask === taskId) return;
-  drFocusTask = taskId; paintDrawerHist(); drNumsForTask(taskId);
+  drFocusTask = taskId; drNumsForTask(taskId);
 }
 function drHoverClear() {
   if (drFocusLock || drFocusTask == null) return;
-  drFocusTask = null; paintDrawerHist(); drNumsForDp();
+  drFocusTask = null; drNumsForDp();
 }
-function drLockTask(taskId) {   // editor otvoren -> historija + HP/HA ostaju na toj aktivnosti
-  drFocusTask = taskId; drFocusLock = true; paintDrawerHist(); drNumsForTask(taskId);
+function drLockTask(taskId) {   // editor otvoren -> HP/HA u panelu ostaje na toj aktivnosti
+  drFocusTask = taskId; drFocusLock = true; drNumsForTask(taskId);
 }
-function drUnlock() { drFocusLock = false; drFocusTask = null; paintDrawerHist(); drNumsForDp(); }
+function drUnlock() { drFocusLock = false; drFocusTask = null; drNumsForDp(); }
 async function loadDrawerHist() {
   if (!SEL) return;
   const key = `${SEL.type}:${SEL.id}`;

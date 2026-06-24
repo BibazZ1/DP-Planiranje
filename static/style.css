@@ -392,6 +392,11 @@ main{padding:5px 14px 8px;display:flex;flex-direction:column;gap:5px}
   color:var(--mut);margin-bottom:1px}
 .hc-row.purple{background:rgba(129,140,248,.13);border-left:3px solid var(--purple)}
 .hc-row.orange{background:rgba(255,140,26,.12);border-left:3px solid #ff8c1a}
+/* označen datum POČETKA eskalacije u hover-kartici (živo prati drag ručice na grafu) */
+.hc-eskd{display:inline-flex;align-items:center;gap:4px;margin:1px 6px 1px 0;padding:1px 7px;
+  border-radius:6px;background:rgba(255,140,26,.2);border:1px solid rgba(255,140,26,.5);
+  font:700 11px var(--mono);color:#ffb066}
+.hc-eskd .i-ic{color:#ff8c1a}
 .hc-hist{margin-top:6px;border-top:1px solid var(--line);padding-top:5px}
 .hc-hist h4{margin:0 0 4px;font-size:9px;color:var(--mut);text-transform:uppercase;
   letter-spacing:1.4px}
