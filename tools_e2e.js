@@ -819,6 +819,11 @@ function ok(name, cond, extra = "") {
   ok("DE: aktivnost prevedena (Horizontalbohrung)", actDe.includes("Horizontalbohrung"));
   const odjDe = (await page.locator("#slicers .chip.odj").allInnerTexts()).map(s => s.trim());
   ok("DE: odjel/Abteilung preveden (Planung)", odjDe.includes("Planung"), `(${odjDe})`);
+  // eskalacije tabela: aktivnost se prevodi (ne sirovi BS naziv "Montaža"/"Priključak na POP")
+  const eskActsDe = (await page.locator("#eskPanel table.mini tr td:nth-child(2)").allInnerTexts()).map(s => s.trim());
+  ok("DE: eskalacije — aktivnost prevedena (nije sirovi BS naziv)",
+    !eskActsDe.some(a => a === "Montaža" || a === "Priključak na POP" || a === "Pregled objekata"),
+    `(${eskActsDe.join("|")})`);
   await page.locator('#langToggle button[data-lang="bs"]').click();
   await page.waitForTimeout(400);
   ok("BS vraćeno (Dozvole)", (await page.locator("#tlScroll .act-name").allInnerTexts()).map(s => s.trim()).includes("Dozvole"));
@@ -1189,6 +1194,17 @@ function ok(name, cond, extra = "") {
     (await page.locator("#forecastBody .fc-sum .fc-s").count()) === 3);
   ok("prognoza: default grupiranje = Provider (aktivno)", await page.locator('#forecastBody .fc-by[data-by="provider"].on').isVisible());
   ok("prognoza: ima redove (provajder)", (await page.locator("#forecastBody .fc-row").count()) >= 1);
+  // prognoza zauzima malo prostora: lista je ograničena (~5 redova) i skrola; zaglavlje+UKUPNO ostaju
+  const fcCss = await page.evaluate(() => {
+    const sc = document.querySelector("#forecastBody .fc-scroll");
+    const th = document.querySelector("#forecastBody .fc-tbl thead th");
+    const tot = document.querySelector("#forecastBody .fc-total td");
+    const cs = e => e ? getComputedStyle(e) : {};
+    return { max: cs(sc).maxHeight, oy: cs(sc).overflowY, thPos: cs(th).position, totPos: cs(tot).position };
+  });
+  ok("prognoza: lista ograničena visinom + skrol (ne troši prostor)",
+    fcCss.max !== "none" && parseInt(fcCss.max) > 0 && fcCss.oy === "auto", JSON.stringify(fcCss));
+  ok("prognoza: zaglavlje i UKUPNO ostaju (sticky) pri skrolu", fcCss.thPos === "sticky" && fcCss.totPos === "sticky");
   // group-by toggle -> Projekt
   await page.locator('#forecastBody .fc-by[data-by="projekt"]').click();
   await page.waitForTimeout(300);

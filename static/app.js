@@ -796,7 +796,7 @@ function openLateModal(dpId) {
     return `<button class="lm-row" data-seg="${s.id}">
       <span class="lm-d">+${lateDays(s)}d</span>
       <span class="lm-b"><b>${esc(dp.pop || "")} · ${esc(dp.naziv || "")}</b>
-        <i>${esc(aktOf(s))} · ${fmtShort(s.datum_od)}–${fmtShort(s.datum_do)}</i></span>
+        <i>${esc(tAkt(aktOf(s)))} · ${fmtShort(s.datum_od)}–${fmtShort(s.datum_do)}</i></span>
       <span class="lm-go">${t("produzi") || "Produži"} →</span>
     </button>`;
   }).join("") : `<div class="dr-h empty">${t("nemaKasnih")}</div>`;
@@ -2336,7 +2336,7 @@ function renderStats() {
   const rows = eskSegs.map(s => {
     const tk = DATA.tasks.find(x => x.id === s.task_id) || {};
     const d = DATA.dps.find(x => x.id === tk.dp_id) || {};
-    return `<tr><td>${d.pop || ""} · ${d.naziv || ""}</td><td>${esc(tk.aktivnost || "")}</td>
+    return `<tr><td>${d.pop || ""} · ${d.naziv || ""}</td><td>${esc(tAkt(tk.aktivnost || ""))}</td>
       <td>${fmt(s.datum_od)} – ${fmt(s.datum_do)}</td><td>${stT(s.status)}</td>
       <td class="tag-esk">${esc(s.esk_razlog || "—")}</td><td>${esc(s.komentar || "")}</td></tr>`;
   }).join("");
@@ -3070,9 +3070,9 @@ function evColor(e) {
 }
 /* aktivnost (task) na koju se događaj odnosi — za "hover historije = duh na grafu" */
 function evTaskId(e) {
-  if (e.kind !== "seg" || !e.aktivnost) return null;
-  const dpId = SEL && SEL.type === "dp" ? SEL.id
-    : (DATA.dps.find(d => d.naziv === e.dp_naziv) || {}).id;
+  if (e.kind !== "seg" || !e.aktivnost || !SEL) return null;
+  const dpId = SEL.type === "dp" ? SEL.id
+    : (DATA.dps.find(d => d.pop_id === SEL.id && d.naziv === e.dp_naziv) || {}).id;
   const tk = dpId && DATA.tasks.find(t => t.dp_id === dpId && t.aktivnost === e.aktivnost);
   return tk ? tk.id : null;
 }
@@ -3122,7 +3122,7 @@ function histGhost(row) {
 }
 $("#drHist")?.addEventListener("mouseover", e => {
   const row = e.target.closest(".dr-h.hoverable");
-  if (row) histGhost(row);
+  if (row) histGhost(row); else clearHistGhost();   // prelaz na red bez datuma -> skloni duh
 });
 $("#drHist")?.addEventListener("mouseleave", clearHistGhost);
 /* drawer akcije: HP/HA upis, preimenovanje, brisanje */
