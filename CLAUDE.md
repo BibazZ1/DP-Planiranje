@@ -27,8 +27,13 @@ ALWAYS in this order — resetting the DB while the server is running causes tra
 
 1. Stop any listener on port 5070, then reset the isolated test DB (never touches prod):
    `.venv\Scripts\python.exe tools_testdb.py`
-2. Start the dev server against it (DEV_FAKE_USER bypasses Azure-AD login):
-   `$env:POSTGRES_DATABASE="DP-PLANIRANJE-TEST"; $env:PORT="5070"; $env:DEV_FAKE_USER="e.uzunovic@gfcbh.ba"; .venv\Scripts\python.exe app.py`
+2. Start the dev server against it (DEV_FAKE_USER bypasses Azure-AD login). Launch via
+   `tools_runserver.py` (NOT `app.py` directly) and detached — `app.py` launched through a
+   background/redirect launcher loses its stdout/stderr handle when the launcher exits and
+   werkzeug then dies mid-run at a random point. The wrapper makes the server own its own
+   log handle:
+   `$env:POSTGRES_DATABASE="DP-PLANIRANJE-TEST"; $env:PORT="5070"; $env:DEV_FAKE_USER="e.uzunovic@gfcbh.ba"; Start-Process -FilePath ".venv\Scripts\python.exe" -ArgumentList "tools_runserver.py" -WindowStyle Hidden`
+   (poll `http://127.0.0.1:5070/login` until 200 before running).
 3. Run the suite (Playwright/chromium is borrowed from the sibling ULAZNE-FAKTURE repo):
    `$env:NODE_PATH="C:\Users\Admin\Documents\GitHub\ULAZNE-FAKTURE\node_modules"; node tools_e2e.js`
    Must end with `0 FAIL`.
