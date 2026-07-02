@@ -204,9 +204,18 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(400);
   ok("status filter: samo 'završeno' istaknut", (await segVisible()) === 1);
   ok("status -> AKTIVNI čip", await chipX("data-xst").isVisible());
+  // aktivan čip ima vidljiv ✕ (korisnik zna: klik = isključi filter) + "Očisti" zasvijetli
+  ok("aktivan čip ima ✕ (chip-off)",
+    (await page.locator('.chip[data-st="završeno"].on .chip-off').count()) === 1);
+  ok("neaktivan čip nema ✕",
+    (await page.locator('.chip[data-st="otvoreno"] .chip-off').count()) === 0);
+  ok("'Očisti' dugme zasvijetli kad ima filtera (.active)",
+    await page.locator("#pfClear.active").isVisible());
   await chipX("data-xst").click();
   await page.waitForTimeout(400);
   ok("uklanjanje status čipa vraća sve", (await segVisible()) === 3);
+  ok("bez filtera: 'Očisti' više ne svijetli",
+    (await page.locator("#pfClear.active").count()) === 0);
 
   // ---------- 8. kasni čip + KPI ----------
   await page.click('.chip[data-late="1"]');

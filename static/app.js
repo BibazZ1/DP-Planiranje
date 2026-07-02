@@ -82,7 +82,7 @@ const I18N = {
     kundePh: "izaberi klijenta…", projPh: "izaberi projekat…",
     foldFilteri: "Filteri", foldAnalitika: "Analitika", ocisti: "Očisti",
     aktivniFilteri: "aktivni filteri",
-    aktivni: "Aktivni", ocistiSve: "Očisti sve", traziPh: "Pretraži…",
+    aktivni: "Aktivni", ocistiSve: "Očisti sve", ukloniFilter: "klik = ukloni ovaj filter", traziPh: "Pretraži…",
     statusLbl: "Status", odjelLbl: "Odjel",
     datumOd: "Datum od", datumDo: "Datum do", datum: "Datum", odPh: "Od", doPh: "Do",
     nemaRez: "nema rezultata", da: "Da",
@@ -198,7 +198,7 @@ const I18N = {
     kundePh: "select a client…", projPh: "select a project…",
     foldFilteri: "Filters", foldAnalitika: "Analytics", ocisti: "Clear",
     aktivniFilteri: "active filters",
-    aktivni: "Active", ocistiSve: "Clear all", traziPh: "Search…",
+    aktivni: "Active", ocistiSve: "Clear all", ukloniFilter: "click = remove this filter", traziPh: "Search…",
     statusLbl: "Status", odjelLbl: "Department",
     datumOd: "Date from", datumDo: "Date to", datum: "Date", odPh: "From", doPh: "To",
     nemaRez: "no results", da: "Yes",
@@ -314,7 +314,7 @@ const I18N = {
     kundePh: "Kunde wählen…", projPh: "Projekt wählen…",
     foldFilteri: "Filter", foldAnalitika: "Analyse", ocisti: "Leeren",
     aktivniFilteri: "aktive Filter",
-    aktivni: "Aktiv", ocistiSve: "Alle leeren", traziPh: "Suchen…",
+    aktivni: "Aktiv", ocistiSve: "Alle leeren", ukloniFilter: "Klick = diesen Filter entfernen", traziPh: "Suchen…",
     statusLbl: "Status", odjelLbl: "Abteilung",
     datumOd: "Datum von", datumDo: "Datum bis", datum: "Datum", odPh: "Von", doPh: "Bis",
     nemaRez: "keine Treffer", da: "Ja",
@@ -1103,8 +1103,10 @@ function renderKpis() {
 }
 
 /* ---------- slicers ---------- */
+/* aktivan čip dobije ✕ da je jasno: klik = ISKLJUČI ovaj filter (korisnik zna kako izaći) */
 function chip(label, cls, on, attrs = "") {
-  return `<button class="chip ${cls}${on ? " on" : ""}" ${attrs}>${label}</button>`;
+  return `<button class="chip ${cls}${on ? " on" : ""}" ${attrs}>${label}${
+    on ? ` <i class="chip-off" aria-hidden="true" title="${t("ukloniFilter")}">✕</i>` : ""}</button>`;
 }
 function renderSlicers() {
   /* aktivnosti za filter: 8 standardnih + eventualne preimenovane/dodane iz podataka */
@@ -1125,6 +1127,9 @@ function renderSlicers() {
     + (F.kasni ? 1 : 0) + (F.dOd ? 1 : 0) + (F.dDo ? 1 : 0) + nNum;
   const badge = $("#fltBadge");
   if (badge) { badge.textContent = nAct; badge.classList.toggle("hidden", !nAct); }
+  /* "Očisti" dugme zasvijetli kad ima aktivnih filtera (jasan izlaz iz SVIH filtera) */
+  const clr = $("#pfClear");
+  if (clr) clr.classList.toggle("active", !!nAct);
   /* ✕ na POP/DP combo poljima vidljiv samo kad ima izbora */
   const xPop = document.querySelector('.cmb-x[data-for="fPop"]');
   if (xPop) xPop.hidden = !F.pop.size;

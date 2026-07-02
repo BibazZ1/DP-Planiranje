@@ -157,10 +157,16 @@ main{padding:5px 14px 8px;display:flex;flex-direction:column;gap:5px}
 .chip.st-zavrseno{--cc:var(--teal)} .chip.esk{--cc:var(--red)}
 .chip.dp{--cc:var(--blue)} .chip.odj{--cc:var(--purple)} .chip.akt{--cc:var(--purple)}
 .chip .x{margin-left:6px;opacity:.6}
+/* ✕ na AKTIVNOM čipu: jasno "klik = isključi ovaj filter" */
+.chip-off{display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;border-radius:50%;font-size:9px;font-weight:700;line-height:1;
+  background:rgba(0,0,0,.28);color:#fff;margin-left:1px}
+.chip.on:hover .chip-off{background:#fff;color:#0b1220}
 .chip.clear{border-style:dashed;color:var(--mut2)}
 /* kondenzovani mini ÄŤipovi (status / odjel) */
 .chip.mini{padding:2px 8px;font-size:10.5px;gap:4px;border-radius:9999px}
 .chip.mini .n{font-size:8.5px;padding:0 5px;min-width:11px}
+.chip.mini .chip-off{width:13px;height:13px;font-size:8px}
 
 /* ---------- timeline card ---------- */
 .tl-card{padding:0;overflow:hidden}
@@ -513,6 +519,9 @@ table.mini .empty{color:var(--mut2);font-style:italic}
 /* Očisti dugme: ikonica + tekst, suptilno crveno */
 .flt-clear{display:inline-flex;align-items:center;gap:5px}
 .flt-clear:hover{border-color:rgba(239,68,68,.4);color:#f87171;background:rgba(239,68,68,.1)}
+/* kad je bar jedan filter aktivan, dugme "Očisti" zasvijetli crveno — jasan izlaz iz SVIH filtera */
+.flt-clear.active{border-color:rgba(239,68,68,.55);color:#fca5a5;background:rgba(239,68,68,.14);
+  box-shadow:0 0 12px rgba(239,68,68,.25)}
 .proj-bar .hint{align-self:center;margin-left:auto}
 
 /* jeziÄŤki toggle (BS / EN / DE) */
