@@ -191,6 +191,15 @@ function ok(name, cond, extra = "") {
   const segVisible = async () => page.locator(".seg").evaluateAll(els =>
     els.filter(e => !e.classList.contains("dim")).length);
   ok("nema više 'u toku' čipa", (await page.locator('.chip[data-st="u toku"]').count()) === 0);
+  // "u toku" je ukinut i na API nivou: pokušaj kreiranja se normalizuje u "otvoreno"
+  const utRes = await page.request.post(BASE + "/api/segments", { data: {
+    task_id: tIskop.id, datum_od: "2026-09-01", datum_do: "2026-09-10", status: "u toku" } });
+  const utId = (await utRes.json()).id;
+  const utData = await (await page.request.get(BASE + "/api/data")).json();
+  const utSeg = utData.segments.find(s => s.id === utId);
+  ok("API: status 'u toku' se normalizuje u 'otvoreno'", utSeg && utSeg.status === "otvoreno",
+    `(${utSeg && utSeg.status})`);
+  await page.request.delete(BASE + "/api/segments/" + utId);
   await page.click('.chip[data-st="završeno"]');
   await page.waitForTimeout(400);
   ok("status filter: samo 'završeno' istaknut", (await segVisible()) === 1);
@@ -860,6 +869,9 @@ function ok(name, cond, extra = "") {
   ok("DE: aktivnost prevedena (Horizontalbohrung)", actDe.includes("Horizontalbohrung"));
   const odjDe = (await page.locator("#slicers .chip.odj").allInnerTexts()).map(s => s.trim());
   ok("DE: odjel/Abteilung preveden (Planung)", odjDe.includes("Planung"), `(${odjDe})`);
+  // odjel-balončići u redovima su UKLONJENI (duplirali su Abteilung filter — ništa ne znače)
+  ok("redovi: nema odjel-balončića (.odj-tag uklonjen)",
+    (await page.locator("#tlScroll .odj-tag").count()) === 0);
   // eskalacije tabela: aktivnost se prevodi (ne sirovi BS naziv "Montaža"/"Priključak na POP")
   const eskActsDe = (await page.locator("#eskPanel table.mini tr td:nth-child(2)").allInnerTexts()).map(s => s.trim());
   ok("DE: eskalacije — aktivnost prevedena (nije sirovi BS naziv)",

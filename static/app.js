@@ -3,7 +3,7 @@
 
 const ODJELI = ["Dozvole", "POP / Provajder", "Planiranje", "Tiefbau",
                 "Spülbohrung", "Montaža", "Aktivacija"];
-const LABELW = 400;
+const LABELW = 356;
 
 /* ---------- i18n: BS / EN / DE ---------- */
 const I18N = {
@@ -704,7 +704,9 @@ function lateDays(s) {
   return Math.max(1, Math.round((new Date(todayIso()) - new Date(s.datum_do)) / 864e5));
 }
 function segMatch(s) {
-  if (F.st.size && !F.st.has(s.status)) return false;
+  /* status je binaran (otvoreno/završeno) — sve što nije završeno tretiraj kao otvoreno */
+  const stEff = s.status === "završeno" ? "završeno" : "otvoreno";
+  if (F.st.size && !F.st.has(stEff)) return false;
   if (F.esk && !s.eskalacija) return false;
   if (F.kasni && !segLate(s)) return false;
   /* datumski filter: termin se preklapa sa izabranim rasponom */
@@ -1056,7 +1058,9 @@ function renderForecast() {
 }
 function renderKpis() {
   const segs = visibleSegs();
-  const c = st => segs.filter(s => s.status === st).length;
+  /* "otvoreno" = sve što nije završeno (jedina dva statusa; štiti od starih vrijednosti) */
+  const c = st => st === "završeno" ? segs.filter(s => s.status === "završeno").length
+                                    : segs.filter(s => s.status !== "završeno").length;
   const esk = segs.filter(s => s.eskalacija).length;
   /* HP/HA = zbroj po DP-ovima koji imaju BAR JEDAN termin u trenutnom filteru
      (Kunde/Projekt/POP/DP/Abteilung/Status/DATUM) -> "koliko je HP/HA planirano
@@ -1099,7 +1103,8 @@ function chip(label, cls, on, attrs = "") {
 }
 function renderSlicers() {
   const odj = [...new Set([...ODJELI, ...DATA.tasks.map(t => t.odjel).filter(Boolean)])];
-  const nSt = st => DATA.segments.filter(s => s.status === st).length;
+  const nSt = st => DATA.segments.filter(s =>
+    st === "završeno" ? s.status === "završeno" : s.status !== "završeno").length;
   const nEsk = DATA.segments.filter(s => s.eskalacija).length;
   const anyF = F.dp.size || F.pop.size || F.st.size || F.odj.size || F.esk;
   const cnt = n => `<b class="n">${n}</b>`;
@@ -1416,7 +1421,7 @@ function renderTimeline(keepScroll) {
           `<i class="rs l" title="povuci rub = pomjeri početak"></i><i class="rs r" title="povuci rub = pomjeri kraj"></i>` +
           (late && w > 95 ? `<span class="latebadge" title="${txtKasni}">+${lateDays(s)}d</span>` : "") +
           (depFrom && w > 40 ? `<span class="depwarn" title="${txtDep}: ${esc(depFrom)}"></span>` : "") +
-          (w > 60 ? `<span>${fmtShort(s.datum_od)}–${fmtShort(s.datum_do)}</span>` : "") +
+          (w > 92 ? `<span>${fmtShort(s.datum_od)}–${fmtShort(s.datum_do)}</span>` : "") +
           (s.komentar && w > 30 ? `<span class="kombadge" title="${esc(s.komentar)}"></span>` : "") +
           (s.komentar && w > 150 ? `<span class="kom">${esc(s.komentar)}</span>` : "") +
           `</div>`;
@@ -1427,7 +1432,6 @@ function renderTimeline(keepScroll) {
           <span class="c-dp cell" data-fdp="${dp.id}" title="klik = filter + detalji (HP/HA, historija)">${esc(dp.naziv)}</span>
           <span class="c-act">
             <span class="act-name" title="dupli klik = preimenuj">${esc(tAkt(t.aktivnost))}</span>
-            <span class="odj-tag" title="klik = promijeni odjel">${esc(t.odjel ? tOdjel(t.odjel) : "—")}</span>
             <button class="rowdel" title="Obriši">✕</button>
           </span>
         </div>
@@ -1654,15 +1658,6 @@ function bindTimeline() {
   }));
   $$("#tlScroll .cell[data-fdp]").forEach(el => el.addEventListener("click", () => {
     selectDp(+el.dataset.fdp);
-  }));
-  $$("#tlScroll .odj-tag").forEach(el => el.addEventListener("click", async () => {
-    const id = +el.closest(".tl-row").dataset.task;
-    const t = DATA.tasks.find(x => x.id === id);
-    const i = (ODJELI.indexOf(t.odjel) + 1) % ODJELI.length;
-    t.odjel = ODJELI[i];
-    await api(`/api/tasks/${id}`, "PATCH", { odjel: t.odjel });
-    renderTimeline(true); renderSlicers();
-    histDirty();
   }));
 }
 
@@ -2333,7 +2328,8 @@ function chartCursor(e, els) {
 function renderStats() {
   chartDefaults();
   const segs = visibleSegs();
-  const c = st => segs.filter(s => s.status === st).length;
+  const c = st => st === "završeno" ? segs.filter(s => s.status === "završeno").length
+                                    : segs.filter(s => s.status !== "završeno").length;
   for (const k in charts) { charts[k].destroy(); delete charts[k]; }
   const C = (id, cfg) => { const el = $(id); if (el) charts[id] = new Chart(el, cfg); };   // null-safe: graf može biti uklonjen iz HTML-a
   const taskOf = s => DATA.tasks.find(t => t.id === s.task_id);
@@ -2358,7 +2354,8 @@ function renderStats() {
   const odj = [...new Set(DATA.tasks.map(t => t.odjel).filter(Boolean))];
   const byOdj = st => odj.map(o => segs.filter(s => {
     const t = taskOf(s);
-    return t && t.odjel === o && s.status === st;
+    return t && t.odjel === o &&
+      (st === "završeno" ? s.status === "završeno" : s.status !== "završeno");
   }).length);
   C("#chOdjel", { type: "bar",
     data: {
@@ -2383,7 +2380,8 @@ function renderStats() {
              grid: { color: "rgba(148,163,184,.08)" },
              ticks: { precision: 0, color: "#cbd5e1", font: { size: 10.5, weight: "600" } } },
         y: { stacked: true, grid: { display: false },
-             ticks: { color: "#e2e8f0", font: { size: 11, weight: "700" } } } },
+             /* autoSkip:false — svih 7 odjela UVIJEK vidljivo (skipovanje je skrivalo redove) */
+             ticks: { autoSkip: false, color: "#e2e8f0", font: { size: 10, weight: "700" } } } },
       plugins: { legend: { position: "right",
         labels: { color: "#cbd5e1", boxWidth: 12, boxHeight: 12, padding: 8, font: { size: 11, weight: "600" } } } } } });
 
@@ -2459,10 +2457,14 @@ function renderProj() {
   syncCombo("pfPm", PROJ.pm);
 
   const s = PROJ.sync || {};
-  $("#projMeta").textContent =
+  /* greška: kratka oznaka, puni tehnički detalj samo u tooltip-u (ne zatrpava header) */
+  const pm = $("#projMeta");
+  pm.textContent =
     s.status === "u toku" ? t("syncUToku") :
-    s.status === "greška" ? `${t("syncGreska")}: ${s.error || ""}` :
+    s.status === "greška" ? t("syncGreska") :
     s.time ? `${t("syncLbl")} ${s.time.replace("T", " ")}` : "";
+  pm.title = s.status === "greška" ? String(s.error || "") : "";
+  pm.classList.toggle("sync-err", s.status === "greška");
 
   renderProjClaim();
 

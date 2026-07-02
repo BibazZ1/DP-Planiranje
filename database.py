@@ -239,6 +239,10 @@ def init_db(permanent_admin=""):
         # postojeći termini: original = trenutna pozicija (bez ghosta dok se ne pomjere)
         cur.execute("UPDATE segments SET orig_od=datum_od, orig_do=datum_do "
                     "WHERE COALESCE(orig_od,'')='' ")
+        # migracija: status "u toku" je ukinut u UI-ju (ostalo je otvoreno/završeno) —
+        # stari termini s tim statusom bili su nevidljivi za status-filter i grafove
+        cur.execute("UPDATE segments SET status='otvoreno' "
+                    "WHERE status NOT IN ('otvoreno','završeno')")
         # produkcija: NEMA demo seed podataka — POP/DP se kreiraju kroz aplikaciju
         if permanent_admin:
             cur.execute(

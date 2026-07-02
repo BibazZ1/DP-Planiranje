@@ -740,6 +740,9 @@ def add_segment():
     if _late_reason_missing(j.get("status", "otvoreno"),
                             j.get("datum_do", ""), j.get("kasni_razlog", "")):
         return jsonify({"error": "razlog produženja je obavezan — termin završava prije danas"}), 400
+    # jedini validni statusi termina su otvoreno/završeno ("u toku" je ukinut)
+    if j.get("status") not in ("otvoreno", "završeno"):
+        j["status"] = "otvoreno"
     cur = db().execute(
         "INSERT INTO segments(task_id,datum_od,datum_do,status,komentar,eskalacija,"
         "esk_razlog,esk_datum,kasni_razlog,created_by,orig_od,orig_do) "
@@ -782,6 +785,8 @@ def edit_segment(seg_id):
     j = request.get_json(force=True)
     if "eskalacija" in j:
         j["eskalacija"] = 1 if j["eskalacija"] else 0
+    if "status" in j and j["status"] not in ("otvoreno", "završeno"):
+        j["status"] = "otvoreno"
     sets = {k: j[k] for k in SEG_FIELDS if k in j}
     # plan_qty: ručna planska količina termina; "" / null -> NULL (auto raspodjela)
     if "plan_qty" in j:
@@ -989,7 +994,7 @@ def api_stats():
     by_odjel = [dict(r) for r in d.execute(
         "SELECT t.odjel, "
         " SUM(CASE WHEN s.status='završeno' THEN 1 ELSE 0 END) zavrseno, "
-        " SUM(CASE WHEN s.status='otvoreno' THEN 1 ELSE 0 END) otvoreno "
+        " SUM(CASE WHEN s.status<>'završeno' THEN 1 ELSE 0 END) otvoreno "
         "FROM segments s JOIN tasks t ON t.id=s.task_id GROUP BY t.odjel ORDER BY t.odjel")]
     per_dp = [dict(r) for r in d.execute(
         "SELECT d.id, d.pop, d.naziv, d.hp, d.ha, COUNT(s.id) ukupno, "
