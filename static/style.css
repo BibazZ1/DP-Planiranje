@@ -155,7 +155,7 @@ main{padding:5px 14px 8px;display:flex;flex-direction:column;gap:5px}
   box-shadow:0 0 14px color-mix(in srgb,var(--cc,var(--teal)) 30%,transparent)}
 .chip.st-otvoreno{--cc:var(--red)} .chip.st-utoku{--cc:var(--amber)}
 .chip.st-zavrseno{--cc:var(--teal)} .chip.esk{--cc:var(--red)}
-.chip.dp{--cc:var(--blue)} .chip.odj{--cc:var(--purple)}
+.chip.dp{--cc:var(--blue)} .chip.odj{--cc:var(--purple)} .chip.akt{--cc:var(--purple)}
 .chip .x{margin-left:6px;opacity:.6}
 .chip.clear{border-style:dashed;color:var(--mut2)}
 /* kondenzovani mini ÄŤipovi (status / odjel) */

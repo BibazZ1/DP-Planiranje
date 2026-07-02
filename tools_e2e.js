@@ -253,10 +253,14 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(400);
   ok("DP filter -> AKTIVNI čip", await chipX("data-xdp").isVisible());
 
-  // ---------- 11. odjel čip ----------
-  await page.locator('.chip[data-odj]').first().click();
+  // ---------- 11. aktivnost čip (filter po aktivnosti, ne po odjelu) ----------
+  ok("slicer filtrira po AKTIVNOSTI (nema data-odj čipova)",
+    (await page.locator('.chip[data-odj]').count()) === 0);
+  await page.locator('.chip[data-akt]').first().click();
   await page.waitForTimeout(300);
-  ok("odjel filter -> AKTIVNI čip", await chipX("data-xodj").isVisible());
+  ok("aktivnost filter -> AKTIVNI čip", await chipX("data-xakt").isVisible());
+  await chipX("data-xakt").click();   // ukloni da ne ostane aktivan filter
+  await page.waitForTimeout(200);
 
   // ---------- 12. Očisti sve ----------
   await page.click("#pfClear");
@@ -867,8 +871,11 @@ function ok(name, cond, extra = "") {
   const actDe = (await page.locator("#tlScroll .act-name").allInnerTexts()).map(s => s.trim());
   ok("DE: aktivnost prevedena (Genehmigungen)", actDe.includes("Genehmigungen"), `(${actDe.slice(0,3)})`);
   ok("DE: aktivnost prevedena (Horizontalbohrung)", actDe.includes("Horizontalbohrung"));
-  const odjDe = (await page.locator("#slicers .chip.odj").allInnerTexts()).map(s => s.trim());
-  ok("DE: odjel/Abteilung preveden (Planung)", odjDe.includes("Planung"), `(${odjDe})`);
+  // slicer filtrira po AKTIVNOSTI -> čipovi su prevedene aktivnosti (ne odjeli)
+  const aktDe = (await page.locator("#slicers .chip.akt").allInnerTexts()).map(s => s.trim());
+  ok("DE: slicer aktivnost prevedena (Hausbegehungen)", aktDe.includes("Hausbegehungen"), `(${aktDe})`);
+  ok("DE: slicer nema odjel-samo naziv (Planung) — sad je aktivnost, ne Abteilung",
+    !aktDe.includes("Planung"), `(${aktDe})`);
   // odjel-balončići u redovima su UKLONJENI (duplirali su Abteilung filter — ništa ne znače)
   ok("redovi: nema odjel-balončića (.odj-tag uklonjen)",
     (await page.locator("#tlScroll .odj-tag").count()) === 0);

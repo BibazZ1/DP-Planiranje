@@ -3,6 +3,11 @@
 
 const ODJELI = ["Dozvole", "POP / Provajder", "Planiranje", "Tiefbau",
                 "Spülbohrung", "Montaža", "Aktivacija"];
+/* 8 standardnih aktivnosti (isti redoslijed kao STANDARD_AKTIVNOSTI u backendu = redoslijed
+   redova u timeline-u). Filtriramo PO AKTIVNOSTI (ono što korisnik vidi u redovima),
+   ne po odjelu — odjel je interna kategorizacija koja se ne poklapa s redovima. */
+const AKTIVNOSTI = ["Dozvole", "Priključak na POP", "Pregled objekata", "Iskopni radovi",
+                    "Horizontalno bušenje", "Asfaltiranje", "Montaža", "Aktivacije"];
 const LABELW = 356;
 
 /* ---------- i18n: BS / EN / DE ---------- */
@@ -11,7 +16,7 @@ const I18N = {
     sub: "terminski plan gradnje", godina: "Godina", noviDp: "+ Novi DP",
     projekat: "Projekat", kunde: "Kunde", ocistiTip: "Poništi filtere",
     syncTip: "Povuci svježe podatke iz Azure SQL",
-    chStatus: "Termini po statusu", chOdjel: "Termini po odjelu",
+    chStatus: "Termini po statusu", chOdjel: "Termini po odjelu", chAkt: "Termini po aktivnosti",
     chDp: "Napredak po DP — % završeno",
     tlHint: "prevuci = novi termin (otvoreno) · dupli klik = završeno · desni klik = uredi · povuci rub = produži · Ctrl+kolutić = zoom",
     kasniPitanje: "Termin završava PRIJE danas — razlog produženja (obavezno):",
@@ -127,7 +132,7 @@ const I18N = {
     sub: "construction schedule", godina: "Year", noviDp: "+ New DP",
     projekat: "Project", kunde: "Client", ocistiTip: "Clear filters",
     syncTip: "Pull fresh data from Azure SQL",
-    chStatus: "Slots by status", chOdjel: "Slots by department",
+    chStatus: "Slots by status", chOdjel: "Slots by department", chAkt: "Slots by activity",
     chDp: "Progress per DP — % done",
     tlHint: "drag = new slot (open) · double-click = done · right-click = edit · drag edge = extend · Ctrl+wheel = zoom",
     kasniPitanje: "Slot ends BEFORE today — reason for delay (required):",
@@ -243,7 +248,7 @@ const I18N = {
     sub: "Bauzeitenplan", godina: "Jahr", noviDp: "+ Neuer DP",
     projekat: "Projekt", kunde: "Kunde", ocistiTip: "Filter zurücksetzen",
     syncTip: "Frische Daten aus Azure SQL laden",
-    chStatus: "Termine nach Status", chOdjel: "Termine nach Abteilung",
+    chStatus: "Termine nach Status", chOdjel: "Termine nach Abteilung", chAkt: "Termine nach Aktivität",
     chDp: "Fortschritt je DP — % fertig",
     tlHint: "Ziehen = neuer Termin (offen) · Doppelklick = fertig · Rechtsklick = bearbeiten · Rand ziehen = verlängern · Strg+Mausrad = Zoom",
     kasniPitanje: "Termin endet VOR heute — Verzögerungsgrund (Pflicht):",
@@ -420,7 +425,7 @@ let drag = null;                  // {taskId, trackEl, d0, d1, moved}
 let segResize = null;             // {id, side:'l'|'r', segEl, track, a, b, curA, curB}
 let eskDrag = null;               // {id, segEl, grip, part, track, a, b, cur} — povlačenje početka eskalacije
 let popCtx = null;                // {mode:'new'|'edit', taskId, segId, status}
-const F = { dp: new Set(), pop: new Set(), st: new Set(), odj: new Set(), esk: false,
+const F = { dp: new Set(), pop: new Set(), st: new Set(), akt: new Set(), esk: false,
             kasni: false, dOd: "", dDo: "",
             hpMin: "", hpMax: "", haMin: "", haMax: "" };   // HP/HA raspon (od–do) po DP-u
 let SEL = null;                   // {type:'pop'|'dp', id} — otvorena historija u draweru
@@ -757,7 +762,7 @@ function visibleSegs() {
     const d = DATA.dps.find(d => d.id === t.dp_id);
     if (ns && !dpInProj(d, ns)) return false;
     if (!dpFilterOk(d)) return false;
-    if (F.odj.size && !F.odj.has(t.odjel)) return false;
+    if (F.akt.size && !F.akt.has(t.aktivnost)) return false;
     return segMatch(s);
   });
 }
@@ -843,7 +848,7 @@ function activeFilterList() {
     if (d) out.push({ k: "dp", v: id, label: `${d.pop} · ${d.naziv}` });
   });
   [...F.st].forEach(s => out.push({ k: "st", v: s, label: stT(s) }));
-  [...F.odj].forEach(o => out.push({ k: "odj", v: o, label: o }));
+  [...F.akt].forEach(a => out.push({ k: "akt", v: a, label: tAkt(a) }));
   if (F.esk) out.push({ k: "esk", label: "" + t("eskChip") });
   return out;
 }
@@ -870,13 +875,13 @@ function removeActiveFilter(f) {
     case "pop": F.pop.delete(f.v); break;
     case "dp": F.dp.delete(f.v); break;
     case "st": F.st.delete(f.v); break;
-    case "odj": F.odj.delete(f.v); break;
+    case "akt": F.akt.delete(f.v); break;
     case "esk": F.esk = false; break;
   }
   renderAll();
 }
 function clearAllFilters() {
-  F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false;
+  F.dp.clear(); F.pop.clear(); F.st.clear(); F.akt.clear(); F.esk = false;
   PROJ.kunde = PROJ.code = PROJ.name = "";
   projFilterChanged();
 }
@@ -1102,11 +1107,12 @@ function chip(label, cls, on, attrs = "") {
   return `<button class="chip ${cls}${on ? " on" : ""}" ${attrs}>${label}</button>`;
 }
 function renderSlicers() {
-  const odj = [...new Set([...ODJELI, ...DATA.tasks.map(t => t.odjel).filter(Boolean)])];
+  /* aktivnosti za filter: 8 standardnih + eventualne preimenovane/dodane iz podataka */
+  const akt = [...new Set([...AKTIVNOSTI, ...DATA.tasks.map(t => t.aktivnost).filter(Boolean)])];
   const nSt = st => DATA.segments.filter(s =>
     st === "završeno" ? s.status === "završeno" : s.status !== "završeno").length;
   const nEsk = DATA.segments.filter(s => s.eskalacija).length;
-  const anyF = F.dp.size || F.pop.size || F.st.size || F.odj.size || F.esk;
+  const anyF = F.dp.size || F.pop.size || F.st.size || F.akt.size || F.esk;
   const cnt = n => `<b class="n">${n}</b>`;
   const dps = scopedDps();
   const pops = [...new Set(dps.map(d => d.pop).filter(Boolean))].sort(cmpStr);
@@ -1115,7 +1121,7 @@ function renderSlicers() {
   /* broj aktivnih filtera -> crvena značka na "Filteri" dugmetu (kao ULAZNE-FAKTURE) */
   const nProj = (PROJ.kunde ? 1 : 0) + (PROJ.code ? 1 : 0) + (PROJ.name ? 1 : 0) + (PROJ.pm ? 1 : 0);
   const nNum = (F.hpMin !== "" || F.hpMax !== "" ? 1 : 0) + (F.haMin !== "" || F.haMax !== "" ? 1 : 0);
-  const nAct = F.pop.size + F.dp.size + F.st.size + F.odj.size + (F.esk ? 1 : 0) + nProj
+  const nAct = F.pop.size + F.dp.size + F.st.size + F.akt.size + (F.esk ? 1 : 0) + nProj
     + (F.kasni ? 1 : 0) + (F.dOd ? 1 : 0) + (F.dDo ? 1 : 0) + nNum;
   const badge = $("#fltBadge");
   if (badge) { badge.textContent = nAct; badge.classList.toggle("hidden", !nAct); }
@@ -1138,7 +1144,7 @@ function renderSlicers() {
     if (d) act.push(fchip(`${esc(dpLbl(d))}`, `data-xdp="${id}"`));
   });
   [...F.st].forEach(s => act.push(fchip(esc(stT(s)), `data-xst="${esc(s)}"`)));
-  [...F.odj].forEach(o => act.push(fchip(esc(tOdjel(o)), `data-xodj="${esc(o)}"`)));
+  [...F.akt].forEach(a => act.push(fchip(esc(tAkt(a)), `data-xakt="${esc(a)}"`)));
   if (F.esk) act.push(fchip(`${t("kEsk")}`, `data-xesk="1"`));
   if (F.kasni) act.push(fchip(`${t("kasniChip")}`, `data-xlate="1"`));
   if (F.dOd) act.push(fchip(`≥ ${fmt(F.dOd)}`, `data-xdod="1"`));
@@ -1153,7 +1159,7 @@ function renderSlicers() {
     $$("#activeBar .fchip").forEach(ch => ch.addEventListener("click", () => {
       const clearedProj = ch.dataset.clearall || ch.dataset.xkunde || ch.dataset.xproj || ch.dataset.xcode || ch.dataset.xpm;
       if (ch.dataset.clearall) {
-        F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false; F.kasni = false;
+        F.dp.clear(); F.pop.clear(); F.st.clear(); F.akt.clear(); F.esk = false; F.kasni = false;
         F.dOd = F.dDo = ""; clearDate("fDateOd"); clearDate("fDateDo");
         F.hpMin = F.hpMax = F.haMin = F.haMax = "";
         ["fHpMin", "fHpMax", "fHaMin", "fHaMax"].forEach(id => setNum(id, ""));
@@ -1169,7 +1175,7 @@ function renderSlicers() {
       else if (ch.dataset.xpop) F.pop.delete(ch.dataset.xpop);
       else if (ch.dataset.xdp) F.dp.delete(+ch.dataset.xdp);
       else if (ch.dataset.xst) F.st.delete(ch.dataset.xst);
-      else if (ch.dataset.xodj) F.odj.delete(ch.dataset.xodj);
+      else if (ch.dataset.xakt) F.akt.delete(ch.dataset.xakt);
       else if (ch.dataset.xesk) F.esk = false;
       else if (ch.dataset.xlate) F.kasni = false;
       else if (ch.dataset.xdod) { F.dOd = ""; clearDate("fDateOd"); }
@@ -1189,13 +1195,13 @@ function renderSlicers() {
       ${chip(`${t("kasniChip")}${cnt(DATA.segments.filter(segLate).length)}`, "mini late" + (DATA.segments.filter(segLate).length ? " glow" : ""), F.kasni, `data-late="1" title="${t("kasniTip")}"`)}
     </div>
     <div class="sl-row">
-      <span class="sl-lbl">${t("odjelLbl")}</span>
-      ${odj.map(o => chip(esc(tOdjel(o)), "mini odj", F.odj.has(o), `data-odj="${esc(o)}"`)).join("")}
+      <span class="sl-lbl">${t("aktivnost")}</span>
+      ${akt.map(a => chip(esc(tAkt(a)), "mini akt", F.akt.has(a), `data-akt="${esc(a)}"`)).join("")}
     </div>`;
 
   $$("#slicers .chip").forEach(ch => ch.addEventListener("click", () => {
     if (ch.dataset.st) { const v = ch.dataset.st; F.st.has(v) ? F.st.delete(v) : F.st.add(v); }
-    else if (ch.dataset.odj) { const v = ch.dataset.odj; F.odj.has(v) ? F.odj.delete(v) : F.odj.add(v); }
+    else if (ch.dataset.akt) { const v = ch.dataset.akt; F.akt.has(v) ? F.akt.delete(v) : F.akt.add(v); }
     else if (ch.dataset.esk) F.esk = !F.esk;
     else if (ch.dataset.late) F.kasni = !F.kasni;
     renderAll();
@@ -1316,12 +1322,12 @@ function renderTimeline(keepScroll) {
   for (const dp of sortedDps()) {
     if (!dpFilterOk(dp)) continue;
     const tasks = sortTasks(DATA.tasks.filter(t => t.dp_id === dp.id)
-      .filter(t => !F.odj.size || F.odj.has(t.odjel)));
+      .filter(t => !F.akt.size || F.akt.has(t.aktivnost)));
     const rows = tasks.filter(t => {
       if (!segFilterOn) return true;
       return (segsByTask[t.id] || []).some(segMatch);
     });
-    if (!rows.length && (segFilterOn || F.odj.size)) continue;
+    if (!rows.length && (segFilterOn || F.akt.size)) continue;
 
     const dpTasks = DATA.tasks.filter(x => x.dp_id === dp.id);
     const allSegs = dpTasks.flatMap(x => segsByTask[x.id] || []);
@@ -1442,7 +1448,7 @@ function renderTimeline(keepScroll) {
   /* POP bez ijednog DP-a -> "čeka DP" red: vidljiv ODMAH po kreiranju POP-a,
      i bez ijednog filtera. Sakriva se samo kad je aktivan filter koji POP bez
      termina ne može zadovoljiti (status/kasni/datum/odjel ili konkretan DP). */
-  if (!segFilterOn && !F.odj.size && !F.dp.size && !dpNumActive()) {
+  if (!segFilterOn && !F.akt.size && !F.dp.size && !dpNumActive()) {
     const dpPopIds = new Set(DATA.dps.map(d => d.pop_id).filter(Boolean));
     const ns = projNameSet();
     for (const p of DATA.pops.filter(pp => !dpPopIds.has(pp.id))) {
@@ -2351,29 +2357,31 @@ function renderStats() {
       },
       plugins: { legend: { position: "bottom" } } } });
 
-  const odj = [...new Set(DATA.tasks.map(t => t.odjel).filter(Boolean))];
-  const byOdj = st => odj.map(o => segs.filter(s => {
+  /* graf grupiše po AKTIVNOSTI (isto što korisnik vidi u redovima i u filteru), ne po odjelu */
+  const akt = [...new Set([...AKTIVNOSTI, ...DATA.tasks.map(t => t.aktivnost).filter(Boolean)])]
+    .filter(a => DATA.tasks.some(t => t.aktivnost === a));
+  const byAkt = st => akt.map(a => segs.filter(s => {
     const t = taskOf(s);
-    return t && t.odjel === o &&
+    return t && t.aktivnost === a &&
       (st === "završeno" ? s.status === "završeno" : s.status !== "završeno");
   }).length);
   C("#chOdjel", { type: "bar",
     data: {
-      labels: odj.map(tOdjel),
+      labels: akt.map(tAkt),
       datasets: [
-        { label: stT("završeno"), data: byOdj("završeno"), backgroundColor: "#10b981", borderRadius: 4, borderWidth: 0 },
-        { label: stT("otvoreno"), data: byOdj("otvoreno"), backgroundColor: "#ef4444", borderRadius: 4, borderWidth: 0 }] },
+        { label: stT("završeno"), data: byAkt("završeno"), backgroundColor: "#10b981", borderRadius: 4, borderWidth: 0 },
+        { label: stT("otvoreno"), data: byAkt("otvoreno"), backgroundColor: "#ef4444", borderRadius: 4, borderWidth: 0 }] },
     plugins: [odjCountPlugin],
     options: {
-      indexAxis: "y",                 // horizontalne trake: odjel lijevo, traka slijeva nadesno
+      indexAxis: "y",                 // horizontalne trake: aktivnost lijevo, traka slijeva nadesno
       maintainAspectRatio: false,
       onHover: chartCursor,
       onClick: (e, els) => {
         if (!els.length) return;
-        const o = odj[els[0].index];
-        F.odj.has(o) ? F.odj.delete(o) : F.odj.add(o);
+        const a = akt[els[0].index];
+        F.akt.has(a) ? F.akt.delete(a) : F.akt.add(a);
         renderAll();
-        flashSegs(s => { const t = taskOf(s); return t && t.odjel === o; });
+        flashSegs(s => { const t = taskOf(s); return t && t.aktivnost === a; });
       },
       scales: {
         x: { stacked: true, beginAtZero: true,
@@ -2764,7 +2772,7 @@ function fillProjFilter(projekt) {
 }
 /* poslije kreiranja: filtriraj tabelu SAMO na novi POP/DP (lakša koncentracija) */
 function focusNew({ dpId, popNaziv, projekt }) {
-  F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear();
+  F.dp.clear(); F.pop.clear(); F.st.clear(); F.akt.clear();
   F.esk = false; F.kasni = false; F.dOd = F.dDo = "";
   clearDate("fDateOd"); clearDate("fDateDo");
   PROJ.name = PROJ.kunde = PROJ.code = PROJ.pm = "";
@@ -3578,7 +3586,7 @@ function clearDate(id) {
 /* ✕ Očisti = poništi SVE filtere odjednom */
 $("#pfClear").addEventListener("click", () => {
   PROJ.kunde = PROJ.code = PROJ.name = PROJ.pm = "";
-  F.dp.clear(); F.pop.clear(); F.st.clear(); F.odj.clear(); F.esk = false; F.kasni = false;
+  F.dp.clear(); F.pop.clear(); F.st.clear(); F.akt.clear(); F.esk = false; F.kasni = false;
   F.dOd = F.dDo = ""; clearDate("fDateOd"); clearDate("fDateDo");
   F.hpMin = F.hpMax = F.haMin = F.haMax = "";
   ["fHpMin", "fHpMax", "fHaMin", "fHaMax"].forEach(id => setNum(id, ""));
