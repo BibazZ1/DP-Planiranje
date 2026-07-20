@@ -19,6 +19,7 @@ load_dotenv()  # lokalni razvoj; u Dockeru varijable stižu kroz compose env_fil
 
 from flask import Flask, g, jsonify, request, render_template, send_file, session
 
+import psycopg2.extras
 import database
 from database import db, now_iso
 from auth import (auth_bp, login_required, api_login_required,
@@ -244,18 +245,44 @@ def sync_projects_from_azure():
         # po-dan razrez (puna zamjena svaki sync) -> Datum od/do filter može sumirati raspon;
         # odvojen commit + try da greška ovdje ne poništi gornji (projektni) sync
         if daily_err is None:
+            # 🔒⚡ PERF (2026-07-20): gunicorn runs 2 workers, each with its OWN _sync_loop
+            # thread; _sync_lock is a per-PROCESS threading.Lock, so BOTH workers ran the
+            # daily wipe+reinsert concurrently every 30 min. Worker B's "DELETE FROM
+            # project_daily" then waited ~50s behind worker A's still-open transaction —
+            # measured as mean 51.6s × 3000 calls = ~43h of shared-Postgres time, starving
+            # the co-hosted ULAZNE-FAKTURE apps. Two surgical fixes, SAME data / SAME 30-min
+            # freshness (zero staleness), and NO TRUNCATE (keeps MVCC — readers of the totals
+            # endpoint are never blocked, and avoids the owner-only TRUNCATE privilege):
+            #   1. cross-worker advisory lock (mirrors _digest_loop) so only ONE worker does
+            #      the daily wipe per cycle; the sibling skips (its data is identical).
+            #   2. execute_values batch insert — one round-trip per ~1000 rows instead of one
+            #      per row (~51k), shrinking the open-transaction/lock window from ~50s to <1s.
+            got_daily_lock = False
             try:
-                cur.execute("DELETE FROM project_daily")
-                cur.executemany(
-                    "INSERT INTO project_daily(projektname,datum,hp,trasa_m,ha_m,ha_stck,montaza) "
-                    "VALUES(%s,%s,%s,%s,%s,%s,%s)",
-                    [(d[0].strip(), str(d[1] or "")[:10],
-                      float(d[2] or 0), float(d[3] or 0), float(d[4] or 0),
-                      float(d[5] or 0), float(d[6] or 0)) for d in daily])
-                con.commit()
+                cur.execute("SELECT pg_try_advisory_lock(727274003)")  # distinct from digest 727274002
+                got_daily_lock = bool(cur.fetchone()[0])
+                if got_daily_lock:
+                    cur.execute("DELETE FROM project_daily")
+                    psycopg2.extras.execute_values(
+                        cur,
+                        "INSERT INTO project_daily"
+                        "(projektname,datum,hp,trasa_m,ha_m,ha_stck,montaza) VALUES %s",
+                        [(d[0].strip(), str(d[1] or "")[:10],
+                          float(d[2] or 0), float(d[3] or 0), float(d[4] or 0),
+                          float(d[5] or 0), float(d[6] or 0)) for d in daily],
+                        page_size=1000)
+                    con.commit()
+                # else: a sibling worker holds the lock and is doing the daily sync this
+                # cycle — skip it (both workers pulled the same Azure snapshot; data identical).
             except Exception as de:
                 con.rollback()
                 daily_err = str(de)
+            finally:
+                if got_daily_lock:
+                    try:
+                        cur.execute("SELECT pg_advisory_unlock(727274003)")
+                    except Exception:
+                        pass  # con.close() below ends the session, releasing it regardless
         con.close()
         _sync_state.update(status="ok", time=now, count=len(rows), daily_error=daily_err)
     except Exception as e:
