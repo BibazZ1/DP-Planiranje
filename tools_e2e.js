@@ -353,6 +353,25 @@ function ok(name, cond, extra = "") {
     await page.waitForTimeout(60);
     return tr.locator(".tl-track").boundingBox();
   };
+  /* px offset u .tl-track za dan "danas + n". Offseti za BUDUĆE crtanje se MORAJU računati:
+     "danas" putuje kroz godinu, a PX zavisi od viewporta — hardkodirani px su s vremenom
+     pali u prošlost, pa je app (ispravno) tražio kasni-razlog i termin se nije kreirao.
+     Pretpostavka: u tekućoj godini ima još ~50 dana (inače treba prebaciti #yearSel). */
+  const pxDay = () => page.evaluate(() => PX);   // px/dan zavisi od viewporta i zooma
+  /* px offset prvog BUDUĆEG praznog mjesta u redu (span dana). mousedown na postojećoj traci
+     je interakcija s njom, ne crtanje — pa slobodan prozor tražimo, ne pretpostavljamo. */
+  const freeFutX = (rowText, span) => page.evaluate(([txt, sp]) => {
+    const row = [...document.querySelectorAll(".tl-row[data-task]")].find(r => r.innerText.includes(txt));
+    if (!row) return null;
+    const segs = [...row.querySelectorAll(".tl-track .seg")].map(s => {
+      const l = parseFloat(s.style.left) || 0, w = parseFloat(s.style.width) || 0;
+      return [l / PX, (l + w) / PX];
+    });
+    const t0 = dayIdx(todayIso()) + 5, last = daysInYear() - 2;
+    for (let d = t0; d + sp <= last; d++)
+      if (segs.every(([a, b]) => d + sp + 1 < a || d - 1 > b)) return d * PX;
+    return null;
+  }, [rowText, span]);
 
   // (a) crtanje -> PITA otvoren/završen; Otkaži = ništa se ne kreira
   let bA = await rowBox("Asfaltiranje");
@@ -406,8 +425,10 @@ function ok(name, cond, extra = "") {
   // (c) crtanje POSLIJE danas -> izaberi otvoren -> odmah kreira (bez razloga)
   const bM = await rowBox("Montaža");
   const yM = bM.y + bM.height / 2;
-  await page.mouse.move(bM.x + 660, yM); await page.mouse.down();
-  await page.mouse.move(bM.x + 740, yM, { steps: 4 }); await page.mouse.up();
+  const pdM = await pxDay(), xM = await freeFutX("Montaža", 15);
+  ok("crtanje: nađen budući prazan prozor (Montaža)", xM != null, `(${xM})`);
+  await page.mouse.move(bM.x + xM, yM); await page.mouse.down();
+  await page.mouse.move(bM.x + xM + 15 * pdM, yM, { steps: 4 }); await page.mouse.up();
   await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
   await page.click("#daOpen");   // otvoren
   await page.waitForTimeout(700);
@@ -430,8 +451,10 @@ function ok(name, cond, extra = "") {
   // (d) crtanje je PO DANU: kratak povlak < 7 dana (otvoren u budućnosti)
   const bH = await rowBox("Horizontalno");
   const yH = bH.y + bH.height / 2;
-  await page.mouse.move(bH.x + 700, yH); await page.mouse.down();
-  await page.mouse.move(bH.x + 712, yH, { steps: 3 }); await page.mouse.up();
+  const pdH = await pxDay(), xH = await freeFutX("Horizontalno", 3);
+  ok("crtanje: nađen budući prazan prozor (Horizontalno)", xH != null, `(${xH})`);
+  await page.mouse.move(bH.x + xH, yH); await page.mouse.down();
+  await page.mouse.move(bH.x + xH + 3 * pdH, yH, { steps: 3 }); await page.mouse.up();
   await page.waitForSelector("#drawAsk:not(.hidden)", { timeout: 5000 });
   await page.click("#daOpen");
   await page.waitForTimeout(700);
@@ -1254,7 +1277,9 @@ function ok(name, cond, extra = "") {
   const fcD = await (await page.request.get(BASE + "/api/data")).json();
   const fcDp = fcD.dps.find(x => x.naziv === "DP FC-T1");
   const fcTk = a => fcD.tasks.find(t => t.dp_id === fcDp.id && a.test(t.aktivnost));
-  const fcMk = (task, od, dod) => page.request.post(BASE + "/api/segments", { data: { task_id: task.id, datum_od: od, datum_do: dod, status: "otvoreno" } });
+  /* kasni_razlog je OBAVEZAN kad fixture pada u prošlost (server to validira) — bez njega
+     POST vrati 400, fixture se tiho ne kreira i test mjeri tuđe podatke */
+  const fcMk = (task, od, dod) => page.request.post(BASE + "/api/segments", { data: { task_id: task.id, datum_od: od, datum_do: dod, status: "otvoreno", kasni_razlog: "fixture" } });
   await fcMk(fcTk(/aktivacij/i), "2026-06-15", "2026-06-25");
   await fcMk(fcTk(/pregled/i), "2026-06-20", "2026-06-25");
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -1263,7 +1288,7 @@ function ok(name, cond, extra = "") {
     (await page.locator("#forecastBody .fc-tbl").count()) === 1 &&
     (await page.locator("#forecastBody .fc-total").count()) === 1 &&
     (await page.locator("#forecastBody .fc-by").count()) === 3 &&
-    (await page.locator("#forecastBody .fc-sum .fc-s").count()) === 3);
+    (await page.locator("#forecastBody .fc-sum .fc-s").count()) === 4);
   ok("prognoza: default grupiranje = Provider (aktivno)", await page.locator('#forecastBody .fc-by[data-by="provider"].on').isVisible());
   ok("prognoza: ima redove (provajder)", (await page.locator("#forecastBody .fc-row").count()) >= 1);
   // inline period (von/bis) na vrhu prognoze pogoni ISTI globalni Datum filter
@@ -1331,6 +1356,65 @@ function ok(name, cond, extra = "") {
   await page.waitForTimeout(300);
   ok("prognoza: Očisti vraća grupiranje na Provider", await page.locator('#forecastBody .fc-by[data-by="provider"].on').isVisible());
 
+  // ---------- 16u. Prognoza: Montaža i Aktivacije razdvojene, prati filter Aktivnost, "~" = procjena ----------
+  // DP-ov HA se dijeli na Montažu i Aktivacije (planAlloc), pa kolona "Aktivacije" ne smije
+  // sadržavati Montažu — inače broj ne znači ono što mu piše u zaglavlju.
+  {
+    const spProj = "[NORD CLUSTER 1] WANDLITZ [IP]";
+    await page.request.post(BASE + "/api/pops", { data: { projekt: spProj, naziv: "POP FC-SPLIT", rfa: "2027-06-01" } });
+    await page.request.post(BASE + "/api/dps", { data: { pop: "POP FC-SPLIT", projekt: spProj, naziv: "DP FC-S1", hp: 10, ha: 12 } });
+    const spD = await (await page.request.get(BASE + "/api/data")).json();
+    const spDp = spD.dps.find(x => x.naziv === "DP FC-S1");
+    const spTk = a => spD.tasks.find(t => t.dp_id === spDp.id && a.test(t.aktivnost));
+    // Montaža 10 dana + Aktivacije 10 dana -> HA 12 se dijeli 6 / 6 (linearno po dužini)
+    await page.request.post(BASE + "/api/segments", { data: { task_id: spTk(/montaž/i).id, datum_od: "2026-09-01", datum_do: "2026-09-10", status: "otvoreno", kasni_razlog: "fixture" } });
+    await page.request.post(BASE + "/api/segments", { data: { task_id: spTk(/aktivacij/i).id, datum_od: "2026-09-11", datum_do: "2026-09-20", status: "otvoreno", kasni_razlog: "fixture" } });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#forecastBody .fc-tbl", { timeout: 10000 });
+    ok("prognoza: 5 kolona — Pregledi / HP / Montaža / Aktivacije",
+      (await page.locator("#forecastBody .fc-tbl thead th").count()) === 5 &&
+      (await page.locator('#forecastBody th[data-sort="mo"]').count()) === 1 &&
+      (await page.locator('#forecastBody th[data-sort="ak"]').count()) === 1);
+    // suzi na ovaj POP + septembar -> UKUPNO red je samo ovaj DP, pa su brojevi provjerljivi
+    const spSet = akt => page.evaluate(a => {
+      document.querySelector("#fDateOd")._flatpickr.setDate("2026-09-01", true);
+      document.querySelector("#fDateDo")._flatpickr.setDate("2026-09-30", true);
+      F.pop = new Set(["POP FC-SPLIT"]); F.akt = new Set(a); renderAll();
+    }, akt);
+    const spTot = async () => {
+      const td = page.locator("#forecastBody .fc-total td");
+      if (!(await td.count())) return { mo: 0, ak: 0 };
+      const n = async i => +((await td.nth(i).innerText()) || "0").replace(/\D/g, "");
+      return { mo: await n(3), ak: await n(4) };
+    };
+    await spSet([]);
+    await page.waitForTimeout(500);
+    const spAll = await spTot();
+    ok("prognoza: HA 12 podijeljen 6 Montaža / 6 Aktivacije (Montaža NIJE u Aktivacijama)",
+      spAll.mo === 6 && spAll.ak === 6, JSON.stringify(spAll));
+    // filter Aktivnost = Aktivacije -> Montaža ispada iz zbira (panel se poklapa s redovima)
+    await spSet(["Aktivacije"]);
+    await page.waitForTimeout(500);
+    const spAkt = await spTot();
+    ok("prognoza: prati filter Aktivnost (samo Aktivacije -> Montaža = 0)",
+      spAkt.mo === 0 && spAkt.ak === 6, JSON.stringify(spAkt));
+    // raspon aktivan -> brojevi su razmjereni po danima = procjena: "~" + tooltip
+    const spEst = await page.evaluate(() => {
+      const h = document.querySelector('#forecastBody th[data-sort="ak"]');
+      return { txt: h ? h.innerText : "", tip: h ? h.getAttribute("title") || "" : "" };
+    });
+    ok("prognoza: kolona Aktivacije označena kao procjena (~ + tooltip)",
+      spEst.txt.includes("~") && spEst.tip.length > 0, JSON.stringify(spEst));
+    await page.click("#pfClear").catch(() => {});
+    await page.waitForTimeout(400);
+    const spNoRange = await page.evaluate(() => {
+      const h = document.querySelector('#forecastBody th[data-sort="ak"]');
+      return { txt: h ? h.innerText : "", tip: h ? h.getAttribute("title") : null };
+    });
+    ok("prognoza: bez raspona nema ~ (puni plan, ne procjena)",
+      !spNoRange.txt.includes("~") && !spNoRange.tip, JSON.stringify(spNoRange));
+  }
+
   // ---------- 16t. panel HP/HA: udio AKTIVNOSTI na hover, UKUPNO DP inače ----------
   {
     const projSh = "[NORD CLUSTER 1] WANDLITZ [IP]";
@@ -1342,8 +1426,9 @@ function ok(name, cond, extra = "") {
     const mon = shDp && dSh.tasks.find(t => t.dp_id === shDp.id && /montaž/i.test(t.aktivnost));    // HA-faza
     ok("HP/HA udio: DP + HP/HA aktivnost (preduslov)", !!asf && !!mon);
     if (asf && mon) {
-      await page.request.post(BASE + "/api/segments", { data: { task_id: asf.id, datum_od: "2026-07-01", datum_do: "2026-07-20", status: "otvoreno" } });
-      await page.request.post(BASE + "/api/segments", { data: { task_id: mon.id, datum_od: "2026-08-01", datum_do: "2026-08-15", status: "otvoreno" } });
+      // kasni_razlog: fixture datumi su fiksni pa s vremenom padnu u prošlost -> bez razloga 400
+      await page.request.post(BASE + "/api/segments", { data: { task_id: asf.id, datum_od: "2026-07-01", datum_do: "2026-07-20", status: "otvoreno", kasni_razlog: "fixture" } });
+      await page.request.post(BASE + "/api/segments", { data: { task_id: mon.id, datum_od: "2026-08-01", datum_do: "2026-08-15", status: "otvoreno", kasni_razlog: "fixture" } });
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.waitForSelector(".tl-row[data-task]", { timeout: 10000 });
       await page.click("#pfClear").catch(() => {});
