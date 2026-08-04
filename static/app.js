@@ -91,8 +91,9 @@ const I18N = {
     planTitle: "Raspodjela plana", planAuto: "auto", planRucno: "ručno",
     planEst: "raspoređeno po planu (procjena)", planHint: "prazno = auto (linearno po terminima)",
     forecastTitle: "Prognoza", fcProvProj: "Provajder / Projekat", fcHausbeg: "Pregledi",
-    fcAkt: "Aktivacije", fcTotal: "UKUPNO", fcAll: "ukupan plan (bez raspona)",
-    fcNoData: "nema planiranih količina za izabrani raspon", fcHint: "planirano u rasponu Datum od/do (procjena po planu)",
+    fcAkt: "Aktivacije", fcMont: "Montaža", fcTotal: "UKUPNO", fcAll: "ukupan plan (bez raspona)",
+    fcNoData: "nema planiranih količina za izabrani raspon",
+    fcHint: "planirano u rasponu Datum od/do (procjena po planu) · prati filter Aktivnost",
     fcByProvider: "Provajder", fcByProject: "Projekat", fcDrillTip: "klik = filtriraj na ovo (i spusti nivo)",
     fcPeriod: "Razdoblje", fcClearPeriod: "Očisti razdoblje (cijeli plan)",
     aktKlikTip: "klik = promijeni status / nacrtaj termin",
@@ -207,8 +208,9 @@ const I18N = {
     planTitle: "Plan allocation", planAuto: "auto", planRucno: "manual",
     planEst: "distributed per plan (estimate)", planHint: "empty = auto (linear over termini)",
     forecastTitle: "Forecast", fcProvProj: "Provider / Project", fcHausbeg: "Home visits",
-    fcAkt: "Activations", fcTotal: "TOTAL", fcAll: "total plan (no range)",
-    fcNoData: "no planned quantities for the selected range", fcHint: "planned within the Date from/to range (plan-based estimate)",
+    fcAkt: "Activations", fcMont: "Assembly", fcTotal: "TOTAL", fcAll: "total plan (no range)",
+    fcNoData: "no planned quantities for the selected range",
+    fcHint: "planned within the Date from/to range (plan-based estimate) · follows the Activity filter",
     fcByProvider: "Provider", fcByProject: "Project", fcDrillTip: "click = filter to this (drill down)",
     fcPeriod: "Period", fcClearPeriod: "Clear period (whole plan)",
     aktKlikTip: "click = toggle status / draw dates",
@@ -323,8 +325,9 @@ const I18N = {
     planTitle: "Planverteilung", planAuto: "auto", planRucno: "manuell",
     planEst: "nach Plan verteilt (Schätzung)", planHint: "leer = auto (linear über Termine)",
     forecastTitle: "Prognose", fcProvProj: "Provider / Projekt", fcHausbeg: "Hausbegehungen",
-    fcAkt: "Aktivierungen", fcTotal: "GESAMT", fcAll: "Gesamtplan (ohne Zeitraum)",
-    fcNoData: "keine geplanten Mengen für den gewählten Zeitraum", fcHint: "geplant im Zeitraum Datum von/bis (Schätzung nach Plan)",
+    fcAkt: "Aktivierungen", fcMont: "Montage", fcTotal: "GESAMT", fcAll: "Gesamtplan (ohne Zeitraum)",
+    fcNoData: "keine geplanten Mengen für den gewählten Zeitraum",
+    fcHint: "geplant im Zeitraum Datum von/bis (Schätzung nach Plan) · folgt dem Aktivität-Filter",
     fcByProvider: "Provider", fcByProject: "Projekt", fcDrillTip: "Klick = darauf filtern (Ebene tiefer)",
     fcPeriod: "Zeitraum", fcClearPeriod: "Zeitraum löschen (gesamter Plan)",
     aktKlikTip: "Klick = Status wechseln / Termin zeichnen",
@@ -949,23 +952,51 @@ function plannedInWindow(dpId, ha, od, do_, fc) {
   }
   return sum;
 }
+/* aktivnost prolazi kroz filter Aktivnost (prazan filter = sve aktivnosti) */
+function aktFltOk(name) { return !F.akt.size || F.akt.has(name); }
 /* "home visit" = Hausbegehung = aktivnost "Pregled objekata"; planirana u prozoru ako joj
    bar jedna traka pada u [od,do] */
 function dpSurveyInWindow(dpId, od, do_, fc) {
   if (fc) {
     if (!fc.surveyDpIds.has(dpId)) return false;
     return (fc.tasksByDp.get(dpId) || []).some(t => /pregled|begehung/i.test(t.aktivnost) &&
-      (fc.segsByTask.get(t.id) || []).some(s => overlapFrac(s, od, do_) > 0));
+      aktFltOk(t.aktivnost) && (fc.segsByTask.get(t.id) || []).some(s => overlapFrac(s, od, do_) > 0));
   }
-  const ids = new Set(DATA.tasks.filter(t => t.dp_id === dpId && /pregled|begehung/i.test(t.aktivnost)).map(t => t.id));
+  const ids = new Set(DATA.tasks.filter(t => t.dp_id === dpId && /pregled|begehung/i.test(t.aktivnost)
+    && aktFltOk(t.aktivnost)).map(t => t.id));
   if (!ids.size) return false;
   return DATA.segments.some(s => ids.has(s.task_id) && overlapFrac(s, od, do_) > 0);
 }
-/* ---------- Prognoza: planirano (Hausbegehungen / HP / Aktivacije) u rasponu Datum od/do.
-   Grupiranje po provajderu / projektu / POP-u; sortiranje; klik na red = drill-down filter
-   (provajder -> njegovi projekti -> njegovi POP-ovi). Poštuje OPSEŽNE filtere
-   (Kunde/Projekt/PM/POP/DP + HP/HA raspon) i Datum prozor; ne ovisi o statusu/odjelu
-   (prognoza je o PLANU, ne o trenutnom statusu termina). ---------- */
+/* Prognoza po DP-u: planirano u prozoru [od,do], RAZDVOJENO po fazama —
+   hp = HP-faza (gradnja), mo = Montaža, ak = Aktivacije. Montaža i Aktivacije dijele
+   DP-ov HA (planAlloc), pa ih moramo prikazati odvojeno: inače Montaža u prozoru "pojede"
+   dio kolone Aktivacije i broj ne znači ono što mu piše u zaglavlju.
+   Raspodjela ide preko SVIH termina faze (plan je plan), a filter Aktivnost odlučuje samo
+   koje trake ULAZE u zbir — tako se panel poklapa s redovima ispod. */
+function fcPlanned(dpId, od, do_, fc) {
+  const out = { hp: 0, mo: 0, ak: 0 };
+  for (const ha of [false, true]) {
+    for (const [segId, qty] of planAlloc(dpId, ha, fc)) {
+      const s = fc ? fc.segById.get(segId) : DATA.segments.find(x => x.id === segId);
+      if (!s) continue;
+      const tk = fc ? fc.taskById.get(s.task_id) : DATA.tasks.find(t => t.id === s.task_id);
+      if (!aktFltOk(tk ? tk.aktivnost : null)) continue;
+      const v = qty * overlapFrac(s, od, do_);
+      if (!ha) out.hp += v;
+      else if (/aktiv/i.test(`${tk ? tk.aktivnost : ""} ${tk ? tk.odjel : ""}`)) out.ak += v;
+      else out.mo += v;
+    }
+  }
+  return out;
+}
+/* ---------- Prognoza: planirano (Hausbegehungen / HP / Montaža / Aktivacije) u rasponu
+   Datum od/do. Grupiranje po provajderu / projektu / POP-u; sortiranje; klik na red =
+   drill-down filter (provajder -> njegovi projekti -> njegovi POP-ovi). Poštuje OPSEŽNE
+   filtere (Kunde/Projekt/PM/POP/DP + HP/HA raspon), Aktivnost i Datum prozor; ne ovisi o
+   statusu (prognoza je o PLANU, ne o trenutnom statusu termina).
+   Brojevi su PROCJENA: DP-ov HP/HA se linearno razmjeri po danima termina, pa se broji samo
+   dio koji pada u prozor -> zato su manji od punih HP/HA s DP-a i ne smiju se zbrajati
+   s njima (zaglavlje nosi "~" i tooltip kad je raspon aktivan). ---------- */
 const FCAST = { by: "provider", sortBy: "hp", dir: -1 };   // by: provider | projekt | pop
 function fcReset() { FCAST.by = "provider"; FCAST.sortBy = "hp"; FCAST.dir = -1; }
 function fcGroupKey(d) {
@@ -1005,25 +1036,31 @@ function renderForecast() {
   }
   for (const s of DATA.segments) { let a = fc.segsByTask.get(s.task_id); if (!a) fc.segsByTask.set(s.task_id, a = []); a.push(s); }
   const groups = new Map();
-  let tSv = 0, tHp = 0, tHa = 0, tNdp = 0;
+  let tSv = 0, tHp = 0, tMo = 0, tAk = 0, tNdp = 0;
   for (const d of scopedDps().filter(dpFilterOk)) {   // poštuje i POP/DP/HP-HA filtere (kao timeline)
-    const hp = Math.round(plannedInWindow(d.id, false, od, do_, fc));
-    const ha = Math.round(plannedInWindow(d.id, true, od, do_, fc));
+    const p = fcPlanned(d.id, od, do_, fc);
+    const hp = Math.round(p.hp), mo = Math.round(p.mo), ak = Math.round(p.ak);
     const sv = dpSurveyInWindow(d.id, od, do_, fc) ? 1 : 0;
-    if (!hp && !ha && !sv) continue;
+    if (!hp && !mo && !ak && !sv) continue;
     const key = fcGroupKey(d);
     let g = groups.get(key);
-    if (!g) { g = { key, sv: 0, hp: 0, ha: 0, ndp: 0 }; groups.set(key, g); }
-    g.sv += sv; g.hp += hp; g.ha += ha; g.ndp += 1;
-    tSv += sv; tHp += hp; tHa += ha; tNdp += 1;
+    if (!g) { g = { key, sv: 0, hp: 0, mo: 0, ak: 0, ndp: 0 }; groups.set(key, g); }
+    g.sv += sv; g.hp += hp; g.mo += mo; g.ak += ak; g.ndp += 1;
+    tSv += sv; tHp += hp; tMo += mo; tAk += ak; tNdp += 1;
   }
+  /* raspon aktivan -> količine su razmjerene po danima = procjena, pa nose "~" i tooltip
+     (Pregledi su 0/1 po DP-u, ne razmjeruju se -> bez "~") */
+  const est = !!(od || do_);
+  const eTip = est ? ` title="${t("planEst")}"` : "";
+  const eSfx = est ? " ~" : "";
   const byBtn = (k, lbl) => `<button class="fc-by${FCAST.by === k ? " on" : ""}" data-by="${k}">${lbl}</button>`;
   const toolbar = `<div class="fc-top">
     <div class="fc-seg">${byBtn("provider", t("fcByProvider"))}${byBtn("projekt", t("fcByProject"))}${byBtn("pop", "POP")}</div>
     <div class="fc-sum">
       <span class="fc-s sv"><b>${fmtNum(tSv)}</b>${t("fcHausbeg")}</span>
-      <span class="fc-s hp"><b>${fmtNum(tHp)}</b>HP</span>
-      <span class="fc-s ha"><b>${fmtNum(tHa)}</b>${t("fcAkt")}</span>
+      <span class="fc-s hp"${eTip}><b>${fmtNum(tHp)}</b>HP${eSfx}</span>
+      <span class="fc-s mo"${eTip}><b>${fmtNum(tMo)}</b>${t("fcMont")}${eSfx}</span>
+      <span class="fc-s ak"${eTip}><b>${fmtNum(tAk)}</b>${t("fcAkt")}${eSfx}</span>
     </div></div>`;
   const wire = () => {
     box.querySelectorAll(".fc-by").forEach(b => b.addEventListener("click", () => { FCAST.by = b.dataset.by; renderForecast(); }));
@@ -1042,21 +1079,22 @@ function renderForecast() {
     (FCAST.sortBy === "name" ? FCAST.dir * cmpStr(a.key, b.key)
       : FCAST.dir * ((a[FCAST.sortBy] || 0) - (b[FCAST.sortBy] || 0))) || cmpStr(a.key, b.key));
   const arrow = c => FCAST.sortBy === c ? ` <i class="fc-arr${FCAST.dir < 0 ? "" : " up"}">▾</i>` : "";
-  const th = (c, lbl, cls = "") => `<th class="fc-sortable ${cls}" data-sort="${c}">${lbl}${arrow(c)}</th>`;
+  const th = (c, lbl, cls = "", tip = "") => `<th class="fc-sortable ${cls}" data-sort="${c}"${tip}>${lbl}${arrow(c)}</th>`;
   const levelLbl = FCAST.by === "provider" ? t("fcByProvider") : FCAST.by === "pop" ? "POP" : t("fcByProject");
   const drillable = g => g.key !== "—" && (FCAST.by !== "projekt" || PROJ.rows.some(p => p.projektname === g.key));
   const body = rows.map(g => {
     const dr = drillable(g);
     return `<tr class="fc-row${dr ? " fc-clickable" : ""}"${dr ? ` data-drill="${esc(g.key)}" tabindex="0" title="${t("fcDrillTip")}"` : ""}>
       <td><span class="fc-name">${esc(g.key)}</span> <i class="fc-ndp">${g.ndp} DP</i>${dr ? '<i class="fc-go">→</i>' : ""}</td>
-      <td>${fmtNum(g.sv)}</td><td>${fmtNum(g.hp)}</td><td>${fmtNum(g.ha)}</td></tr>`;
+      <td>${fmtNum(g.sv)}</td><td>${fmtNum(g.hp)}</td><td>${fmtNum(g.mo)}</td><td>${fmtNum(g.ak)}</td></tr>`;
   }).join("");
   box.innerHTML = toolbar + `<div class="fc-hint">${t("fcHint")}</div>
     <div class="fc-scroll"><table class="fc-tbl">
-      <thead><tr>${th("name", levelLbl)}${th("sv", t("fcHausbeg"), "num")}${th("hp", "HP", "num")}${th("ha", t("fcAkt"), "num")}</tr></thead>
+      <thead><tr>${th("name", levelLbl)}${th("sv", t("fcHausbeg"), "num")}${th("hp", "HP" + eSfx, "num", eTip)}${
+        th("mo", t("fcMont") + eSfx, "num", eTip)}${th("ak", t("fcAkt") + eSfx, "num", eTip)}</tr></thead>
       <tbody>${body}
         <tr class="fc-total"><td>${t("fcTotal")} <i class="fc-ndp">${tNdp} DP</i></td>
-          <td>${fmtNum(tSv)}</td><td>${fmtNum(tHp)}</td><td>${fmtNum(tHa)}</td></tr>
+          <td>${fmtNum(tSv)}</td><td>${fmtNum(tHp)}</td><td>${fmtNum(tMo)}</td><td>${fmtNum(tAk)}</td></tr>
       </tbody>
     </table></div>`;
   wire();

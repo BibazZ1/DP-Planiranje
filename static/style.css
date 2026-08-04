@@ -1091,7 +1091,8 @@ span.flatpickr-weekday{color:#64748b!important}
   padding:2px 9px;font-size:8px;color:var(--mut);text-transform:uppercase;letter-spacing:.8px;
   background:rgba(15,23,42,.4)}
 .fc-s b{font:700 13px var(--mono)}
-.fc-s.sv b{color:#a5b4fc} .fc-s.hp b{color:var(--purple)} .fc-s.ha b{color:var(--teal)}
+.fc-s.sv b{color:#a5b4fc} .fc-s.hp b{color:var(--purple)}
+.fc-s.mo b{color:var(--amber)} .fc-s.ak b{color:var(--teal)}
 .fc-hint{font-size:8.5px;color:var(--mut2);margin:0 0 1px;letter-spacing:.2px}
 .fc-empty{font-size:11px;color:var(--mut2);padding:6px 2px}
 .fc-tbl{width:100%;border-collapse:collapse;font-size:11px}
